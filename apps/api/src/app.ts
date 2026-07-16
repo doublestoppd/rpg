@@ -22,6 +22,7 @@ import { createInnService } from './domain/inn/inn-service.js';
 import { createEquipmentService } from './domain/inventory/equipment-service.js';
 import { createInventoryService } from './domain/inventory/inventory-service.js';
 import { createLocationService } from './domain/location/location-service.js';
+import { createMarketplaceService } from './domain/marketplace/marketplace-service.js';
 import { createNpcShopService } from './domain/npc-shop/npc-shop-service.js';
 import { createTravelService } from './domain/travel/travel-service.js';
 import { createTimedStateRunner } from './lib/timed-state.js';
@@ -35,6 +36,7 @@ import { currencyRoutes } from './routes/currency.js';
 import { healthRoutes } from './routes/health.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { locationRoutes } from './routes/locations.js';
+import { marketplaceRoutes } from './routes/marketplace.js';
 import { npcShopRoutes } from './routes/npc-shops.js';
 import { travelRoutes } from './routes/travel.js';
 
@@ -101,7 +103,9 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   const equipmentService = createEquipmentService(prisma, characterService, inventoryService);
   const travelService = createTravelService(prisma, characterService);
   // Registered timed-state finalizers run before location-dependent actions.
-  const timedStateRunner = createTimedStateRunner([travelService.finalizer]);
+  // The array is extended below once later-phase services exist.
+  const timedStateFinalizers = [travelService.finalizer];
+  const timedStateRunner = createTimedStateRunner(timedStateFinalizers);
   const locationService = createLocationService(prisma, characterService, {
     async ensureAtLocation(characterId) {
       await timedStateRunner.finalizeAll(characterId);
@@ -140,7 +144,19 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     characterService,
     inventoryService,
     equipmentService,
+    timedStateRunner,
   });
+  const marketplaceService = createMarketplaceService(
+    prisma,
+    characterService,
+    locationService,
+    currencyService,
+    inventoryService,
+  );
+  timedStateFinalizers.push(
+    marketplaceService.deliveryFinalizer,
+    marketplaceService.listingExpiryFinalizer,
+  );
   const npcShopService = createNpcShopService(
     prisma,
     characterService,
@@ -162,6 +178,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     innService,
   });
   await app.register(npcShopRoutes, { prefix: '/api/v1', npcShopService });
+  await app.register(marketplaceRoutes, { prefix: '/api/v1', marketplaceService });
 
   return app;
 }

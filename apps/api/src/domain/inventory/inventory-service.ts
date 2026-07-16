@@ -69,6 +69,9 @@ export interface InventoryService {
       quantity: number;
       reason: string;
       fromCharacterId?: string | null;
+      /** False when the ownership transfer was already recorded (e.g. at
+       *  remote purchase time, before the delivery placed the goods). */
+      recordTransfer?: boolean;
     },
   ): Promise<void>;
   /** Removes stackable quantity (deleting at zero) with a transfer record. */
@@ -167,15 +170,17 @@ export function createInventoryService(prisma: PrismaClient): InventoryService {
           },
         });
       }
-      await tx.itemTransfer.create({
-        data: {
-          itemDefinitionId: input.itemDefinitionId,
-          quantity: input.quantity,
-          fromCharacterId: input.fromCharacterId ?? null,
-          toCharacterId: input.characterId,
-          reason: input.reason,
-        },
-      });
+      if (input.recordTransfer !== false) {
+        await tx.itemTransfer.create({
+          data: {
+            itemDefinitionId: input.itemDefinitionId,
+            quantity: input.quantity,
+            fromCharacterId: input.fromCharacterId ?? null,
+            toCharacterId: input.characterId,
+            reason: input.reason,
+          },
+        });
+      }
     },
 
     async removeFromStack(tx, input) {

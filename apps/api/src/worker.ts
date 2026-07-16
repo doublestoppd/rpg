@@ -3,34 +3,50 @@
  *
  * Runs pg-boss job consumers. In production this is always a separate process
  * from the API; the API may enqueue jobs but never consumes them (ADR 0007).
- * pg-boss is never the sole authority for timed-state completion (ADR 0004).
- *
- * No job types exist yet — gameplay phases register their own consumers here.
+ * pg-boss is never the sole authority for timed-state completion (ADR 0004):
+ * every job here is a cleanup accelerator for state the lazy request paths
+ * already finalize correctly.
  */
 import { PgBoss } from 'pg-boss';
 
 import { loadEnv } from './config/env.js';
+import { createInventoryService } from './domain/inventory/inventory-service.js';
+import { sweepExpiredListings } from './domain/marketplace/marketplace-service.js';
+import { createPrismaClient } from './lib/prisma.js';
+
+const CLEANUP_QUEUE = 'marketplace-expired-listing-cleanup';
+
+function log(level: string, msg: string, extra: Record<string, unknown> = {}): void {
+  console.log(JSON.stringify({ level, msg, timestamp: new Date().toISOString(), ...extra }));
+}
 
 async function main(): Promise<void> {
   const env = loadEnv();
   const boss = new PgBoss({ connectionString: env.DATABASE_URL });
+  const prisma = createPrismaClient(env);
+  const inventoryService = createInventoryService(prisma);
 
   boss.on('error', (error: unknown) => {
     console.error(JSON.stringify({ level: 'error', msg: 'pg-boss error', err: String(error) }));
   });
 
   await boss.start();
-  console.log(
-    JSON.stringify({
-      level: 'info',
-      msg: 'worker started; no job types registered yet (Phase 1)',
-      timestamp: new Date().toISOString(),
-    }),
-  );
+
+  // Periodic expired-listing cleanup (returns held assets to sellers). The
+  // lazy finalizers on marketplace/inventory views remain the authority.
+  await boss.createQueue(CLEANUP_QUEUE);
+  await boss.schedule(CLEANUP_QUEUE, '*/5 * * * *');
+  await boss.work(CLEANUP_QUEUE, async () => {
+    const finalized = await sweepExpiredListings(prisma, inventoryService, 100);
+    if (finalized > 0) log('info', 'expired listings finalized', { finalized });
+  });
+
+  log('info', 'worker started', { queues: [CLEANUP_QUEUE] });
 
   const shutdown = async (signal: string): Promise<void> => {
-    console.log(JSON.stringify({ level: 'info', msg: 'worker shutting down', signal }));
+    log('info', 'worker shutting down', { signal });
     await boss.stop({ graceful: true });
+    await prisma.$disconnect();
     process.exit(0);
   };
   process.on('SIGTERM', () => void shutdown('SIGTERM'));

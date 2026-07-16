@@ -131,6 +131,10 @@ type AttributeMap = {
 const LEDGER_TYPE_LABELS: Record<string, string> = {
   STARTING_GRANT: 'Starting grant',
   INN_REST: 'Inn rest',
+  NPC_PURCHASE: 'Shop purchase',
+  LISTING_FEE: 'Listing fee',
+  MARKET_PURCHASE: 'Market purchase',
+  MARKET_PROCEEDS: 'Market proceeds',
 };
 
 function LedgerPanel() {

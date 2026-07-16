@@ -3,6 +3,87 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 9 — Player Shops, Listings, Marketplace, Regional Delivery (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **PlayerShop**: one per character (unique constraint), registered to a
+  region (crownfall / northmarch / deepvale — validated against the seeded
+  map), name/description editable via PATCH.
+- **Whole-listing fixed-price commerce**: listings hold either stack goods
+  (quantity moved off the stack onto the listing, transfer reason
+  LISTING_HOLD) or a single instance (lockState LISTED, still seller-owned).
+  Creation requires a marketplace-enabled location (initially only the
+  Market District), charges the listing fee (2% bps, min 1) through the
+  ledger, and creates a capacity reservation guaranteeing safe return.
+  Price bounds: minimum 1 Gold; configurable maximum validated below
+  `Number.MAX_SAFE_INTEGER`.
+- **Expiry semantics**: expired listings are unavailable the moment
+  `expiresAt` passes — purchase returns 409 before any cleanup. Lazy
+  finalization (return goods + release reservation, exactly once via a
+  conditional status flip) runs on marketplace views, inventory views, the
+  seller's location-dependent requests (timed-state finalizer), cancel, and
+  a periodic pg-boss worker sweep (every 5 minutes; never the authority).
+- **Purchases** (marketplace location only, one transaction, listing row
+  lock, idempotent per buyer + key): buyer pays price (+ flat shipping when
+  remote), seller is credited `gross − floor(gross × 500bps / 10000)`; tax
+  and shipping are sinks. Self-purchase rejected. **Local** (listing shop
+  region == buyer's current region): goods placed immediately. **Remote**:
+  ownership transfers to the buyer at purchase — stacks held in
+  DeliveryLine, instances buyer-owned with lockState IN_TRANSIT (unequippable
+  until arrival) — destination capacity reserved at purchase (rejected if
+  impossible), and a timed Delivery converts the reservation into placement
+  exactly once at arrival (lazy on /deliveries and /inventory, race-tested).
+- **Market summary** per item: active listings, cheapest, recent sales,
+  median per-unit price, and volume — "insufficient market history" below
+  five comparable sales.
+- **Browsing from any safe location** (409 in dangerous places); buying and
+  listing only at a marketplace.
+- **Frontend**: Marketplace page (shop create/edit, deliveries with
+  countdown, filters, my-listings view with cancel, buy dialog with remote
+  shipping notice, summary card) and "List for sale" in the inventory item
+  dialog. Marketplace joins the nav.
+
+### Database
+
+Migration `player_shops_marketplace`: `PlayerShop`, `MarketplaceListing`
+(unique seller+key, unique instance, status/expiry indexes),
+`MarketplaceSale` (unique buyer+key, per-item sales index), `Delivery`
+(unique per sale), `DeliveryLine`.
+
+### Endpoints
+
+- `POST /api/v1/player-shops`, `GET/PATCH /api/v1/player-shops/me`,
+  `GET /api/v1/marketplace/regions`
+- `POST/GET /api/v1/marketplace/listings`,
+  `DELETE /api/v1/marketplace/listings/:id`,
+  `POST /api/v1/marketplace/listings/:id/purchase`
+- `GET /api/v1/marketplace/items/:slug/summary`, `GET /api/v1/deliveries`
+
+### Tests
+
+Shop uniqueness/region validation/PATCH, stack listing (held goods, 6-Gold
+fee on 300, live reservation, idempotent replay), instance lock + re-list +
+equip rejection, price bounds + wrong-location, cancel with return + released
+reservation + foreign-cancel 403, immediate expiry unavailability + exactly-
+once concurrent finalization, local purchase with tax rounding (999 → tax 49,
+proceeds 950) + immediate goods + idempotent replay, remote purchase
+(shipping 10, buyer ownership + IN_TRANSIT + unequippable, held reservation,
+exactly-once concurrent arrival), capacity-reservation rejection with nothing
+charged, concurrent buyers (one winner, seller credited once), self-purchase/
+unsafe-browsing/non-marketplace rejections, and summary history thresholds
+(insufficient <5; median 10 and volume 50 after 5 sales). Playwright: a
+two-player journey — seller opens a shop, both travel to the Market
+District, seller lists a draught from inventory, buyer purchases it locally,
+goods arrive instantly, and the seller's ledger shows +24 proceeds.
+
+### Known limitations
+
+- Partial purchases are out of scope by design (whole-listing only).
+- Notifications for sold listings/completed deliveries arrive in Phase 15.
+
 ## Phase 8 — Regional Pricing and NPC Shop Restocks (2026-07-16)
 
 **Status: complete.**

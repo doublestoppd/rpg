@@ -12,11 +12,13 @@ import { z } from 'zod';
 import type { CharacterService } from '../domain/character/character-service.js';
 import type { EquipmentService } from '../domain/inventory/equipment-service.js';
 import type { InventoryService } from '../domain/inventory/inventory-service.js';
+import type { TimedStateRunner } from '../lib/timed-state.js';
 
 interface InventoryRouteOptions {
   characterService: CharacterService;
   inventoryService: InventoryService;
   equipmentService: EquipmentService;
+  timedStateRunner?: TimedStateRunner;
 }
 
 export async function inventoryRoutes(
@@ -38,6 +40,8 @@ export async function inventoryRoutes(
     },
     async (request) => {
       const character = await characterService.requireCharacter(request.currentUser!.id);
+      // Lazily finalize arrived deliveries and expired listings first.
+      await opts.timedStateRunner?.finalizeAll(character.id);
       return inventoryService.getInventoryResponse(character.id);
     },
   );

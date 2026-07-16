@@ -18,6 +18,7 @@ import { TextField } from '../components/ui/TextField';
 import { useToast } from '../components/ui/Toast';
 import { useCharacter } from '../features/character/useCharacter';
 import { useEquip, useInventory } from '../features/inventory/useInventory';
+import { useCreateListing, useMyShop } from '../features/marketplace/useMarketplace';
 import { ApiRequestError } from '../lib/api';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
@@ -56,10 +57,44 @@ export function InventoryPage() {
   const { data: character, isPending: characterPending } = useCharacter();
   const inventory = useInventory(Boolean(character));
   const equipMutation = useEquip();
+  const createListing = useCreateListing();
+  const myShop = useMyShop(Boolean(character));
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ItemCategory | 'ALL'>('ALL');
   const [selected, setSelected] = useState<Selected | null>(null);
+  const [listPrice, setListPrice] = useState('');
+  const [listQuantity, setListQuantity] = useState(1);
+
+  const onList = () => {
+    if (!selected || !/^\d+$/.test(listPrice)) {
+      showToast('Enter a whole-Gold price.', 'error');
+      return;
+    }
+    const input =
+      selected.kind === 'stack'
+        ? {
+            itemSlug: selected.stack.item.slug,
+            quantity: listQuantity,
+            price: listPrice,
+            idempotencyKey: crypto.randomUUID().replaceAll('-', ''),
+          }
+        : {
+            itemInstanceId: selected.instance.id,
+            price: listPrice,
+            idempotencyKey: crypto.randomUUID().replaceAll('-', ''),
+          };
+    createListing.mutate(input, {
+      onSuccess: () => {
+        setSelected(null);
+        setListPrice('');
+        setListQuantity(1);
+        showToast('Listed on the marketplace.', 'success');
+      },
+      onError: (err) =>
+        showToast(err instanceof ApiRequestError ? err.message : 'Listing failed.', 'error'),
+    });
+  };
 
   const filtered = useMemo(() => {
     if (!inventory.data) return { stacks: [], instances: [] };
@@ -207,14 +242,27 @@ export function InventoryPage() {
         }
         onClose={() => setSelected(null)}
         footer={
-          selected?.kind === 'instance' &&
-          selected.instance.item.category === 'EQUIPMENT' &&
-          !selected.instance.equippedSlot &&
-          selected.instance.lockState === 'NONE' ? (
-            <Button onClick={() => onEquip(selected.instance)} disabled={equipMutation.isPending}>
-              Equip
-            </Button>
-          ) : undefined
+          <>
+            {myShop.data &&
+              selected &&
+              (selected.kind === 'stack' ||
+                (!selected.instance.equippedSlot && selected.instance.lockState === 'NONE')) && (
+                <Button variant="secondary" onClick={onList} disabled={createListing.isPending}>
+                  List for sale
+                </Button>
+              )}
+            {selected?.kind === 'instance' &&
+              selected.instance.item.category === 'EQUIPMENT' &&
+              !selected.instance.equippedSlot &&
+              selected.instance.lockState === 'NONE' && (
+                <Button
+                  onClick={() => onEquip(selected.instance)}
+                  disabled={equipMutation.isPending}
+                >
+                  Equip
+                </Button>
+              )}
+          </>
         }
       >
         {selected && (
@@ -238,6 +286,34 @@ export function InventoryPage() {
                 Requires level {selected.instance.item.levelRequirement}.
               </p>
             )}
+            {myShop.data &&
+              (selected.kind === 'stack' ||
+                (!selected.instance.equippedSlot && selected.instance.lockState === 'NONE')) && (
+                <div className="mt-3 space-y-2 border-t border-stone-200 pt-3 dark:border-stone-800">
+                  <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
+                    Sell via {myShop.data.name} (at a marketplace)
+                  </p>
+                  <div className="flex items-end gap-2">
+                    <TextField
+                      label="Price (Gold)"
+                      value={listPrice}
+                      onChange={(e) => setListPrice(e.target.value)}
+                      placeholder="e.g. 50"
+                    />
+                    {selected.kind === 'stack' && (
+                      <TextField
+                        label="Qty"
+                        type="number"
+                        min={1}
+                        max={selected.stack.quantity}
+                        value={listQuantity}
+                        onChange={(e) => setListQuantity(Number(e.target.value) || 1)}
+                        className="w-20"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
         )}
       </Dialog>

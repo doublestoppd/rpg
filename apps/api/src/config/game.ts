@@ -16,6 +16,21 @@ const gameConfigSchema = z.object({
   innRestFeePerLevel: z.bigint().min(0n),
   /** Inventory slots per character (stacks + loose instances + reservations). */
   inventoryCapacity: z.number().int().min(1),
+  /** Marketplace sales tax in basis points: floor(gross * bps / 10000). */
+  marketTaxBps: z.number().int().min(0).max(10_000),
+  /** Listing fee in basis points of the asking price (minimum 1 Gold). */
+  listingFeeBps: z.number().int().min(0).max(10_000),
+  /** Active listing lifetime in whole seconds. */
+  listingDurationSeconds: z.number().int().min(60),
+  /** Maximum listing price; must stay below Number.MAX_SAFE_INTEGER. */
+  maxListingPrice: z
+    .bigint()
+    .min(1n)
+    .refine((v) => v < BigInt(Number.MAX_SAFE_INTEGER), 'below MAX_SAFE_INTEGER'),
+  /** Flat shipping fee for remote marketplace purchases (Gold). */
+  shippingFee: z.bigint().min(0n),
+  /** Remote delivery duration in whole seconds. */
+  deliverySeconds: z.number().int().min(1),
 });
 
 export type GameConfig = z.infer<typeof gameConfigSchema>;
@@ -27,4 +42,10 @@ export const gameConfig: GameConfig = gameConfigSchema.parse({
   innRestBaseFee: 5n,
   innRestFeePerLevel: 2n,
   inventoryCapacity: 24,
+  marketTaxBps: 500,
+  listingFeeBps: 200,
+  listingDurationSeconds: 48 * 3600,
+  maxListingPrice: 1_000_000_000n,
+  shippingFee: 10n,
+  deliverySeconds: 120,
 });

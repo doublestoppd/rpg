@@ -159,6 +159,10 @@ model Character {
   transfersFrom        ItemTransfer[]                 @relation("TransferFrom")
   transfersTo          ItemTransfer[]                 @relation("TransferTo")
   npcPurchases         NpcShopPurchase[]
+  playerShop           PlayerShop?
+  marketListings       MarketplaceListing[]           @relation("ListingSeller")
+  marketPurchases      MarketplaceSale[]              @relation("SaleBuyer")
+  deliveries           Delivery[]                     @relation("DeliveryBuyer")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -333,6 +337,151 @@ model NpcShopPurchase {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 9 — player shops, marketplace, regional delivery
+// ---------------------------------------------------------------------------
+
+/// One shop per character, registered to a region (not a precise location).
+model PlayerShop {
+  id String @id @default(uuid())
+
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  name        String @unique
+  description String
+  region      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listings MarketplaceListing[]
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  CANCELED
+  EXPIRED
+}
+
+/// Whole-listing fixed-price sale. The listed asset is out of active
+/// inventory while ACTIVE: stack quantity is held on the listing itself;
+/// instances stay seller-owned with lockState LISTED. A capacity reservation
+/// guarantees safe return on cancel/expiry. Expired listings are unavailable
+/// the moment expiresAt passes, before any cleanup runs.
+model MarketplaceListing {
+  id String @id @default(uuid())
+
+  shopId String
+  shop   PlayerShop @relation(fields: [shopId], references: [id])
+
+  sellerCharacterId String
+  seller            Character @relation("ListingSeller", fields: [sellerCharacterId], references: [id])
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  /// Set for instance listings (quantity is then 1).
+  itemInstanceId String?       @unique
+  itemInstance   ItemInstance? @relation(fields: [itemInstanceId], references: [id])
+
+  quantity Int
+  /// Whole-listing asking price (BIGINT Gold).
+  price    BigInt
+  feePaid  BigInt
+
+  status      ListingStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  expiresAt   DateTime
+  finalizedAt DateTime?
+
+  returnReservationId String?
+
+  idempotencyKey String
+
+  sale MarketplaceSale?
+
+  @@unique([sellerCharacterId, idempotencyKey])
+  @@index([status, expiresAt])
+  @@index([itemDefinitionId, status])
+  @@index([sellerCharacterId, status])
+}
+
+model MarketplaceSale {
+  id String @id @default(uuid())
+
+  listingId String             @unique
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id])
+
+  buyerCharacterId String
+  buyer            Character @relation("SaleBuyer", fields: [buyerCharacterId], references: [id])
+
+  sellerCharacterId String
+  itemDefinitionId  String
+  quantity          Int
+
+  grossPrice     BigInt
+  tax            BigInt
+  sellerProceeds BigInt
+  shippingFee    BigInt
+
+  remote Boolean
+
+  idempotencyKey String
+  createdAt      DateTime @default(now())
+
+  delivery Delivery?
+
+  @@unique([buyerCharacterId, idempotencyKey])
+  @@index([itemDefinitionId, createdAt])
+}
+
+enum DeliveryStatus {
+  IN_TRANSIT
+  DELIVERED
+}
+
+/// Timed remote delivery. Ownership already belongs to the buyer; goods are
+/// transit-locked (stack quantities in DeliveryLine, instances IN_TRANSIT).
+/// A capacity reservation created at purchase converts into inventory
+/// placement exactly once at completion.
+model Delivery {
+  id String @id @default(uuid())
+
+  saleId String          @unique
+  sale   MarketplaceSale @relation(fields: [saleId], references: [id])
+
+  buyerCharacterId String
+  buyer            Character @relation("DeliveryBuyer", fields: [buyerCharacterId], references: [id])
+
+  status      DeliveryStatus @default(IN_TRANSIT)
+  startedAt   DateTime       @default(now())
+  arrivesAt   DateTime
+  deliveredAt DateTime?
+
+  capacityReservationId String
+
+  lines DeliveryLine[]
+
+  @@index([buyerCharacterId, status])
+}
+
+model DeliveryLine {
+  id String @id @default(uuid())
+
+  deliveryId String
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  quantity       Int
+  itemInstanceId String?
+
+  @@index([deliveryId])
+}
+
+// ---------------------------------------------------------------------------
 // Phase 7 — currency ledger
 // ---------------------------------------------------------------------------
 
@@ -446,6 +595,8 @@ model ItemDefinition {
   instances ItemInstance[]
   transfers ItemTransfer[]
   npcStockEntries NpcShopStockEntry[]
+  marketListings  MarketplaceListing[]
+  deliveryLines   DeliveryLine[]
 }
 
 /// One row per character + stackable item definition.
@@ -491,6 +642,7 @@ model ItemInstance {
 
   equipment EquipmentAssignment?
   transfers ItemTransfer[]
+  listing   MarketplaceListing?
 
   @@index([ownerCharacterId])
 }

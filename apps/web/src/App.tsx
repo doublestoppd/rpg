@@ -9,6 +9,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { LandingPage } from './pages/LandingPage';
 import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
+import { MarketplacePage } from './pages/MarketplacePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ShopPage } from './pages/ShopPage';
 import { TravelPage } from './pages/TravelPage';
@@ -49,6 +50,14 @@ export function App() {
           element={
             <RequireAuth>
               <CharacterCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="marketplace"
+          element={
+            <RequireAuth>
+              <MarketplacePage />
             </RequireAuth>
           }
         />
