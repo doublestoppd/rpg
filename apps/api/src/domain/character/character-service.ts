@@ -104,6 +104,12 @@ export function createCharacterService(prisma: PrismaClient): CharacterService {
       const nameTaken = await prisma.character.findUnique({ where: { name: input.name } });
       if (nameTaken) throw conflict('NAME_TAKEN', 'That character name is taken.');
 
+      // New characters begin at the starting location (Crownfall City).
+      const startingLocation = await prisma.location.findUnique({
+        where: { slug: 'crownfall-city' },
+        select: { id: true },
+      });
+
       try {
         const character = await prisma.character.create({
           data: {
@@ -114,6 +120,7 @@ export function createCharacterService(prisma: PrismaClient): CharacterService {
             currentHp: classDef.baseHp,
             currentMp: classDef.baseMp,
             stamina: classDef.baseStamina,
+            currentLocationId: startingLocation?.id ?? null,
           },
           include: { class: true },
         });

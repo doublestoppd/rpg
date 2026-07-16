@@ -76,6 +76,182 @@ export const CHARACTER_CLASSES = [
 ];
 
 /**
+ * The eight world locations. `slug` is the stable key; regions group
+ * locations for later regional commerce.
+ */
+export const LOCATIONS = [
+  {
+    slug: 'crownfall-city',
+    name: 'Crownfall City',
+    region: 'crownfall',
+    artworkKey: 'crownfall-city',
+    isSafe: true,
+    description:
+      'The old capital, ringed by pale stone walls and crowned by the Fallen Keep. Travelers rest at the Crownfall Inn, and the museum guards the relics of the region.',
+  },
+  {
+    slug: 'crownfall-market-district',
+    name: 'Crownfall Market District',
+    region: 'crownfall',
+    artworkKey: 'crownfall-market-district',
+    isSafe: true,
+    description:
+      'A maze of awnings, stalls, and clanging workshops. The Crownfall Forge burns day and night beside the general goods counters and the great marketplace boards.',
+  },
+  {
+    slug: 'crownfall-harbor',
+    name: 'Crownfall Harbor',
+    region: 'crownfall',
+    artworkKey: 'crownfall-harbor',
+    isSafe: true,
+    description:
+      'Salt wind, creaking piers, and cargo from distant coasts. Harbor folk trade in specialty imports when the ships come in.',
+  },
+  {
+    slug: 'north-road',
+    name: 'North Road',
+    region: 'northmarch',
+    artworkKey: 'north-road',
+    isSafe: false,
+    description:
+      'The rutted trade road out of Crownfall. Merchants move in convoys here — bandits watch the hedgerows for stragglers.',
+  },
+  {
+    slug: 'greenmeadow-village',
+    name: 'Greenmeadow Village',
+    region: 'northmarch',
+    artworkKey: 'greenmeadow-village',
+    isSafe: true,
+    description:
+      'Thatched roofs, herb gardens, and pastures at the crossroads. Food and herbs are plentiful; forged goods must be carted in at a premium.',
+  },
+  {
+    slug: 'ironroot-mine',
+    name: 'Ironroot Mine',
+    region: 'deepvale',
+    artworkKey: 'ironroot-mine',
+    isSafe: false,
+    description:
+      'Timber-braced shafts sunk beneath the Ironroot hills. Copper seams, iron veins, and stranger pockets — and things that skitter in the dark.',
+  },
+  {
+    slug: 'silvermere-lake',
+    name: 'Silvermere Lake',
+    region: 'deepvale',
+    artworkKey: 'silvermere-lake',
+    isSafe: true,
+    description:
+      'A cold, mirror-still lake famed for its silver-scaled fish. Lakefolk sell the morning catch cheap.',
+  },
+  {
+    slug: 'blackwood-forest',
+    name: 'Blackwood Forest',
+    region: 'northmarch',
+    artworkKey: 'blackwood-forest',
+    isSafe: false,
+    description:
+      'Old-growth dark and dense enough to swallow lantern light. Slimes pool in the hollows and wolves keep the paths.',
+  },
+];
+
+/** Local features per location. What a place offers comes from these rows. */
+export const LOCATION_FEATURES = [
+  {
+    locationSlug: 'crownfall-city',
+    type: 'INN',
+    name: 'Crownfall Inn',
+    description: 'Warm beds and hot meals. Rest to restore your strength for a level-scaled fee.',
+    sortOrder: 1,
+  },
+  {
+    locationSlug: 'crownfall-city',
+    type: 'MUSEUM',
+    name: 'Museum of Regional Artifacts',
+    description: 'Curators accept donations of notable artifacts for the permanent collection.',
+    sortOrder: 2,
+  },
+  {
+    locationSlug: 'crownfall-market-district',
+    type: 'NPC_SHOP',
+    name: 'Crownfall General Goods',
+    description: 'Staples, supplies, and sundries — restocked in limited batches.',
+    sortOrder: 1,
+  },
+  {
+    locationSlug: 'crownfall-market-district',
+    type: 'NPC_SHOP',
+    name: 'Crownfall Forge',
+    description: 'Smith-made arms and armor in limited supply.',
+    sortOrder: 2,
+  },
+  {
+    locationSlug: 'crownfall-market-district',
+    type: 'CRAFTING',
+    name: 'Crownfall Forge',
+    description: 'A working forge: smelt ingots and hammer out blades at the anvils.',
+    sortOrder: 3,
+  },
+  {
+    locationSlug: 'crownfall-market-district',
+    type: 'MARKETPLACE',
+    name: 'Grand Marketplace',
+    description: 'The regional trading boards where player shops list their wares.',
+    sortOrder: 4,
+  },
+  {
+    locationSlug: 'north-road',
+    type: 'COMBAT',
+    name: 'Bandit Country',
+    description: 'The hedgerows hide roadside bandits preying on lone travelers.',
+    sortOrder: 1,
+  },
+  {
+    locationSlug: 'ironroot-mine',
+    type: 'GATHERING',
+    name: 'Mining Galleries',
+    description: 'Work the copper seams, iron veins, and crystal pockets.',
+    sortOrder: 1,
+  },
+  {
+    locationSlug: 'ironroot-mine',
+    type: 'COMBAT',
+    name: 'Deep Shafts',
+    description: 'Cave beetles and ember bats nest in the lower galleries.',
+    sortOrder: 2,
+  },
+  {
+    locationSlug: 'blackwood-forest',
+    type: 'COMBAT',
+    name: 'The Dark Paths',
+    description: 'Forest slimes, briar wolves — and something larger that shakes the underbrush.',
+    sortOrder: 1,
+  },
+];
+
+/**
+ * Directed travel routes; bidirectional roads are two records. Gold costs
+ * stay zero until currency charging exists (Phase 8).
+ */
+const ROUTE_PAIRS = [
+  { a: 'crownfall-city', b: 'crownfall-market-district', travelSeconds: 30 },
+  { a: 'crownfall-city', b: 'crownfall-harbor', travelSeconds: 60 },
+  { a: 'crownfall-city', b: 'north-road', travelSeconds: 90 },
+  { a: 'north-road', b: 'greenmeadow-village', travelSeconds: 120 },
+  { a: 'north-road', b: 'blackwood-forest', travelSeconds: 150 },
+  { a: 'greenmeadow-village', b: 'ironroot-mine', travelSeconds: 150 },
+  { a: 'greenmeadow-village', b: 'silvermere-lake', travelSeconds: 120 },
+  { a: 'blackwood-forest', b: 'ironroot-mine', travelSeconds: 180 },
+];
+
+export const TRAVEL_ROUTES = ROUTE_PAIRS.flatMap(({ a, b, travelSeconds }) => [
+  { fromSlug: a, toSlug: b, travelSeconds, goldCost: 0n },
+  { fromSlug: b, toSlug: a, travelSeconds, goldCost: 0n },
+]);
+
+/** New characters begin here. */
+export const STARTING_LOCATION_SLUG = 'crownfall-city';
+
+/**
  * Cumulative XP required to hold each level (level cap = 20).
  * Strictly monotonic; validated at seed time.
  */

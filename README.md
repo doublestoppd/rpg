@@ -8,11 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 3 complete** — one character per
-account with three data-driven classes (Vanguard, Wayfarer, Arcanist), a
-seeded 20-level XP curve with multi-level gains and full restore on level-up,
-lazy timestamp-based stamina regeneration, and character-owned Gold, on top
-of the Phase 2 account/session layer. The world graph arrives in Phase 4.
+for what exists today. **Currently: Phase 4 complete** — the eight-location
+world graph (Crownfall City, Market District, Harbor, North Road, Greenmeadow
+Village, Ironroot Mine, Silvermere Lake, Blackwood Forest) with directed
+routes, a typed local-feature registry (inn, shops, marketplace, gathering,
+crafting, combat, museum), and the current-location gameplay hub page.
+Timed travel arrives in Phase 5.
 
 ## Stack (fixed)
 

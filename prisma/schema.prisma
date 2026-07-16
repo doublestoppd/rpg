@@ -144,6 +144,82 @@ model Character {
   stamina          Int
   staminaUpdatedAt DateTime @default(now())
 
+  /// Characters always occupy one location unless actively traveling.
+  /// Nullable only for lazy backfill of characters created before Phase 4;
+  /// services resolve null to the starting location.
+  currentLocationId String?
+  currentLocation   Location? @relation(fields: [currentLocationId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 — world graph and local features
+// ---------------------------------------------------------------------------
+
+model Location {
+  id     String @id @default(uuid())
+  slug   String @unique
+  name   String @unique
+  /// Broad region grouping (player shops register to a region in Phase 9).
+  region String
+
+  description String
+  /// Frontend static placeholder asset key; no binary assets in the API.
+  artworkKey  String
+  /// Safe locations allow marketplace browsing (Phase 9) and host no combat.
+  isSafe      Boolean
+
+  features    LocationFeature[]
+  routesFrom  TravelRoute[]     @relation("RouteFrom")
+  routesTo    TravelRoute[]     @relation("RouteTo")
+  characters  Character[]
+}
+
+enum LocationFeatureType {
+  INN
+  NPC_SHOP
+  MARKETPLACE
+  GATHERING
+  CRAFTING
+  COMBAT
+  QUEST
+  MUSEUM
+}
+
+/// Typed local-feature registry: what a location offers comes from these
+/// records (or validated seed data), never from frontend conditionals.
+model LocationFeature {
+  id String @id @default(uuid())
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  type        LocationFeatureType
+  name        String
+  description String
+  sortOrder   Int                 @default(0)
+
+  @@unique([locationId, type, name])
+  @@index([locationId])
+}
+
+/// Directed route record; bidirectional travel uses two records.
+model TravelRoute {
+  id String @id @default(uuid())
+
+  fromLocationId String
+  fromLocation   Location @relation("RouteFrom", fields: [fromLocationId], references: [id], onDelete: Cascade)
+
+  toLocationId String
+  toLocation   Location @relation("RouteTo", fields: [toLocationId], references: [id], onDelete: Cascade)
+
+  /// Base travel duration in whole seconds (timed travel starts in Phase 5).
+  travelSeconds Int
+  /// Gold cost; must remain zero until currency charging exists (Phase 8).
+  goldCost      BigInt @default(0)
+
+  @@unique([fromLocationId, toLocationId])
+  @@index([fromLocationId])
 }

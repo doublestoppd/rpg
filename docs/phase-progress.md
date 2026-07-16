@@ -3,6 +3,64 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 4 — World Graph, Locations, and Local Feature Registry (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **Eight seeded locations**: Crownfall City, Crownfall Market District,
+  Crownfall Harbor, North Road, Greenmeadow Village, Ironroot Mine,
+  Silvermere Lake, Blackwood Forest — grouped into regions (crownfall,
+  northmarch, deepvale) with safe/dangerous flags and frontend artwork keys.
+- **Directed route graph**: 16 `TravelRoute` records (8 bidirectional roads,
+  two records each), whole-second durations, Gold cost fixed at 0 until
+  Phase 8. No arbitrary-destination travel: only direct neighbors are ever
+  returned.
+- **Typed local-feature registry** (`LocationFeature`, enum of INN, NPC_SHOP,
+  MARKETPLACE, GATHERING, CRAFTING, COMBAT, QUEST, MUSEUM). Placement per
+  spec: City = INN + MUSEUM; Market District = NPC_SHOP ×2 + MARKETPLACE +
+  CRAFTING; Ironroot Mine = GATHERING + COMBAT; Blackwood Forest = COMBAT;
+  North Road = COMBAT. The **Crownfall Forge is Market District features**
+  (NPC_SHOP + CRAFTING sharing the name), never a location.
+- **Current location on Character**: new characters start in Crownfall City;
+  characters created before the world existed are lazily backfilled there.
+  Feature availability comes from database records, not frontend
+  conditionals.
+- **Frontend location hub** (`/location`): original static artwork
+  placeholder (asset-key driven), description, safe/dangerous badge, feature
+  cards, and a connected-roads list with travel times. Local activities live
+  on this page, not in global navigation. Nav gains only the Location link;
+  unimplemented destinations stay hidden.
+
+### Database
+
+Migration `world_graph_locations`: `Location`, `LocationFeature` (unique
+locationId+type+name), `TravelRoute` (unique from+to, directed), and
+`Character.currentLocationId`. Seed extends idempotently.
+
+### Endpoints
+
+- `GET /api/v1/locations/current`
+- `GET /api/v1/locations/current/features`
+- `GET /api/v1/travel/destinations`
+
+### Tests
+
+Eight-location seed, explicit bidirectional route pairs with zero Gold cost
+and no capital→mine shortcut, required feature placement, Forge-as-feature
+(not location), starting/persistent current location, lazy backfill, feature
+availability endpoint, direct-neighbor destination filtering from two
+different locations. Playwright: register → create character → location hub
+shows Crownfall City artwork, Inn + Museum cards, and exactly the three
+connected roads.
+
+### Known limitations
+
+- Travel cannot be started yet (Phase 5); destination rows are informational.
+- INN/MUSEUM/other feature cards are descriptive only until their owning
+  phases activate actions.
+
 ## Phase 3 — Character, Progression, Recovery, and Starting State (2026-07-16)
 
 **Status: complete.**

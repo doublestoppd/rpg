@@ -6,6 +6,7 @@ import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
 import { CharacterPage } from './pages/CharacterPage';
 import { LandingPage } from './pages/LandingPage';
+import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 
@@ -16,6 +17,14 @@ export function App() {
         <Route index element={<LandingPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+        <Route
+          path="location"
+          element={
+            <RequireAuth>
+              <LocationPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="character"
           element={

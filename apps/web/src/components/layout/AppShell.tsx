@@ -26,6 +26,9 @@ export function AppShell() {
       </NavLink>
       {session ? (
         <>
+          <NavLink to="/location" className={linkClass}>
+            Location
+          </NavLink>
           <NavLink to="/character" className={linkClass}>
             Character
           </NavLink>

@@ -12,4 +12,5 @@ export * from './auth.js';
 export * from './character.js';
 export * from './errors.js';
 export * from './health.js';
+export * from './location.js';
 export * from './settings.js';
