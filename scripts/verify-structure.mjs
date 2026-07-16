@@ -24,8 +24,12 @@ export const REQUIRED_PATHS = [
   'docs/adr/0007-process-model-and-commands.md',
   'docs/phase-progress.md',
   '.nvmrc',
+  '.env.example',
+  'compose.yaml',
   'package.json',
   'package-lock.json',
+  'playwright.config.ts',
+  'prisma/schema.prisma',
   'tsconfig.base.json',
 ];
 

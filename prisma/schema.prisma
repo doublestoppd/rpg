@@ -1,0 +1,14 @@
+// Prisma schema — Fantasy Economy RPG.
+//
+// Phase 1 contains no application models: pg-boss creates and manages its own
+// infrastructure tables in the `pgboss` schema at worker startup, and
+// gameplay tables arrive with their owning phases (see /docs/adr).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

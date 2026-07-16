@@ -8,9 +8,10 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 0 complete** — repository contract,
-monorepo structure, and architecture decisions only. No gameplay, server, or
-UI is implemented yet.
+for what exists today. **Currently: Phase 1 complete** — runnable API with
+health checks and OpenAPI docs, job worker, PostgreSQL/Prisma/pg-boss
+integration, Docker Compose, and a responsive web shell with a neutral
+landing page. No gameplay yet; authentication arrives in Phase 2.
 
 ## Stack (fixed)
 
@@ -39,26 +40,46 @@ tests/            Repository-level tests
 
 ## Getting started
 
-Requires Node.js 22 (see `.nvmrc`).
+Requires Node.js 22 (see `.nvmrc`) and Docker (for PostgreSQL).
 
 ```bash
 npm ci                     # reproducible install from lockfile
-npm run typecheck          # strict TypeScript across all workspaces
-npm test                   # Vitest test suites
-npm run verify:structure   # repository-structure contract check
-npm run format:check       # Prettier
+docker compose up          # PostgreSQL + API dev + worker + web dev
 ```
 
-### Process commands
-
-Production runs two processes (see ADR 0007):
+Then open http://localhost:5173. The web dev server proxies `/api` to the API
+process. Copy `.env.example` to `.env` if running processes without Docker:
 
 ```bash
-npm run start:api          # Fastify API server (implemented in Phase 1)
-npm run start:worker       # pg-boss job worker (implemented in Phase 1)
+npm run dev:api            # API with reload (needs DATABASE_URL)
+npm run dev:worker         # pg-boss worker with reload
+npm run dev:web            # Vite dev server
 ```
 
-Both are placeholders until Phase 1 and exit with an explanatory message.
+### Checks
+
+```bash
+npm run typecheck          # strict TypeScript across all workspaces
+npm test                   # Vitest test suites
+npm run test:e2e           # Playwright against the production web build
+npm run verify:structure   # repository-structure contract check
+npm run format:check       # Prettier
+npm run build              # production builds (shared → api → web)
+```
+
+### Production
+
+Production runs two Node processes plus static web assets (see ADR 0007):
+
+```bash
+npm run build              # emits apps/api/dist and apps/web/dist
+npm run start:api          # Fastify API server
+npm run start:worker       # pg-boss job worker (always a separate process)
+```
+
+`apps/web/dist` is served as static files by any web server or CDN; the Vite
+dev server is never used in production. API docs (documentation only) are at
+`/api/v1/docs`.
 
 ## Conventions that never change
 

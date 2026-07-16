@@ -13,14 +13,21 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run build --workspace packages/shared && npm run typecheck --workspaces --if-present",
+    "pretest": "npm run build --workspace packages/shared",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "verify:structure": "node scripts/verify-structure.mjs",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace packages/shared && npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "db:generate": "prisma generate --schema prisma/schema.prisma",
+    "dev:api": "npm run build --workspace packages/shared && npm run dev --workspace apps/api",
+    "dev:worker": "npm run build --workspace packages/shared && npm run dev:worker --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
     "start:api": "npm run start --workspace apps/api",
     "start:worker": "npm run start:worker --workspace apps/api"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",

@@ -1,0 +1,68 @@
+# Development environment: PostgreSQL, API dev service, web dev service, and
+# the job worker. Requires `npm ci` on the host first (the repo is mounted
+# into the Node containers, matching the host linux platform).
+#
+# Production never uses this file: it runs `npm run start:api` and
+# `npm run start:worker` as separate processes and serves the static web
+# build (see ADR 0007).
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rpg
+      POSTGRES_PASSWORD: rpg
+      POSTGRES_DB: rpg
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rpg -d rpg']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    command: npm run dev --workspace apps/api
+    environment:
+      DATABASE_URL: postgresql://rpg:rpg@postgres:5432/rpg
+      PORT: '3000'
+      HOST: 0.0.0.0
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    command: npm run dev:worker --workspace apps/api
+    environment:
+      DATABASE_URL: postgresql://rpg:rpg@postgres:5432/rpg
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    command: npm run dev --workspace apps/web
+    environment:
+      VITE_API_PROXY_TARGET: http://api:3000
+    ports:
+      - '5173:5173'
+    volumes:
+      - .:/app
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
