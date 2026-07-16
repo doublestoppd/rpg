@@ -29,6 +29,9 @@ export function AppShell() {
           <NavLink to="/location" className={linkClass}>
             Location
           </NavLink>
+          <NavLink to="/travel" className={linkClass}>
+            Travel
+          </NavLink>
           <NavLink to="/character" className={linkClass}>
             Character
           </NavLink>

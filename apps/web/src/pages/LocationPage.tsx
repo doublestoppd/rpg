@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import type { LocationFeatureType } from '@rpg/shared';
 
@@ -13,6 +13,7 @@ import {
   useLocationFeatures,
   useTravelDestinations,
 } from '../features/location/useLocation';
+import { useTravelStatus } from '../features/travel/useTravel';
 
 const FEATURE_TYPE_LABELS: Record<LocationFeatureType, string> = {
   INN: 'Inn',
@@ -38,13 +39,37 @@ function formatTravelTime(seconds: number): string {
  */
 export function LocationPage() {
   const { data: character, isPending: characterPending } = useCharacter();
-  const location = useCurrentLocation(Boolean(character));
-  const features = useLocationFeatures(Boolean(character));
-  const destinations = useTravelDestinations(Boolean(character));
+  const travel = useTravelStatus(Boolean(character));
+  const atLocation = Boolean(character) && travel.data?.active === null;
+  const location = useCurrentLocation(atLocation);
+  const features = useLocationFeatures(atLocation);
+  const destinations = useTravelDestinations(atLocation);
 
   if (characterPending) return <LoadingState label="Finding your bearings…" />;
   if (!character) return <Navigate to="/character/new" replace />;
-  if (location.isPending) return <LoadingState label="Finding your bearings…" />;
+
+  // A traveling character is at neither origin nor destination.
+  if (travel.data?.active) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Card title="You are on the road">
+          <p className="mb-3 text-sm text-stone-600 dark:text-stone-400">
+            Local services are out of reach until you arrive at{' '}
+            {travel.data.active.destination.name}.
+          </p>
+          <Link
+            to="/travel"
+            className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
+          >
+            Check your progress →
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
+  if (travel.isPending || location.isPending)
+    return <LoadingState label="Finding your bearings…" />;
   if (location.isError || !location.data)
     return <ErrorState onRetry={() => void location.refetch()} />;
 

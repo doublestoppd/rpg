@@ -3,6 +3,68 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 5 — Travel State and Shared Timed-State Utility (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **Shared timed-state utility** (`apps/api/src/lib/timed-state.ts`, ADR
+  0004): domains register idempotent finalizers; every location-dependent
+  request runs them lazily before acting. Deliberately tiny — no workflow
+  engine.
+- **Server-authoritative travel**: `TravelState` rows carry origin,
+  destination, route, `startedAt`, `completesAt`, status, and a start
+  idempotency key. The timestamp is the authority — arrival is finalized by
+  any status/location request after `completesAt`, with a conditional update
+  making completion exactly-once under concurrent requests. The worker is
+  never required.
+- **One journey at a time**: a partial unique index
+  (`TravelState_one_in_progress_per_character`, raw SQL in the migration)
+  guarantees at most one IN_PROGRESS travel per character even under races;
+  the API surfaces the conflict as 409 `CURRENTLY_TRAVELING`.
+- **Traveling means nowhere**: `Character.currentLocationId` is null while on
+  the road; `/locations/current`, features, and destinations return 409, and
+  the location page shows an "on the road" notice instead.
+- **Idempotent start**: repeating a start with the same idempotency key
+  returns the existing travel state (unique per character + key); different
+  requests while traveling conflict. Route validation only accepts direct
+  neighbors; unconnected destinations are 400 `NO_ROUTE`. Travel cannot be
+  canceled. Route costs remain zero (creation would charge atomically in the
+  same transaction once Phase 8 activates costs; non-zero costs are rejected
+  until then).
+- **Frontend travel page** (`/travel`): destination list with duration/cost/
+  danger notes and "Set out" buttons (idempotency key generated client-side),
+  live progress bar with countdown, arrival toast, and automatic refresh of
+  location-dependent data. Travel joins the nav.
+
+### Database
+
+Migration `travel_state`: `TravelState` with unique
+(characterId, idempotencyKey), status index, and the partial unique
+IN_PROGRESS index.
+
+### Endpoints
+
+- `POST /api/v1/travel/start`
+- `GET /api/v1/travel/status`
+
+### Tests
+
+Start + progress reporting, unconnected-route rejection, second-travel 409,
+same-key idempotency (single row), local actions blocked while traveling
+(three endpoints), lazy completion via status, **plain location refresh
+finalizes arrival**, exactly-once finalization under three concurrent status
+requests, and chained journeys. All finalization runs with no worker
+involvement. Playwright: real 30-second journey — set out, progress bar,
+blocked location page, then arrival finalized by a page refresh showing the
+Market District hub.
+
+### Known limitations
+
+- pg-boss completion notifications arrive with Phase 15; completion is
+  already fully lazy and correct without them.
+
 ## Phase 4 — World Graph, Locations, and Local Feature Registry (2026-07-16)
 
 **Status: complete.**

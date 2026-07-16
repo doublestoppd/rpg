@@ -8,12 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 4 complete** — the eight-location
-world graph (Crownfall City, Market District, Harbor, North Road, Greenmeadow
-Village, Ironroot Mine, Silvermere Lake, Blackwood Forest) with directed
-routes, a typed local-feature registry (inn, shops, marketplace, gathering,
-crafting, combat, museum), and the current-location gameplay hub page.
-Timed travel arrives in Phase 5.
+for what exists today. **Currently: Phase 5 complete** — server-authoritative
+timed travel across the eight-location world graph, with lazy
+timestamp-based finalization (no worker required), idempotent starts, a
+one-journey-at-a-time database guarantee, and a live travel page. While on
+the road, local actions are unavailable at both ends. Items and inventory
+arrive in Phase 6.
 
 ## Stack (fixed)
 

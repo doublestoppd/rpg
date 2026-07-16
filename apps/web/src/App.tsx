@@ -9,6 +9,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { TravelPage } from './pages/TravelPage';
 
 export function App() {
   return (
@@ -22,6 +23,14 @@ export function App() {
           element={
             <RequireAuth>
               <LocationPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="travel"
+          element={
+            <RequireAuth>
+              <TravelPage />
             </RequireAuth>
           }
         />

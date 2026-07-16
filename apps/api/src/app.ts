@@ -18,6 +18,8 @@ import { createSettingsService } from './domain/account/settings-service.js';
 import { createAuthService } from './domain/auth/auth-service.js';
 import { createCharacterService } from './domain/character/character-service.js';
 import { createLocationService } from './domain/location/location-service.js';
+import { createTravelService } from './domain/travel/travel-service.js';
+import { createTimedStateRunner } from './lib/timed-state.js';
 import { DomainError } from './lib/http-errors.js';
 import { buildLoggerOptions } from './lib/logger.js';
 import { authPlugin } from './plugins/auth-plugin.js';
@@ -26,6 +28,7 @@ import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './routes/characters.js';
 import { healthRoutes } from './routes/health.js';
 import { locationRoutes } from './routes/locations.js';
+import { travelRoutes } from './routes/travel.js';
 
 export interface AppDependencies {
   env: Env;
@@ -85,7 +88,15 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   const authService = createAuthService(prisma);
   const settingsService = createSettingsService(prisma);
   const characterService = createCharacterService(prisma);
-  const locationService = createLocationService(prisma, characterService);
+  const travelService = createTravelService(prisma, characterService);
+  // Registered timed-state finalizers run before location-dependent actions.
+  const timedStateRunner = createTimedStateRunner([travelService.finalizer]);
+  const locationService = createLocationService(prisma, characterService, {
+    async ensureAtLocation(characterId) {
+      await timedStateRunner.finalizeAll(characterId);
+      await travelService.assertNotTraveling(characterId);
+    },
+  });
 
   await app.register(authPlugin, { env, authService });
 
@@ -112,6 +123,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   await app.register(accountRoutes, { prefix: '/api/v1', settingsService });
   await app.register(characterRoutes, { prefix: '/api/v1', characterService });
   await app.register(locationRoutes, { prefix: '/api/v1', locationService });
+  await app.register(travelRoutes, { prefix: '/api/v1', travelService });
 
   return app;
 }

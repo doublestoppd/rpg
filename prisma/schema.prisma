@@ -150,6 +150,8 @@ model Character {
   currentLocationId String?
   currentLocation   Location? @relation(fields: [currentLocationId], references: [id])
 
+  travelStates TravelState[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -205,6 +207,43 @@ model LocationFeature {
   @@index([locationId])
 }
 
+// ---------------------------------------------------------------------------
+// Phase 5 — timed travel
+// ---------------------------------------------------------------------------
+
+enum TravelStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Server-authoritative timed travel. The completesAt timestamp is the
+/// authority (ADR 0004): travel is logically complete the moment it passes,
+/// and every location-dependent request lazily finalizes it. A migration adds
+/// a partial unique index so a character can have at most one IN_PROGRESS row.
+model TravelState {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  routeId String
+  route   TravelRoute @relation(fields: [routeId], references: [id])
+
+  originLocationId      String
+  destinationLocationId String
+
+  startedAt   DateTime     @default(now())
+  completesAt DateTime
+  status      TravelStatus @default(IN_PROGRESS)
+  completedAt DateTime?
+
+  /// Client-supplied start idempotency key; repeats return this state.
+  idempotencyKey String
+
+  @@unique([characterId, idempotencyKey])
+  @@index([characterId, status])
+}
+
 /// Directed route record; bidirectional travel uses two records.
 model TravelRoute {
   id String @id @default(uuid())
@@ -219,6 +258,8 @@ model TravelRoute {
   travelSeconds Int
   /// Gold cost; must remain zero until currency charging exists (Phase 8).
   goldCost      BigInt @default(0)
+
+  travelStates TravelState[]
 
   @@unique([fromLocationId, toLocationId])
   @@index([fromLocationId])

@@ -11,6 +11,17 @@ import type { CharacterService } from '../character/character-service.js';
 
 export const STARTING_LOCATION_SLUG = 'crownfall-city';
 
+/** Location-dependent behavior contributed by the travel domain (Phase 5). */
+export interface LocationTravelGuard {
+  /** Lazily finalizes expired timed states, then rejects if still traveling. */
+  ensureAtLocation(characterId: string): Promise<void>;
+}
+
+/** Default guard for a world without travel (used until wired in app.ts). */
+export const noTravelGuard: LocationTravelGuard = {
+  ensureAtLocation: async () => undefined,
+};
+
 export function toLocationInfo(location: Location): LocationInfo {
   return {
     id: location.id,
@@ -39,12 +50,21 @@ export interface LocationService {
 export function createLocationService(
   prisma: PrismaClient,
   characterService: CharacterService,
+  travelGuard: LocationTravelGuard = noTravelGuard,
 ): LocationService {
   async function resolveCurrentLocation(userId: string): Promise<Location> {
     const character = await characterService.requireCharacter(userId);
-    if (character.currentLocationId) {
+    // Every location-dependent request first lazily finalizes expired travel,
+    // and a traveling character is at neither origin nor destination.
+    await travelGuard.ensureAtLocation(character.id);
+    // Re-read after finalization: arrival may have just been applied.
+    const fresh = await prisma.character.findUniqueOrThrow({
+      where: { id: character.id },
+      select: { currentLocationId: true },
+    });
+    if (fresh.currentLocationId) {
       const location = await prisma.location.findUnique({
-        where: { id: character.currentLocationId },
+        where: { id: fresh.currentLocationId },
       });
       if (location) return location;
     }
