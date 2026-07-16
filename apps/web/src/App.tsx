@@ -3,6 +3,8 @@ import { Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth } from './features/auth/RequireAuth';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
+import { CharacterCreatePage } from './pages/CharacterCreatePage';
+import { CharacterPage } from './pages/CharacterPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -14,6 +16,22 @@ export function App() {
         <Route index element={<LandingPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+        <Route
+          path="character"
+          element={
+            <RequireAuth>
+              <CharacterPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="character/new"
+          element={
+            <RequireAuth>
+              <CharacterCreatePage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="settings"
           element={

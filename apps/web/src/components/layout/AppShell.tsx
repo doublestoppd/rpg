@@ -25,9 +25,14 @@ export function AppShell() {
         Home
       </NavLink>
       {session ? (
-        <NavLink to="/settings" className={linkClass}>
-          Settings
-        </NavLink>
+        <>
+          <NavLink to="/character" className={linkClass}>
+            Character
+          </NavLink>
+          <NavLink to="/settings" className={linkClass}>
+            Settings
+          </NavLink>
+        </>
       ) : (
         <>
           <NavLink to="/login" className={linkClass}>

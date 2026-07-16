@@ -22,10 +22,35 @@ export function createTestPrisma(): PrismaClient {
 }
 
 export async function truncateAll(prisma: PrismaClient): Promise<void> {
-  // Order matters only without CASCADE; TRUNCATE ... CASCADE handles FKs.
+  // Gameplay/account state only — seeded configuration tables
+  // (CharacterClassDefinition, LevelProgression) are left intact.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Session", "UserSettings", "User" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "Character", "Session", "UserSettings", "User" RESTART IDENTITY CASCADE',
   );
+}
+
+/** Registers a fresh user and returns its session cookie + CSRF token. */
+export async function registerTestUser(
+  app: FastifyInstance,
+  overrides: { email?: string; displayName?: string } = {},
+): Promise<{ cookie: string; csrf: string; userId: string }> {
+  const unique = Math.random().toString(36).slice(2, 10);
+  const response = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/register',
+    headers: { origin: TEST_ORIGIN },
+    payload: {
+      email: overrides.email ?? `user-${unique}@example.com`,
+      password: 'a test passphrase',
+      displayName: overrides.displayName ?? `User${unique}`,
+    },
+  });
+  if (response.statusCode !== 201) {
+    throw new Error(`registerTestUser failed: ${response.statusCode} ${response.body}`);
+  }
+  const cookie = response.cookies.find((c) => c.name === 'rpg_session')!.value;
+  const body = response.json() as { csrfToken: string; user: { id: string } };
+  return { cookie, csrf: body.csrfToken, userId: body.user.id };
 }
 
 export async function buildTestApp(

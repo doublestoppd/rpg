@@ -3,6 +3,68 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 3 — Character, Progression, Recovery, and Starting State (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **Three original classes** — Vanguard (frontline endurance), Wayfarer
+  (speed and luck), Arcanist (elemental magic) — as seeded, data-driven
+  `CharacterClassDefinition` rows (base stats + per-level growth). Nothing is
+  hard-coded in services.
+- **One character per account**, enforced by a unique database constraint on
+  `Character.userId` (service returns 409; direct inserts also fail).
+- **Level progression**: seeded `LevelProgression` table, cumulative XP for
+  levels 1–20, validated strictly monotonic at seed time. Level cap is the
+  highest seeded level. `addExperience` supports multi-level gains in one
+  grant and fully restores HP/MP on level-up.
+- **Derived stats** (max HP/MP, strength, agility, magic, defense, magic
+  defense, luck) are computed from class + level — never duplicated in
+  tables. Current HP/MP are stored; no passive HP/MP regeneration.
+- **Stamina**: lazy timestamp regeneration at a configured whole-unit rate
+  (1 per 5 minutes, `apps/api/src/config/game.ts`), computed on read and
+  persisted only when spent (`spendStamina`, atomic, rejects shortfalls).
+  No background jobs.
+- **Gold belongs to the character** (BIGINT column, starting Gold 100,
+  serialized as a decimal string); mutations wait for the Phase 7 currency
+  service.
+- **Crownfall Inn service definition** (`domain/inn/inn-service.ts`):
+  level-scaled fee `5 + 2×level` Gold; activates with locations (Phase 4)
+  and the ledger (Phase 7). No endpoint yet.
+- **Frontend**: class-selection + naming creation page, character page with
+  HP/MP/stamina bars, gold, XP progress, and attributes; Character nav link;
+  redirect flows (no character → create; existing character → summary).
+
+### Database
+
+Migration `characters_progression`: `Character` (unique userId, unique name,
+gold BIGINT, current HP/MP, stamina + timestamp), `CharacterClassDefinition`,
+`LevelProgression`. Seed (`prisma/seed.mjs`, idempotent upserts, run by
+`prepare-db` and compose startup) provides 3 classes and 20 levels.
+
+### Endpoints
+
+- `POST /api/v1/characters`, `GET /api/v1/characters/me`,
+  `GET /api/v1/characters/me/stats`, `GET /api/v1/characters/classes`
+
+### Tests
+
+Seeded class/XP-table validation (3 classes, monotonic 20 levels), creation
+with class starting statistics and starting gold, one-character constraint
+(service + raw constraint), unknown class/duplicate name rejection,
+NO_CHARACTER response, single-threshold level-up with HP/MP restore,
+multi-level gain (100→level 2, +900→level 5), level-20 cap with null
+xpForNextLevel, lazy stamina regeneration with clamping, and atomic stamina
+spend with shortfall rejection. Playwright: register → create Arcanist →
+stats visible → refresh persists → creation page redirects back.
+
+### Known limitations
+
+- Gold is display-only until the Phase 7 currency ledger.
+- Stamina has no consumer yet (mining arrives in Phase 10); `spendStamina`
+  is exercised by tests.
+
 ## Phase 2 — Authentication and Account Sessions (2026-07-16)
 
 **Status: complete.**

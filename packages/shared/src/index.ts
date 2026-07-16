@@ -9,6 +9,7 @@
 export const SHARED_PACKAGE_NAME = '@rpg/shared';
 
 export * from './auth.js';
+export * from './character.js';
 export * from './errors.js';
 export * from './health.js';
 export * from './settings.js';

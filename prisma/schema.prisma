@@ -33,8 +33,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions Session[]
-  settings UserSettings?
+  sessions  Session[]
+  settings  UserSettings?
+  character Character?
 }
 
 model Session {
@@ -71,4 +72,78 @@ enum Theme {
   SYSTEM
   LIGHT
   DARK
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — characters and progression
+// ---------------------------------------------------------------------------
+
+/// Data-driven class configuration; seeded, never hard-coded in services.
+model CharacterClassDefinition {
+  slug        String @id
+  name        String @unique
+  description String
+
+  baseHp           Int
+  baseMp           Int
+  baseStamina      Int
+  baseStrength     Int
+  baseAgility      Int
+  baseMagic        Int
+  baseDefense      Int
+  baseMagicDefense Int
+  baseLuck         Int
+
+  growthHp           Int
+  growthMp           Int
+  growthStrength     Int
+  growthAgility      Int
+  growthMagic        Int
+  growthDefense      Int
+  growthMagicDefense Int
+  growthLuck         Int
+
+  characters Character[]
+}
+
+/// Cumulative XP required to hold each level. Seeded for levels 1-20 and
+/// validated monotonic; the level cap is the highest seeded level.
+model LevelProgression {
+  level        Int @id
+  cumulativeXp Int
+}
+
+model Character {
+  id String @id @default(uuid())
+
+  /// One character per account, enforced by this unique constraint.
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String @unique
+
+  classSlug String
+  class     CharacterClassDefinition @relation(fields: [classSlug], references: [slug])
+
+  level Int @default(1)
+  /// Total accumulated XP (cumulative, compared against LevelProgression).
+  xp    Int @default(0)
+
+  /// Gold belongs to the character, not the user account. BIGINT; mutated
+  /// only through the currency service once it exists (Phase 7).
+  gold BigInt
+
+  /// Current HP/MP are stored; maxima and combat attributes are derived from
+  /// class + level (+ equipment later) and never duplicated in tables.
+  currentHp Int
+  currentMp Int
+
+  /// Stamina regenerates lazily by timestamp at a configured whole-unit rate:
+  /// effective = min(max, stamina + floor(elapsed / interval)). The stored
+  /// pair only changes when stamina is spent.
+  stamina          Int
+  staminaUpdatedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

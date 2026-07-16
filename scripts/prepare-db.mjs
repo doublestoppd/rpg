@@ -51,4 +51,9 @@ execSync('npx prisma migrate deploy --schema prisma/schema.prisma', {
   stdio: 'inherit',
   env: { ...process.env, DATABASE_URL: targetUrl },
 });
-console.log(`prepare-db: migrations applied to ${dbName}`);
+execSync('node prisma/seed.mjs', {
+  cwd: root,
+  stdio: 'inherit',
+  env: { ...process.env, DATABASE_URL: targetUrl },
+});
+console.log(`prepare-db: migrations and seed applied to ${dbName}`);
