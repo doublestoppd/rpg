@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build --workspace packages/shared && npm run typecheck --workspaces --if-present",
-    "pretest": "npm run build --workspace packages/shared",
+    "pretest": "npm run build --workspace packages/shared && node scripts/prepare-db.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "verify:structure": "node scripts/verify-structure.mjs",
@@ -29,6 +29,7 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.0",
+    "pg": "^8.22.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
     "vitest": "^4.1.10"

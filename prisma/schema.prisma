@@ -1,8 +1,8 @@
 // Prisma schema — Fantasy Economy RPG.
 //
-// Phase 1 contains no application models: pg-boss creates and manages its own
-// infrastructure tables in the `pgboss` schema at worker startup, and
-// gameplay tables arrive with their owning phases (see /docs/adr).
+// pg-boss creates and manages its own infrastructure tables in the `pgboss`
+// schema at worker startup. Gameplay tables arrive with their owning phases
+// (see /docs/adr).
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +11,64 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — accounts and sessions
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  /// Normalized (trimmed, lowercased) and unique.
+  email        String   @unique
+  /// Argon2id hash; raw passwords are never stored or logged.
+  passwordHash String
+  displayName  String   @unique
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions Session[]
+  settings UserSettings?
+}
+
+model Session {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 hex of the raw cookie token. The raw token exists only in the
+  /// Secure, HttpOnly, SameSite cookie — never in the database.
+  tokenHash String @unique
+
+  /// Per-session CSRF token, stored server-side and returned to the frontend;
+  /// required as X-CSRF-Token on every state-changing request.
+  csrfToken String
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  lastUsedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  @@index([userId])
+}
+
+model UserSettings {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  theme     Theme    @default(SYSTEM)
+  updatedAt DateTime @updatedAt
+}
+
+enum Theme {
+  SYSTEM
+  LIGHT
+  DARK
 }

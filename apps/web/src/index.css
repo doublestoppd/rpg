@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Class-based dark mode driven by the persisted account theme setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: ui-sans-serif, system-ui, sans-serif;
 }

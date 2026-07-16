@@ -3,6 +3,66 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 2 — Authentication and Account Sessions (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **Registration** (email + password + display name); accounts are active
+  immediately — password reset and email verification are out of scope.
+- **Sessions**: raw 256-bit token lives only in an HttpOnly, SameSite=Lax
+  cookie (`Secure` in production); PostgreSQL stores only its SHA-256 hash.
+  30-day expiry, lazy `lastUsedAt` touch, revocation support.
+- **Password hashing** with Argon2id (19 MiB, t=2, p=1).
+- **Token rotation** on login (always a fresh session) and on password change
+  (old session revoked + new token issued atomically with the hash update).
+- **CSRF protection**: per-session token stored server-side, returned via
+  register/login/session responses, required as `X-CSRF-Token` together with
+  an allow-listed `Origin` header on every state-changing `/api` request
+  (Origin alone for unauthenticated register/login).
+- **Rate limiting** on login and register (default 10/min/IP, configurable).
+- **Generic credential errors**: identical 401 body for unknown email and
+  wrong password.
+- **Roles**: USER and ADMIN columns exist; no admin UI or admin routes yet.
+- **Account settings**: theme (SYSTEM/LIGHT/DARK) persisted per user and
+  applied as a class-based dark mode across the shell and UI foundation.
+- **Frontend**: register/login/settings pages, authenticated route guard,
+  auth-aware navigation (only implemented destinations), session-aware shell.
+
+### Database
+
+Migration `auth_accounts_sessions`: `User` (unique normalized email, unique
+display name, Argon2id hash, role), `Session` (unique tokenHash, csrfToken,
+expiry/revocation timestamps), `UserSettings` (theme), enums `UserRole`,
+`Theme`.
+
+### Endpoints
+
+- `POST /api/v1/auth/register`, `POST /api/v1/auth/login` (rate-limited)
+- `POST /api/v1/auth/logout`, `GET /api/v1/auth/session`
+- `POST /api/v1/auth/change-password`, `POST /api/v1/auth/revoke-other-sessions`
+- `GET/PATCH /api/v1/account/settings`
+
+### Tests
+
+API tests (real PostgreSQL, `rpg_test`, auto-prepared by
+`scripts/prepare-db.mjs` via `pretest`): registration/activation, email
+normalization + uniqueness, generic login errors, raw-token-never-stored,
+refresh persistence, logout invalidation, revoke-other-sessions, password
+change rotation, CSRF rejection (missing/wrong token), Origin rejection
+(missing/unlisted), login rate limiting, settings defaults + partial update.
+Playwright: full register → refresh → settings → sign out → guard redirect →
+login journey against the production build with a real API and database
+(`rpg_e2e`).
+
+### Known limitations
+
+- Rate limiting is per-process in-memory (single API process assumption;
+  revisited in hardening).
+- Running `npm test` now requires a reachable PostgreSQL (`docker compose up
+postgres` or a local server); the DB is created and migrated automatically.
+
 ## Phase 1 — Foundation and Runtime Infrastructure (2026-07-16)
 
 **Status: complete.**

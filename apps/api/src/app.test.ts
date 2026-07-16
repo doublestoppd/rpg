@@ -1,8 +1,9 @@
+import { PrismaClient } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import { healthResponseSchema } from '@rpg/shared';
 
-import { buildApp } from './app.js';
+import { buildApp, type AppDependencies } from './app.js';
 import { loadEnv } from './config/env.js';
 
 const testEnvSource = {
@@ -10,12 +11,19 @@ const testEnvSource = {
   DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
 };
 
+// Health tests never issue queries (no session cookie is sent), so a lazily
+// connecting client with an unreachable URL is fine.
+const idlePrisma = new PrismaClient({
+  datasources: { db: { url: 'postgresql://test:test@localhost:5999/unused' } },
+});
+
+function deps(pingDatabase: AppDependencies['pingDatabase']): AppDependencies {
+  return { env: loadEnv(testEnvSource), prisma: idlePrisma, pingDatabase };
+}
+
 describe('GET /api/v1/health', () => {
   it('returns 200 with database ok when the database responds', async () => {
-    const app = await buildApp({
-      env: loadEnv(testEnvSource),
-      pingDatabase: async () => undefined,
-    });
+    const app = await buildApp(deps(async () => undefined));
     const response = await app.inject({ method: 'GET', url: '/api/v1/health' });
 
     expect(response.statusCode).toBe(200);
@@ -27,12 +35,11 @@ describe('GET /api/v1/health', () => {
   });
 
   it('returns 503 degraded when the database is unreachable', async () => {
-    const app = await buildApp({
-      env: loadEnv(testEnvSource),
-      pingDatabase: async () => {
+    const app = await buildApp(
+      deps(async () => {
         throw new Error('connection refused');
-      },
-    });
+      }),
+    );
     const response = await app.inject({ method: 'GET', url: '/api/v1/health' });
 
     expect(response.statusCode).toBe(503);
@@ -43,10 +50,7 @@ describe('GET /api/v1/health', () => {
   });
 
   it('serves OpenAPI documentation generated from route schemas', async () => {
-    const app = await buildApp({
-      env: loadEnv(testEnvSource),
-      pingDatabase: async () => undefined,
-    });
+    const app = await buildApp(deps(async () => undefined));
     const response = await app.inject({ method: 'GET', url: '/api/v1/docs/json' });
 
     expect(response.statusCode).toBe(200);
@@ -56,10 +60,7 @@ describe('GET /api/v1/health', () => {
   });
 
   it('returns the generic error envelope for unknown routes', async () => {
-    const app = await buildApp({
-      env: loadEnv(testEnvSource),
-      pingDatabase: async () => undefined,
-    });
+    const app = await buildApp(deps(async () => undefined));
     const response = await app.inject({ method: 'GET', url: '/api/v1/nope' });
 
     expect(response.statusCode).toBe(404);

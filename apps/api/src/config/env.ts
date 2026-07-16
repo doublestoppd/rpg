@@ -15,6 +15,8 @@ const envSchema = z.object({
       message: 'DATABASE_URL must be a postgresql:// connection string',
     }),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  /** Comma-separated list of origins allowed on state-changing requests. */
+  ALLOWED_ORIGINS: z.string().min(1).default('http://localhost:5173,http://localhost:4173'),
 });
 
 export type Env = z.infer<typeof envSchema>;

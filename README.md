@@ -8,10 +8,10 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 1 complete** — runnable API with
-health checks and OpenAPI docs, job worker, PostgreSQL/Prisma/pg-boss
-integration, Docker Compose, and a responsive web shell with a neutral
-landing page. No gameplay yet; authentication arrives in Phase 2.
+for what exists today. **Currently: Phase 2 complete** — secure accounts and
+sessions (Argon2id, hashed cookie tokens, CSRF + Origin validation, rate
+limiting), account settings with persisted theme, and authenticated routing
+on top of the Phase 1 runtime foundation. Characters arrive in Phase 3.
 
 ## Stack (fixed)
 
@@ -60,12 +60,17 @@ npm run dev:web            # Vite dev server
 
 ```bash
 npm run typecheck          # strict TypeScript across all workspaces
-npm test                   # Vitest test suites
-npm run test:e2e           # Playwright against the production web build
+npm test                   # Vitest suites (needs PostgreSQL; test DB auto-created)
+npm run test:e2e           # Playwright against the production web build + real API
 npm run verify:structure   # repository-structure contract check
 npm run format:check       # Prettier
 npm run build              # production builds (shared → api → web)
 ```
+
+API tests use `TEST_DATABASE_URL` (default
+`postgresql://rpg:rpg@localhost:5432/rpg_test`); Playwright uses
+`E2E_DATABASE_URL` (default `..././rpg_e2e`). Both databases are created and
+migrated automatically by `scripts/prepare-db.mjs`.
 
 ### Production
 

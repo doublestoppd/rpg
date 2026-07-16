@@ -23,7 +23,7 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const kindClasses: Record<ToastKind, string> = {
-  info: 'border-stone-300 bg-white text-stone-900',
+  info: 'border-stone-300 bg-white text-stone-900 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100',
   success: 'border-green-300 bg-green-50 text-green-900',
   error: 'border-red-300 bg-red-50 text-red-900',
 };

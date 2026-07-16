@@ -9,7 +9,7 @@ import { createPrismaClient, pingDatabase } from './lib/prisma.js';
 async function main(): Promise<void> {
   const env = loadEnv();
   const prisma = createPrismaClient(env);
-  const app = await buildApp({ env, pingDatabase: () => pingDatabase(prisma) });
+  const app = await buildApp({ env, prisma, pingDatabase: () => pingDatabase(prisma) });
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'shutting down API');
