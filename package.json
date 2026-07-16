@@ -1,0 +1,29 @@
+{
+  "name": "fantasy-economy-rpg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser-based multiplayer fantasy RPG with a regional economy and classic menu combat",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "verify:structure": "node scripts/verify-structure.mjs",
+    "build": "npm run build --workspaces --if-present",
+    "start:api": "npm run start --workspace apps/api",
+    "start:worker": "npm run start:worker --workspace apps/api"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

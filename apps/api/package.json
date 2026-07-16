@@ -1,0 +1,14 @@
+{
+  "name": "@rpg/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "start": "node --experimental-strip-types src/index.ts",
+    "start:worker": "node --experimental-strip-types src/worker.ts"
+  },
+  "dependencies": {
+    "@rpg/shared": "*"
+  }
+}
