@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 
 import {
   CHARACTER_CLASSES,
+  ITEM_DEFINITIONS,
   LEVEL_PROGRESSION,
   LOCATION_FEATURES,
   LOCATIONS,
@@ -95,10 +96,21 @@ async function main() {
     });
   }
 
+  if (ITEM_DEFINITIONS.length !== 25)
+    throw new Error('seed: the item catalog has exactly 25 items');
+  for (const item of ITEM_DEFINITIONS) {
+    const { slug, ...data } = item;
+    await prisma.itemDefinition.upsert({
+      where: { slug },
+      create: { slug, ...data },
+      update: data,
+    });
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
-      `${TRAVEL_ROUTES.length} routes ensured`,
+      `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items ensured`,
   );
 }
 

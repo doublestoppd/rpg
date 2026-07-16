@@ -152,6 +152,13 @@ model Character {
 
   travelStates TravelState[]
 
+  inventoryStacks      InventoryStack[]
+  itemInstances        ItemInstance[]
+  equipment            EquipmentAssignment[]
+  capacityReservations InventoryCapacityReservation[]
+  transfersFrom        ItemTransfer[]                 @relation("TransferFrom")
+  transfersTo          ItemTransfer[]                 @relation("TransferTo")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -205,6 +212,180 @@ model LocationFeature {
 
   @@unique([locationId, type, name])
   @@index([locationId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 — items, inventory, capacity, transfers, equipment
+// ---------------------------------------------------------------------------
+
+enum ItemCategory {
+  RESOURCE
+  CONSUMABLE
+  EQUIPMENT
+  CRAFTING_COMPONENT
+  COLLECTIBLE
+  QUEST_ITEM
+  SPECIALTY
+}
+
+enum EquipmentSlot {
+  MAIN_HAND
+  OFF_HAND
+  HEAD
+  BODY
+  HANDS
+  LEGS
+  FEET
+  ACCESSORY_1
+  ACCESSORY_2
+}
+
+model ItemDefinition {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+  category    ItemCategory
+
+  /// Stackable commodities live in InventoryStack; non-stackable items are
+  /// tracked as ItemInstance rows with individual ownership history.
+  stackable        Boolean
+  maxStackQuantity Int     @default(1)
+
+  /// For EQUIPMENT: the slot family this item fits. ACCESSORY_1 here means
+  /// "fits either accessory slot" (the assignment picks the concrete slot).
+  equipmentSlot    EquipmentSlot?
+  levelRequirement Int            @default(1)
+
+  bonusStrength     Int @default(0)
+  bonusAgility      Int @default(0)
+  bonusMagic        Int @default(0)
+  bonusDefense      Int @default(0)
+  bonusMagicDefense Int @default(0)
+  bonusLuck         Int @default(0)
+  bonusMaxHp        Int @default(0)
+  bonusMaxMp        Int @default(0)
+
+  /// Consumable effects (0 = none).
+  hpRestore      Int     @default(0)
+  mpRestore      Int     @default(0)
+  usableInCombat Boolean @default(false)
+
+  /// Reference value in Gold for NPC pricing (BIGINT).
+  baseValue BigInt @default(0)
+
+  stacks    InventoryStack[]
+  instances ItemInstance[]
+  transfers ItemTransfer[]
+}
+
+/// One row per character + stackable item definition.
+model InventoryStack {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  quantity Int
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([characterId, itemDefinitionId])
+  @@index([characterId])
+}
+
+enum ItemInstanceLock {
+  NONE
+  LISTED
+  IN_TRANSIT
+}
+
+/// A uniquely tracked item (equipment or otherwise stateful).
+model ItemInstance {
+  id String @id @default(uuid())
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  ownerCharacterId String?
+  ownerCharacter   Character? @relation(fields: [ownerCharacterId], references: [id])
+
+  /// Locked (listed / in-transit) instances are outside active inventory and
+  /// cannot be equipped, consumed, discarded, or transferred.
+  lockState   ItemInstanceLock @default(NONE)
+  destroyedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  equipment EquipmentAssignment?
+  transfers ItemTransfer[]
+
+  @@index([ownerCharacterId])
+}
+
+model EquipmentAssignment {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  slot EquipmentSlot
+
+  itemInstanceId String       @unique
+  itemInstance   ItemInstance @relation(fields: [itemInstanceId], references: [id])
+
+  @@unique([characterId, slot])
+}
+
+/// Holds a destination slot for assets that will return or arrive later
+/// (expired listings, deliveries, pending rewards). Active while releasedAt
+/// is null; counts toward used capacity.
+model InventoryCapacityReservation {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  slots  Int    @default(1)
+  reason String
+  /// Free-form reference to the owning record (e.g. listing/delivery id).
+  refId  String?
+
+  createdAt  DateTime  @default(now())
+  releasedAt DateTime?
+
+  @@index([characterId, releasedAt])
+}
+
+/// Movement record. Stack commodities use aggregate rows (quantity N,
+/// itemInstanceId null); unique instances get one row per transfer, giving
+/// full ownership history. from/to null means the world (grant/consume).
+model ItemTransfer {
+  id String @id @default(uuid())
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  itemInstanceId String?
+  itemInstance   ItemInstance? @relation(fields: [itemInstanceId], references: [id])
+
+  quantity Int
+
+  fromCharacterId String?
+  fromCharacter   Character? @relation("TransferFrom", fields: [fromCharacterId], references: [id])
+  toCharacterId   String?
+  toCharacter     Character? @relation("TransferTo", fields: [toCharacterId], references: [id])
+
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([itemInstanceId])
+  @@index([fromCharacterId])
+  @@index([toCharacterId])
 }
 
 // ---------------------------------------------------------------------------

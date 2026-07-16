@@ -12,22 +12,52 @@ export interface DerivedStats extends CharacterAttributes {
   maxStamina: number;
 }
 
-/** Derived stats from class + level: base + growth * (level - 1). */
+/** Equipment stat contributions summed over equipped item definitions. */
+export interface EquipmentBonusSource {
+  bonusStrength: number;
+  bonusAgility: number;
+  bonusMagic: number;
+  bonusDefense: number;
+  bonusMagicDefense: number;
+  bonusLuck: number;
+  bonusMaxHp: number;
+  bonusMaxMp: number;
+}
+
+/**
+ * Derived stats from class + level (+ equipment): base + growth * (level - 1)
+ * plus the sum of equipped item bonuses. Never duplicated in tables.
+ */
 export function computeDerivedStats(
   classDef: CharacterClassDefinition,
   level: number,
+  equipment: EquipmentBonusSource[] = [],
 ): DerivedStats {
   const steps = level - 1;
+  const bonus = equipment.reduce(
+    (acc, item) => ({
+      strength: acc.strength + item.bonusStrength,
+      agility: acc.agility + item.bonusAgility,
+      magic: acc.magic + item.bonusMagic,
+      defense: acc.defense + item.bonusDefense,
+      magicDefense: acc.magicDefense + item.bonusMagicDefense,
+      luck: acc.luck + item.bonusLuck,
+      maxHp: acc.maxHp + item.bonusMaxHp,
+      maxMp: acc.maxMp + item.bonusMaxMp,
+    }),
+    { strength: 0, agility: 0, magic: 0, defense: 0, magicDefense: 0, luck: 0, maxHp: 0, maxMp: 0 },
+  );
   return {
-    maxHp: classDef.baseHp + classDef.growthHp * steps,
-    maxMp: classDef.baseMp + classDef.growthMp * steps,
+    maxHp: classDef.baseHp + classDef.growthHp * steps + bonus.maxHp,
+    maxMp: classDef.baseMp + classDef.growthMp * steps + bonus.maxMp,
     maxStamina: classDef.baseStamina,
-    strength: classDef.baseStrength + classDef.growthStrength * steps,
-    agility: classDef.baseAgility + classDef.growthAgility * steps,
-    magic: classDef.baseMagic + classDef.growthMagic * steps,
-    defense: classDef.baseDefense + classDef.growthDefense * steps,
-    magicDefense: classDef.baseMagicDefense + classDef.growthMagicDefense * steps,
-    luck: classDef.baseLuck + classDef.growthLuck * steps,
+    strength: classDef.baseStrength + classDef.growthStrength * steps + bonus.strength,
+    agility: classDef.baseAgility + classDef.growthAgility * steps + bonus.agility,
+    magic: classDef.baseMagic + classDef.growthMagic * steps + bonus.magic,
+    defense: classDef.baseDefense + classDef.growthDefense * steps + bonus.defense,
+    magicDefense:
+      classDef.baseMagicDefense + classDef.growthMagicDefense * steps + bonus.magicDefense,
+    luck: classDef.baseLuck + classDef.growthLuck * steps + bonus.luck,
   };
 }
 

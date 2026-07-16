@@ -1,9 +1,87 @@
 import { Navigate } from 'react-router-dom';
 
+import type { EquipmentSlotName } from '@rpg/shared';
+
+import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
+import { useToast } from '../components/ui/Toast';
 import { useCharacter, useCharacterStats } from '../features/character/useCharacter';
+import { useInventory, useUnequip } from '../features/inventory/useInventory';
+
+const EQUIPMENT_SLOTS: Array<{ slot: EquipmentSlotName; label: string }> = [
+  { slot: 'MAIN_HAND', label: 'Main hand' },
+  { slot: 'OFF_HAND', label: 'Off hand' },
+  { slot: 'HEAD', label: 'Head' },
+  { slot: 'BODY', label: 'Body' },
+  { slot: 'HANDS', label: 'Hands' },
+  { slot: 'LEGS', label: 'Legs' },
+  { slot: 'FEET', label: 'Feet' },
+  { slot: 'ACCESSORY_1', label: 'Accessory 1' },
+  { slot: 'ACCESSORY_2', label: 'Accessory 2' },
+];
+
+function EquipmentPanel() {
+  const inventory = useInventory();
+  const unequip = useUnequip();
+  const { showToast } = useToast();
+
+  const bySlot = new Map<EquipmentSlotName, string>();
+  for (const instance of inventory.data?.instances ?? []) {
+    if (instance.equippedSlot) bySlot.set(instance.equippedSlot, instance.item.name);
+  }
+
+  return (
+    <Card title="Equipment">
+      <ul className="divide-y divide-stone-200 text-sm dark:divide-stone-800">
+        {EQUIPMENT_SLOTS.map(({ slot, label }) => {
+          const equipped = bySlot.get(slot);
+          return (
+            <li key={slot} className="flex items-center justify-between gap-2 py-1.5">
+              <span className="text-stone-500 dark:text-stone-400">{label}</span>
+              <span className="flex items-center gap-2">
+                <span
+                  className={
+                    equipped
+                      ? 'font-medium text-stone-900 dark:text-stone-100'
+                      : 'text-stone-400 dark:text-stone-600'
+                  }
+                >
+                  {equipped ?? 'Empty'}
+                </span>
+                {equipped && (
+                  <Button
+                    variant="ghost"
+                    className="px-2 py-0.5 text-xs"
+                    onClick={() =>
+                      unequip.mutate(
+                        { slot },
+                        {
+                          onError: (err) =>
+                            showToast(
+                              err instanceof Error ? err.message : 'Could not unequip.',
+                              'error',
+                            ),
+                        },
+                      )
+                    }
+                    disabled={unequip.isPending}
+                  >
+                    Unequip
+                  </Button>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+        Equip gear from your inventory. Equipped items use no inventory slots.
+      </p>
+    </Card>
+  );
+}
 
 function ResourceBar({
   label,
@@ -121,6 +199,8 @@ export function CharacterPage() {
           <LoadingState label="Reading the ledger…" />
         )}
       </Card>
+
+      <EquipmentPanel />
 
       <Card title="Class">
         <p className="text-sm leading-6 text-stone-600 dark:text-stone-400">

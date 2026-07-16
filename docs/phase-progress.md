@@ -3,6 +3,77 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 6 — Item Definitions, Inventory, Capacity, Transfers, Equipment (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **Dual inventory model**: `InventoryStack` (unique per character + item)
+  for identical stackable commodities; `ItemInstance` for equipment and
+  uniquely stateful items with individual ownership.
+- **Slot capacity** (24 per character, `config/game.ts`): each stack consumes
+  one slot regardless of quantity, each unequipped active instance one slot,
+  equipped instances none. `InventoryCapacityReservation` rows hold
+  destination slots for assets that will return or arrive later and count as
+  used. Capacity checks guard every grant; concurrent mutations serialize on
+  a `SELECT … FOR UPDATE` character lock (raw SQL repository function,
+  ADR 0003) — a 10-way concurrent removal test drains a stack to exactly
+  zero, never negative.
+- **ItemTransfer**: aggregate rows for stack movements (one row per movement,
+  quantity N) and per-transfer rows for instances (full ownership history);
+  from/to null means the world.
+- **Equipment**: nine slots (main/off hand, head, body, hands, legs, feet,
+  two accessories). Equip validates ownership, lock state, category, slot
+  fit (accessories fit either accessory slot), and level requirement; swaps
+  are capacity-neutral; unequip requires a free slot. Locked (LISTED /
+  IN_TRANSIT) or destroyed assets are rejected everywhere.
+- **Derived stats now include equipment bonuses** (class + level + equipped
+  item definitions, computed — never stored). Equipping raises maxima
+  without healing; level-up restores to the equipment-inclusive maxima.
+- **25-item catalog** seeded: 5 resources, 4 consumables, 6 equipment,
+  3 crafting components, 3 collectibles (museum artifacts), 2 quest items,
+  2 specialty goods — with stack maxima, bonuses, restore effects, level
+  requirements, and BIGINT base values.
+- **Starter kit**: new characters receive 2 Lesser Healing Draughts and a
+  Quilted Tunic inside the creation transaction, with transfer records.
+- **Frontend**: inventory page (slot usage, search, category filters, stack
+  and unique rows with lock/equipped badges, item detail dialog with equip
+  action) and an equipment panel on the character page with unequip per
+  slot. Inventory joins the nav.
+
+### Database
+
+Migration `items_inventory_equipment`: `ItemDefinition`, `InventoryStack`,
+`ItemInstance` (lockState, destroyedAt), `EquipmentAssignment` (unique per
+character+slot and per instance), `InventoryCapacityReservation`,
+`ItemTransfer`.
+
+### Endpoints
+
+- `GET /api/v1/inventory`, `GET /api/v1/items/:slug`
+- `POST /api/v1/equipment/equip`, `POST /api/v1/equipment/unequip`
+
+### Tests
+
+Catalog counts and stackable/instance coherence, item-by-slug, stack
+add/merge/remove/delete with aggregate transfer records, stack maximum and
+over-removal rejection, capacity accounting (stacks + instances +
+reservations, equipped-is-free), capacity-blocked grants with growing
+existing stacks still allowed, 10-way concurrent removal invariant,
+instance ownership history, equip/unequip with swaps, wrong-slot and
+level-requirement rejection, accessory slot resolution, unequip blocked at
+full capacity, locked-asset rejection (LISTED and IN_TRANSIT), cross-owner
+rejection, starter kit. Playwright: starter kit visible, search filter,
+detail dialog, equip → slot freed + badge + 120/125 HP, unequip restores.
+
+### Known limitations
+
+- No consume/discard endpoints yet (combat item use arrives in Phase 12;
+  destruction records in Phase 14).
+- Items are only obtainable via the starter kit until shops (Phase 8) and
+  mining (Phase 10).
+
 ## Phase 5 — Travel State and Shared Timed-State Utility (2026-07-16)
 
 **Status: complete.**

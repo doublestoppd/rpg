@@ -5,6 +5,7 @@ import { RequireAuth } from './features/auth/RequireAuth';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
 import { CharacterPage } from './pages/CharacterPage';
+import { InventoryPage } from './pages/InventoryPage';
 import { LandingPage } from './pages/LandingPage';
 import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
@@ -47,6 +48,14 @@ export function App() {
           element={
             <RequireAuth>
               <CharacterCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="inventory"
+          element={
+            <RequireAuth>
+              <InventoryPage />
             </RequireAuth>
           }
         />

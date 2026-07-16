@@ -14,6 +14,8 @@ const gameConfigSchema = z.object({
   /** Crownfall Inn rest fee: base + perLevel * character level (Gold). */
   innRestBaseFee: z.bigint().min(0n),
   innRestFeePerLevel: z.bigint().min(0n),
+  /** Inventory slots per character (stacks + loose instances + reservations). */
+  inventoryCapacity: z.number().int().min(1),
 });
 
 export type GameConfig = z.infer<typeof gameConfigSchema>;
@@ -24,4 +26,5 @@ export const gameConfig: GameConfig = gameConfigSchema.parse({
   staminaRegenIntervalMs: 5 * 60 * 1000, // 1 stamina per 5 minutes
   innRestBaseFee: 5n,
   innRestFeePerLevel: 2n,
+  inventoryCapacity: 24,
 });

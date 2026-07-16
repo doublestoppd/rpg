@@ -17,6 +17,7 @@ test('travel to a neighbor, blocked local actions, and arrival on refresh', asyn
   await page.getByRole('radio', { name: /Wayfarer/ }).click();
   await page.getByLabel('Character name').fill(`Vale ${unique.slice(-6)}`);
   await page.getByRole('button', { name: 'Begin your journey' }).click();
+  await expect(page).toHaveURL(/\/character$/); // wait out the post-creation redirect
 
   // Set out for the Market District (shortest road, 30s; listed first).
   await nav.getByRole('link', { name: 'Travel' }).click();

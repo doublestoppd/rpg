@@ -17,6 +17,8 @@ import type { Env } from './config/env.js';
 import { createSettingsService } from './domain/account/settings-service.js';
 import { createAuthService } from './domain/auth/auth-service.js';
 import { createCharacterService } from './domain/character/character-service.js';
+import { createEquipmentService } from './domain/inventory/equipment-service.js';
+import { createInventoryService } from './domain/inventory/inventory-service.js';
 import { createLocationService } from './domain/location/location-service.js';
 import { createTravelService } from './domain/travel/travel-service.js';
 import { createTimedStateRunner } from './lib/timed-state.js';
@@ -27,6 +29,7 @@ import { accountRoutes } from './routes/account.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './routes/characters.js';
 import { healthRoutes } from './routes/health.js';
+import { inventoryRoutes } from './routes/inventory.js';
 import { locationRoutes } from './routes/locations.js';
 import { travelRoutes } from './routes/travel.js';
 
@@ -87,7 +90,9 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
 
   const authService = createAuthService(prisma);
   const settingsService = createSettingsService(prisma);
-  const characterService = createCharacterService(prisma);
+  const inventoryService = createInventoryService(prisma);
+  const characterService = createCharacterService(prisma, inventoryService);
+  const equipmentService = createEquipmentService(prisma, characterService, inventoryService);
   const travelService = createTravelService(prisma, characterService);
   // Registered timed-state finalizers run before location-dependent actions.
   const timedStateRunner = createTimedStateRunner([travelService.finalizer]);
@@ -124,6 +129,12 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   await app.register(characterRoutes, { prefix: '/api/v1', characterService });
   await app.register(locationRoutes, { prefix: '/api/v1', locationService });
   await app.register(travelRoutes, { prefix: '/api/v1', travelService });
+  await app.register(inventoryRoutes, {
+    prefix: '/api/v1',
+    characterService,
+    inventoryService,
+    equipmentService,
+  });
 
   return app;
 }

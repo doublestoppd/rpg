@@ -3,6 +3,7 @@ import type { CharacterClassInfo, CharacterResponse, CharacterStatsResponse } fr
 
 import { gameConfig } from '../../config/game.js';
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import { TRANSFER_REASONS, type InventoryService } from '../inventory/inventory-service.js';
 import {
   computeDerivedStats,
   effectiveStamina,
@@ -45,7 +46,19 @@ export interface CharacterService {
   listClasses(): Promise<CharacterClassInfo[]>;
 }
 
-export function createCharacterService(prisma: PrismaClient): CharacterService {
+export function createCharacterService(
+  prisma: PrismaClient,
+  inventoryService?: InventoryService,
+): CharacterService {
+  /** Definitions of currently equipped items (bonuses feed derived stats). */
+  async function equippedDefs(tx: Tx, characterId: string) {
+    const assignments = await tx.equipmentAssignment.findMany({
+      where: { characterId },
+      include: { itemInstance: { include: { itemDefinition: true } } },
+    });
+    return assignments.map((a) => a.itemInstance.itemDefinition);
+  }
+
   async function loadCharacter(userId: string, tx: Tx = prisma) {
     const character = await tx.character.findUnique({
       where: { userId },
@@ -59,7 +72,8 @@ export function createCharacterService(prisma: PrismaClient): CharacterService {
     character: Character & { class: CharacterClassDefinition },
   ): Promise<CharacterResponse> {
     const progression = await prisma.levelProgression.findMany({ orderBy: { level: 'asc' } });
-    const derived = computeDerivedStats(character.class, character.level);
+    const equipment = await equippedDefs(prisma, character.id);
+    const derived = computeDerivedStats(character.class, character.level, equipment);
     const stamina = effectiveStamina({
       stored: character.stamina,
       storedAt: character.staminaUpdatedAt,
@@ -111,18 +125,44 @@ export function createCharacterService(prisma: PrismaClient): CharacterService {
       });
 
       try {
-        const character = await prisma.character.create({
-          data: {
-            userId,
-            name: input.name,
-            classSlug: classDef.slug,
-            gold: gameConfig.startingGold,
-            currentHp: classDef.baseHp,
-            currentMp: classDef.baseMp,
-            stamina: classDef.baseStamina,
-            currentLocationId: startingLocation?.id ?? null,
-          },
-          include: { class: true },
+        const character = await prisma.$transaction(async (tx) => {
+          const created = await tx.character.create({
+            data: {
+              userId,
+              name: input.name,
+              classSlug: classDef.slug,
+              gold: gameConfig.startingGold,
+              currentHp: classDef.baseHp,
+              currentMp: classDef.baseMp,
+              stamina: classDef.baseStamina,
+              currentLocationId: startingLocation?.id ?? null,
+            },
+            include: { class: true },
+          });
+          // Starter kit: a few consumables and a padded tunic, granted with
+          // transfer records in the same transaction as creation.
+          if (inventoryService) {
+            const draught = await tx.itemDefinition.findUnique({
+              where: { slug: 'lesser-healing-draught' },
+            });
+            const tunic = await tx.itemDefinition.findUnique({ where: { slug: 'quilted-tunic' } });
+            if (draught) {
+              await inventoryService.addToStack(tx, {
+                characterId: created.id,
+                itemDefinitionId: draught.id,
+                quantity: 2,
+                reason: TRANSFER_REASONS.STARTER_KIT,
+              });
+            }
+            if (tunic) {
+              await inventoryService.grantInstance(tx, {
+                characterId: created.id,
+                itemDefinitionId: tunic.id,
+                reason: TRANSFER_REASONS.STARTER_KIT,
+              });
+            }
+          }
+          return created;
         });
         return await toResponse(character);
       } catch (error) {
@@ -145,7 +185,8 @@ export function createCharacterService(prisma: PrismaClient): CharacterService {
 
     async getStatsResponse(userId) {
       const character = await loadCharacter(userId);
-      const derived = computeDerivedStats(character.class, character.level);
+      const equipment = await equippedDefs(prisma, character.id);
+      const derived = computeDerivedStats(character.class, character.level, equipment);
       const stamina = effectiveStamina({
         stored: character.stamina,
         storedAt: character.staminaUpdatedAt,
@@ -193,9 +234,10 @@ export function createCharacterService(prisma: PrismaClient): CharacterService {
 
       const data: Prisma.CharacterUpdateInput = { xp: newXp };
       if (leveledUp) {
-        // Data-driven growth is derived from class + level; level-up persists
-        // the new level and fully restores HP and MP.
-        const derived = computeDerivedStats(character.class, newLevel);
+        // Data-driven growth is derived from class + level (+ equipment);
+        // level-up persists the new level and fully restores HP and MP.
+        const equipment = await equippedDefs(tx, characterId);
+        const derived = computeDerivedStats(character.class, newLevel, equipment);
         data.level = newLevel;
         data.currentHp = derived.maxHp;
         data.currentMp = derived.maxMp;

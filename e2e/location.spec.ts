@@ -15,6 +15,7 @@ test('location hub shows Crownfall City, its features, and connected roads', asy
   await page.getByRole('radio', { name: /Vanguard/ }).click();
   await page.getByLabel('Character name').fill(`Warden ${unique.slice(-6)}`);
   await page.getByRole('button', { name: 'Begin your journey' }).click();
+  await expect(page).toHaveURL(/\/character$/); // wait out the post-creation redirect
 
   // The location hub for the starting city.
   await nav.getByRole('link', { name: 'Location' }).click();
