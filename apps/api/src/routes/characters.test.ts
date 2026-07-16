@@ -103,7 +103,6 @@ describe('character creation', () => {
           userId: user.id,
           name: 'Bypass Blade',
           classSlug: 'arcanist',
-          gold: 0n,
           currentHp: 1,
           currentMp: 1,
           stamina: 1,

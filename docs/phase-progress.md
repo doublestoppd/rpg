@@ -3,6 +3,70 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 7 — Currency Ledger and Crownfall Inn (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **CurrencyAccount** is now the authoritative Gold balance (1:1 with the
+  character; `Character.gold` migrated in with a data migration that also
+  backfilled synthetic STARTING_GRANT ledger entries). BIGINT storage,
+  `BigInt` server-side, decimal strings in every API payload.
+- **Immutable CurrencyTransaction ledger**: signed amount, balanceBefore,
+  balanceAfter, type, related entity, operation namespace + idempotency key
+  (unique per account and namespace). Every balance change happens inside
+  the caller's transaction with exactly one ledger entry; the account row is
+  locked (`SELECT … FOR UPDATE`) so concurrent changes serialize — verified
+  by an 8-way concurrent chain-consistency test and a 5-way concurrent
+  idempotency test (one applied).
+- **No balance mutations outside the currency service**; negative resulting
+  balances are rejected atomically (`INSUFFICIENT_GOLD`, nothing partial).
+- **Integer basis-point math** (`lib/money.ts`): `floor(gross × bps / 10000)`
+  in pure BigInt, ready for Phase 9 taxes; unit-tested flooring.
+- **Crownfall Inn activated**: `POST /locations/current/inn/rest` requires an
+  INN feature at the current (non-traveling) location, charges the
+  level-scaled fee (5 + 2×level Gold) and restores HP/MP to their
+  equipment-inclusive maxima in one transaction. Idempotent per key
+  (replays return the stored outcome without recharging); fully rested
+  characters are turned away before any Gold moves; insufficient Gold
+  changes nothing.
+- **Character creation** opens the account with the starting grant + ledger
+  entry inside the creation transaction.
+- **Frontend**: recent-ledger card on the character page (signed amounts,
+  running balance) and a Rest action on the Inn feature card (only rendered
+  where an INN exists — i.e. Crownfall City).
+
+### Database
+
+Migration `currency_ledger`: `CurrencyAccount` (unique characterId, BIGINT
+balance), `CurrencyTransaction` (unique account+namespace+key, indexed by
+account+createdAt), custom SQL backfill from `Character.gold`, then column
+drop.
+
+### Endpoints
+
+- `GET /api/v1/currency`, `GET /api/v1/currency/transactions`
+- `POST /api/v1/locations/current/inn/rest`
+
+### Tests
+
+Starting grant + single entry + precision through the character response,
+credit/debit with per-change entries (14-digit BIGINT amounts),
+negative-balance rejection with untouched ledger, concurrent idempotency
+(5× same key → 1 applied; same key different namespace applies), concurrent
+ledger chain consistency (after = before + amount, sum = balance),
+basis-point flooring, inn wrong-location rejection, atomic restore + debit +
+exactly-once per key + ALREADY_RESTED + insufficient-Gold no-op + blocked
+while traveling. Playwright: starting grant in the ledger UI, inn card only
+in Crownfall City, fully-rested rejection with unchanged balance.
+
+### Known limitations
+
+- Gold sources beyond the starting grant arrive with combat (Phase 12) and
+  marketplace sales (Phase 9); sinks beyond the inn arrive with shops
+  (Phase 8).
+
 ## Phase 6 — Item Definitions, Inventory, Capacity, Transfers, Equipment (2026-07-16)
 
 **Status: complete.**

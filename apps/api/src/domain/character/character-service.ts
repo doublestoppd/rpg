@@ -3,6 +3,7 @@ import type { CharacterClassInfo, CharacterResponse, CharacterStatsResponse } fr
 
 import { gameConfig } from '../../config/game.js';
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import type { CurrencyService } from '../currency/currency-service.js';
 import { TRANSFER_REASONS, type InventoryService } from '../inventory/inventory-service.js';
 import {
   computeDerivedStats,
@@ -49,6 +50,7 @@ export interface CharacterService {
 export function createCharacterService(
   prisma: PrismaClient,
   inventoryService?: InventoryService,
+  currencyService?: CurrencyService,
 ): CharacterService {
   /** Definitions of currently equipped items (bonuses feed derived stats). */
   async function equippedDefs(tx: Tx, characterId: string) {
@@ -72,6 +74,9 @@ export function createCharacterService(
     character: Character & { class: CharacterClassDefinition },
   ): Promise<CharacterResponse> {
     const progression = await prisma.levelProgression.findMany({ orderBy: { level: 'asc' } });
+    const account = await prisma.currencyAccount.findUnique({
+      where: { characterId: character.id },
+    });
     const equipment = await equippedDefs(prisma, character.id);
     const derived = computeDerivedStats(character.class, character.level, equipment);
     const stamina = effectiveStamina({
@@ -93,7 +98,7 @@ export function createCharacterService(
       level: character.level,
       xp: character.xp,
       xpForNextLevel: xpForNextLevel(progression, character.level),
-      gold: character.gold.toString(),
+      gold: (account?.balance ?? 0n).toString(),
       resources: {
         hp: character.currentHp,
         maxHp: derived.maxHp,
@@ -131,7 +136,6 @@ export function createCharacterService(
               userId,
               name: input.name,
               classSlug: classDef.slug,
-              gold: gameConfig.startingGold,
               currentHp: classDef.baseHp,
               currentMp: classDef.baseMp,
               stamina: classDef.baseStamina,
@@ -139,6 +143,11 @@ export function createCharacterService(
             },
             include: { class: true },
           });
+          // The character's Gold account, opened with the starting grant and
+          // its ledger entry in this same transaction.
+          if (currencyService) {
+            await currencyService.createAccount(tx, created.id, gameConfig.startingGold);
+          }
           // Starter kit: a few consumables and a padded tunic, granted with
           // transfer records in the same transaction as creation.
           if (inventoryService) {

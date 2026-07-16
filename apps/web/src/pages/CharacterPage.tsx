@@ -8,6 +8,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
 import { useCharacter, useCharacterStats } from '../features/character/useCharacter';
+import { useCurrencyTransactions } from '../features/currency/useCurrency';
 import { useInventory, useUnequip } from '../features/inventory/useInventory';
 
 const EQUIPMENT_SLOTS: Array<{ slot: EquipmentSlotName; label: string }> = [
@@ -127,6 +128,48 @@ type AttributeMap = {
   luck: number;
 };
 
+const LEDGER_TYPE_LABELS: Record<string, string> = {
+  STARTING_GRANT: 'Starting grant',
+  INN_REST: 'Inn rest',
+};
+
+function LedgerPanel() {
+  const transactions = useCurrencyTransactions();
+  const rows = transactions.data?.transactions ?? [];
+  return (
+    <Card title="Recent ledger">
+      {rows.length === 0 ? (
+        <p className="text-sm text-stone-500 dark:text-stone-400">No Gold has moved yet.</p>
+      ) : (
+        <ul className="divide-y divide-stone-200 text-sm dark:divide-stone-800">
+          {rows.slice(0, 8).map((entry) => (
+            <li key={entry.id} className="flex items-center justify-between gap-2 py-1.5">
+              <span className="text-stone-600 dark:text-stone-400">
+                {LEDGER_TYPE_LABELS[entry.type] ?? entry.type}
+              </span>
+              <span className="flex items-baseline gap-3">
+                <span
+                  className={
+                    entry.amount.startsWith('-')
+                      ? 'font-medium text-red-700 dark:text-red-400'
+                      : 'font-medium text-green-700 dark:text-green-400'
+                  }
+                >
+                  {entry.amount.startsWith('-') ? entry.amount : `+${entry.amount}`}
+                </span>
+                <span className="text-xs text-stone-400">→ {entry.balanceAfter}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+        Every Gold change is recorded in the immutable ledger.
+      </p>
+    </Card>
+  );
+}
+
 export function CharacterPage() {
   const { data: character, isPending, isError, refetch } = useCharacter();
   const { data: stats } = useCharacterStats(Boolean(character));
@@ -201,6 +244,8 @@ export function CharacterPage() {
       </Card>
 
       <EquipmentPanel />
+
+      <LedgerPanel />
 
       <Card title="Class">
         <p className="text-sm leading-6 text-stone-600 dark:text-stone-400">

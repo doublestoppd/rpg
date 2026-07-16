@@ -129,9 +129,9 @@ model Character {
   /// Total accumulated XP (cumulative, compared against LevelProgression).
   xp    Int @default(0)
 
-  /// Gold belongs to the character, not the user account. BIGINT; mutated
-  /// only through the currency service once it exists (Phase 7).
-  gold BigInt
+  /// Gold belongs to the character via its CurrencyAccount (Phase 7); the
+  /// balance is mutated only through the currency service.
+  currencyAccount CurrencyAccount?
 
   /// Current HP/MP are stored; maxima and combat attributes are derived from
   /// class + level (+ equipment later) and never duplicated in tables.
@@ -212,6 +212,55 @@ model LocationFeature {
 
   @@unique([locationId, type, name])
   @@index([locationId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7 — currency ledger
+// ---------------------------------------------------------------------------
+
+/// The authoritative Gold balance for a character. BIGINT; every change is
+/// applied by the currency service inside a transaction together with exactly
+/// one immutable CurrencyTransaction row.
+model CurrencyAccount {
+  id String @id @default(uuid())
+
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  balance BigInt
+
+  updatedAt DateTime @updatedAt
+
+  transactions CurrencyTransaction[]
+}
+
+/// Immutable ledger entry: signed amount (credit positive, debit negative)
+/// plus the balance before and after. Idempotency keys are unique per account
+/// and operation namespace.
+model CurrencyTransaction {
+  id String @id @default(uuid())
+
+  accountId String
+  account   CurrencyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  amount        BigInt
+  balanceBefore BigInt
+  balanceAfter  BigInt
+
+  /// Stable operation type (STARTING_GRANT, INN_REST, NPC_PURCHASE, …).
+  type String
+
+  /// Related entity reference (e.g. "TravelState"/id, "NpcShopPurchase"/id).
+  relatedType String?
+  relatedId   String?
+
+  operationNamespace String
+  idempotencyKey     String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, operationNamespace, idempotencyKey])
+  @@index([accountId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

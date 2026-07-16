@@ -8,11 +8,11 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 6 complete** — the dual
-stack/instance inventory with slot capacity and reservations, a 25-item
-seeded catalog, aggregate and per-instance transfer records, nine equipment
-slots with equipment-aware derived stats, and inventory/equipment UI.
-The currency ledger and Crownfall Inn arrive in Phase 7.
+for what exists today. **Currently: Phase 7 complete** — the immutable Gold
+ledger (BIGINT accounts, exactly one transaction row per balance change,
+namespace-scoped idempotency keys, integer basis-point math) and the
+activated Crownfall Inn with atomic level-scaled rest. NPC shops and
+regional pricing arrive in Phase 8.
 
 ## Stack (fixed)
 

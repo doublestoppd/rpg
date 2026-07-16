@@ -2,11 +2,14 @@ import { Link, Navigate } from 'react-router-dom';
 
 import type { LocationFeatureType } from '@rpg/shared';
 
+import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
+import { useToast } from '../components/ui/Toast';
 import { useCharacter } from '../features/character/useCharacter';
+import { useInnRest } from '../features/currency/useCurrency';
 import { LocationArtwork } from '../features/location/LocationArtwork';
 import {
   useCurrentLocation,
@@ -37,6 +40,33 @@ function formatTravelTime(seconds: number): string {
  * The current-location page is the gameplay hub: local activities appear here
  * as feature cards rather than global navigation destinations.
  */
+function InnRestAction() {
+  const innRest = useInnRest();
+  const { showToast } = useToast();
+  return (
+    <Button
+      className="mt-3"
+      disabled={innRest.isPending}
+      onClick={() =>
+        innRest.mutate(
+          { idempotencyKey: crypto.randomUUID().replaceAll('-', '') },
+          {
+            onSuccess: (result) =>
+              showToast(`You feel restored. Paid ${result.feePaid} Gold.`, 'success'),
+            onError: (err) =>
+              showToast(
+                err instanceof Error ? err.message : 'The innkeeper turns you away.',
+                'error',
+              ),
+          },
+        )
+      }
+    >
+      Rest (level-scaled fee)
+    </Button>
+  );
+}
+
 export function LocationPage() {
   const { data: character, isPending: characterPending } = useCharacter();
   const travel = useTravelStatus(Boolean(character));
@@ -114,6 +144,7 @@ export function LocationPage() {
                 <p className="text-xs leading-5 text-stone-600 dark:text-stone-400">
                   {feature.description}
                 </p>
+                {feature.type === 'INN' && <InnRestAction />}
               </Card>
             ))}
           </div>
