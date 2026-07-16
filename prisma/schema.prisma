@@ -158,6 +158,7 @@ model Character {
   capacityReservations InventoryCapacityReservation[]
   transfersFrom        ItemTransfer[]                 @relation("TransferFrom")
   transfersTo          ItemTransfer[]                 @relation("TransferTo")
+  npcPurchases         NpcShopPurchase[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,6 +185,8 @@ model Location {
   routesFrom  TravelRoute[]     @relation("RouteFrom")
   routesTo    TravelRoute[]     @relation("RouteTo")
   characters  Character[]
+  priceModifiers RegionalPriceModifier[]
+  npcShops       NpcShop[]
 }
 
 enum LocationFeatureType {
@@ -212,6 +215,121 @@ model LocationFeature {
 
   @@unique([locationId, type, name])
   @@index([locationId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8 — regional pricing and NPC shops
+// ---------------------------------------------------------------------------
+
+/// Per-location price modifier in basis points (10000 = base value), keyed by
+/// item category. Defined for the whole region map; only locations with
+/// implemented shops have active prices today.
+model RegionalPriceModifier {
+  id String @id @default(uuid())
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  category    ItemCategory
+  modifierBps Int
+
+  @@unique([locationId, category])
+}
+
+model NpcShop {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+
+  /// Purchase markup in basis points applied after the regional modifier.
+  markupBps   Int
+  /// Future resale rate; validated strictly below markupBps so a guaranteed
+  /// buy-at-NPC/sell-to-NPC loop is impossible.
+  sellbackBps Int
+
+  /// Weighted restock pool + slot count, validated by Zod at seed and load.
+  poolConfig Json
+
+  restockIntervalSeconds Int
+  restockJitterSeconds   Int
+
+  /// Timestamp authority for lazy restocking; exact values never leave the API.
+  nextRestockAt    DateTime  @default(now())
+  lastRestockAt    DateTime?
+  currentRestockId String?
+
+  restocks  NpcShopRestock[]
+  purchases NpcShopPurchase[]
+}
+
+/// One restock batch. Stock entries always belong to a batch; only the
+/// shop's current batch is purchasable.
+model NpcShopRestock {
+  id String @id @default(uuid())
+
+  shopId String
+  shop   NpcShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  restockedAt DateTime @default(now())
+
+  stockEntries NpcShopStockEntry[]
+  purchases    NpcShopPurchase[]
+
+  @@index([shopId, restockedAt])
+}
+
+model NpcShopStockEntry {
+  id String @id @default(uuid())
+
+  restockId String
+  restock   NpcShopRestock @relation(fields: [restockId], references: [id], onDelete: Cascade)
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  quantityTotal     Int
+  quantityRemaining Int
+
+  /// Regional price at restock time (BIGINT Gold per unit).
+  unitPrice BigInt
+
+  /// Purchase limit per character, per stock entry, per restock.
+  perCharacterLimit Int
+
+  purchases NpcShopPurchase[]
+
+  @@index([restockId])
+}
+
+model NpcShopPurchase {
+  id String @id @default(uuid())
+
+  shopId String
+  shop   NpcShop @relation(fields: [shopId], references: [id])
+
+  restockId String
+  restock   NpcShopRestock @relation(fields: [restockId], references: [id])
+
+  stockEntryId String
+  stockEntry   NpcShopStockEntry @relation(fields: [stockEntryId], references: [id])
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id])
+
+  quantity   Int
+  unitPrice  BigInt
+  totalPrice BigInt
+
+  idempotencyKey String
+  createdAt      DateTime @default(now())
+
+  @@unique([characterId, idempotencyKey])
+  @@index([characterId, stockEntryId])
 }
 
 // ---------------------------------------------------------------------------
@@ -327,6 +445,7 @@ model ItemDefinition {
   stacks    InventoryStack[]
   instances ItemInstance[]
   transfers ItemTransfer[]
+  npcStockEntries NpcShopStockEntry[]
 }
 
 /// One row per character + stackable item definition.

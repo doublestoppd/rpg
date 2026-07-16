@@ -15,5 +15,6 @@ export * from './errors.js';
 export * from './health.js';
 export * from './items.js';
 export * from './location.js';
+export * from './npc-shops.js';
 export * from './settings.js';
 export * from './travel.js';

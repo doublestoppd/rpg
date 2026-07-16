@@ -10,6 +10,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ShopPage } from './pages/ShopPage';
 import { TravelPage } from './pages/TravelPage';
 
 export function App() {
@@ -48,6 +49,14 @@ export function App() {
           element={
             <RequireAuth>
               <CharacterCreatePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="shops/:shopId"
+          element={
+            <RequireAuth>
+              <ShopPage />
             </RequireAuth>
           }
         />

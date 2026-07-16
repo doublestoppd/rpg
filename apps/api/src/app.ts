@@ -22,6 +22,7 @@ import { createInnService } from './domain/inn/inn-service.js';
 import { createEquipmentService } from './domain/inventory/equipment-service.js';
 import { createInventoryService } from './domain/inventory/inventory-service.js';
 import { createLocationService } from './domain/location/location-service.js';
+import { createNpcShopService } from './domain/npc-shop/npc-shop-service.js';
 import { createTravelService } from './domain/travel/travel-service.js';
 import { createTimedStateRunner } from './lib/timed-state.js';
 import { DomainError } from './lib/http-errors.js';
@@ -34,6 +35,7 @@ import { currencyRoutes } from './routes/currency.js';
 import { healthRoutes } from './routes/health.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { locationRoutes } from './routes/locations.js';
+import { npcShopRoutes } from './routes/npc-shops.js';
 import { travelRoutes } from './routes/travel.js';
 
 export interface AppDependencies {
@@ -139,6 +141,13 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     inventoryService,
     equipmentService,
   });
+  const npcShopService = createNpcShopService(
+    prisma,
+    characterService,
+    locationService,
+    currencyService,
+    inventoryService,
+  );
   const innService = createInnService(
     prisma,
     characterService,
@@ -152,6 +161,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     currencyService,
     innService,
   });
+  await app.register(npcShopRoutes, { prefix: '/api/v1', npcShopService });
 
   return app;
 }

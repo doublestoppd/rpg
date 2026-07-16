@@ -43,4 +43,26 @@ test('travel to a neighbor, blocked local actions, and arrival on refresh', asyn
   // The market district features come from the registry.
   const featuresSection = page.getByRole('region', { name: 'Local features' });
   await expect(featuresSection.getByText('Crownfall General Goods')).toBeVisible();
+
+  // Browse the general goods shop and buy something with limited stock.
+  const generalGoodsCard = featuresSection
+    .locator('div')
+    .filter({ hasText: 'Crownfall General Goods' });
+  await generalGoodsCard
+    .getByRole('link', { name: /Browse wares/ })
+    .first()
+    .click();
+  await expect(page.getByRole('heading', { name: 'Crownfall General Goods' })).toBeVisible();
+  await expect(page.getByText('Your Gold:')).toBeVisible();
+
+  // Buy 1 of the first purchasable entry via the confirmation dialog.
+  await page.getByRole('button', { name: 'Buy', exact: true }).first().click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByTestId('buy-quantity')).toHaveText('1');
+  await dialog.getByRole('button', { name: /^Pay \d+ Gold$/ }).click();
+  await expect(page.getByText(/^Bought 1 × /)).toBeVisible();
+
+  // The purchase shows up in the pack.
+  await nav.getByRole('link', { name: 'Inventory' }).click();
+  await expect(page.getByTestId('slot-usage')).not.toHaveText('2 / 24 slots');
 });

@@ -25,11 +25,17 @@ export async function truncateAll(prisma: PrismaClient): Promise<void> {
   // Gameplay/account state only — seeded configuration tables
   // (CharacterClassDefinition, LevelProgression) are left intact.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "CurrencyTransaction", "CurrencyAccount", ' +
+    'TRUNCATE TABLE "NpcShopPurchase", "NpcShopStockEntry", "NpcShopRestock", ' +
+      '"CurrencyTransaction", "CurrencyAccount", ' +
       '"ItemTransfer", "EquipmentAssignment", "InventoryCapacityReservation", ' +
       '"ItemInstance", "InventoryStack", "Character", "Session", "UserSettings", "User" ' +
       'RESTART IDENTITY CASCADE',
   );
+  // Shops are seed config; reset their runtime restock state so every test
+  // starts due for a fresh restock.
+  await prisma.npcShop.updateMany({
+    data: { nextRestockAt: new Date(0), lastRestockAt: null, currentRestockId: null },
+  });
 }
 
 /** Registers a fresh user and returns its session cookie + CSRF token. */

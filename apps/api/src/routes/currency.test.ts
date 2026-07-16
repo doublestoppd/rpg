@@ -195,7 +195,9 @@ describe('basis points', () => {
     expect(applyBasisPoints(10_000n, 250)).toBe(250n);
     expect(applyBasisPoints(1n, 9999)).toBe(0n);
     expect(applyBasisPoints(0n, 500)).toBe(0n);
-    expect(() => applyBasisPoints(100n, 10_001)).toThrow();
+    expect(applyBasisPoints(100n, 10_500)).toBe(105n); // price multipliers may exceed 100%
+    expect(() => applyBasisPoints(100n, 100_001)).toThrow();
+    expect(() => applyBasisPoints(100n, -1)).toThrow();
   });
 });
 

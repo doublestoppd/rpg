@@ -8,6 +8,7 @@ type Tx = Prisma.TransactionClient;
 export const CURRENCY_TYPES = {
   STARTING_GRANT: 'STARTING_GRANT',
   INN_REST: 'INN_REST',
+  NPC_PURCHASE: 'NPC_PURCHASE',
   TEST: 'TEST',
 } as const;
 

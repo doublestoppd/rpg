@@ -10,6 +10,7 @@ import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
 import { useCharacter } from '../features/character/useCharacter';
 import { useInnRest } from '../features/currency/useCurrency';
+import { useLocalShops } from '../features/npc-shops/useNpcShops';
 import { LocationArtwork } from '../features/location/LocationArtwork';
 import {
   useCurrentLocation,
@@ -74,6 +75,7 @@ export function LocationPage() {
   const location = useCurrentLocation(atLocation);
   const features = useLocationFeatures(atLocation);
   const destinations = useTravelDestinations(atLocation);
+  const localShops = useLocalShops(atLocation);
 
   if (characterPending) return <LoadingState label="Finding your bearings…" />;
   if (!character) return <Navigate to="/character/new" replace />;
@@ -145,6 +147,18 @@ export function LocationPage() {
                   {feature.description}
                 </p>
                 {feature.type === 'INN' && <InnRestAction />}
+                {feature.type === 'NPC_SHOP' &&
+                  (() => {
+                    const shop = localShops.data?.shops.find((s) => s.name === feature.name);
+                    return shop ? (
+                      <Link
+                        to={`/shops/${shop.id}`}
+                        className="mt-3 inline-block text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
+                      >
+                        Browse wares →
+                      </Link>
+                    ) : null;
+                  })()}
               </Card>
             ))}
           </div>

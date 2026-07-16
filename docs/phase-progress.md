@@ -3,6 +3,77 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 8 — Regional Pricing and NPC Shop Restocks (2026-07-16)
+
+**Status: complete.**
+
+### Delivered
+
+- **Regional price modifiers** (`RegionalPriceModifier`, basis points per
+  location × item category) seeded for the whole map before any purchase
+  logic: Market District broad demand (+5% across categories), Ironroot
+  cheaper ore (−25%) and costlier food (+30%), Greenmeadow cheaper
+  food/herbs and costlier metal gear, Silvermere cheaper fish, Harbor
+  cheaper specialty imports. Only the Market District shops consume them
+  today. Unit price = base value × location modifier × shop markup, all in
+  BigInt basis points, floored, minimum 1.
+- **Two shops** in the Crownfall Market District: Crownfall General Goods
+  (consumables/sundries, 30-min restocks ± 10-min jitter) and Crownfall
+  Forge (arms, armor, ingots, 45-min ± 15-min). Weighted restock pools with
+  quantity ranges and per-restock purchase limits live in validated JSON
+  config; **sellback rates are validated strictly below markup**, so a
+  guaranteed buy-at-NPC/sell-to-NPC loop is impossible by construction.
+- **Lazy restocking** (timestamp authority): the first view after
+  `nextRestockAt` performs the restock under a shop row lock (exactly once
+  under concurrent views); if downtime skipped several intervals, **at most
+  one catch-up restock** runs and the next is scheduled from the current
+  time plus secure-RNG jitter. Stock entries are drawn by weighted sampling
+  without replacement (Node crypto, ADR 0005). Exact restock timestamps and
+  exact remaining quantities never leave the API — clients see
+  PLENTY/SOME/LOW/SOLD_OUT.
+- **Race-safe purchases**: one transaction validates location, stock
+  freshness (only the current restock is purchasable), the per-character ×
+  per-entry × per-restock limit, Gold, and capacity, then debits the
+  ledger, adds inventory with ItemTransfer records, decrements stock with a
+  conditional update (never negative), and records the NpcShopPurchase —
+  all atomic, idempotent per character + key (replays return the recorded
+  purchase).
+- **Frontend**: NPC_SHOP feature cards on the district page link to the shop
+  page — stock list with prices, approximate-stock badges, per-restock
+  limits with your purchase count, and a quantity + confirmation dialog.
+
+### Database
+
+Migration `npc_shops_regional_pricing`: `RegionalPriceModifier`, `NpcShop`
+(markup/sellback bps, pool JSON, restock interval + jitter, next/last/current
+restock), `NpcShopRestock`, `NpcShopStockEntry` (total/remaining, BIGINT unit
+price, per-character limit), `NpcShopPurchase` (unique character + key).
+
+### Endpoints
+
+- `GET /api/v1/npc-shops`, `GET /api/v1/npc-shops/:id`
+- `POST /api/v1/npc-shops/:id/purchases`
+
+### Tests
+
+Two seeded shop configurations (jitter, weighted pools, resale spread),
+regional modifier matrix, weighted restock with quantity/price bounds and no
+leaked timestamps, at-most-one catch-up after 5h downtime with rescheduling
+from now, exactly-once restock under 5 concurrent views, atomic purchase
+(gold + stock + inventory + ledger + transfer) with idempotent replay,
+wrong-location rejection, insufficient Gold and capacity-blocked purchases
+changing nothing, per-restock limit enforcement with stale-stock rejection
+and reset after a forced restock, final-unit concurrency (two buyers → one
+success, stock exactly zero, loser uncharged), and approximate-only stock
+levels. Playwright: after the real 30-second journey, browse General Goods,
+buy via the confirmation dialog, and see the item in the pack.
+
+### Known limitations
+
+- Selling to NPCs is not implemented (no endpoint in the initial release);
+  the sellback rate exists as validated config so the spread invariant is
+  enforced from day one.
+
 ## Phase 7 — Currency Ledger and Crownfall Inn (2026-07-16)
 
 **Status: complete.**

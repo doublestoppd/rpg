@@ -8,11 +8,11 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 7 complete** — the immutable Gold
-ledger (BIGINT accounts, exactly one transaction row per balance change,
-namespace-scoped idempotency keys, integer basis-point math) and the
-activated Crownfall Inn with atomic level-scaled rest. NPC shops and
-regional pricing arrive in Phase 8.
+for what exists today. **Currently: Phase 8 complete** — regional price
+modifiers across the map, two limited-stock NPC shops in the Market District
+with lazily scheduled weighted restocks (secure RNG, at most one catch-up
+after downtime), and race-safe atomic purchases with per-restock limits.
+Player shops and the marketplace arrive in Phase 9.
 
 ## Stack (fixed)
 

@@ -514,6 +514,176 @@ export const ITEM_DEFINITIONS = [
 ];
 
 /**
+ * Regional price modifiers in basis points (10000 = base value), keyed by
+ * location slug and item category. The whole map is defined up front; only
+ * locations with implemented shops have active prices today.
+ */
+export const REGIONAL_PRICE_MODIFIERS = [
+  // Market District: broad demand — a modest premium across the board.
+  ...[
+    'RESOURCE',
+    'CONSUMABLE',
+    'EQUIPMENT',
+    'CRAFTING_COMPONENT',
+    'COLLECTIBLE',
+    'QUEST_ITEM',
+    'SPECIALTY',
+  ].map((category) => ({
+    locationSlug: 'crownfall-market-district',
+    category,
+    modifierBps: 10500,
+  })),
+  // Ironroot Mine: ore is cheap at the source; hauled-in food is dear.
+  { locationSlug: 'ironroot-mine', category: 'RESOURCE', modifierBps: 7500 },
+  { locationSlug: 'ironroot-mine', category: 'CONSUMABLE', modifierBps: 13000 },
+  // Greenmeadow Village: cheap food and herbs; costly metal gear.
+  { locationSlug: 'greenmeadow-village', category: 'CONSUMABLE', modifierBps: 8000 },
+  { locationSlug: 'greenmeadow-village', category: 'RESOURCE', modifierBps: 9000 },
+  { locationSlug: 'greenmeadow-village', category: 'EQUIPMENT', modifierBps: 13000 },
+  { locationSlug: 'greenmeadow-village', category: 'CRAFTING_COMPONENT', modifierBps: 12000 },
+  // Silvermere Lake: the morning catch goes cheap.
+  { locationSlug: 'silvermere-lake', category: 'RESOURCE', modifierBps: 8500 },
+  // Crownfall Harbor: specialty imports land here first.
+  { locationSlug: 'crownfall-harbor', category: 'SPECIALTY', modifierBps: 9000 },
+];
+
+/**
+ * NPC shop configurations: weighted restock pools with quantity ranges and
+ * per-restock, per-character purchase limits. Sellback rates are strictly
+ * below markup so buy-at-NPC/sell-to-NPC can never profit.
+ */
+export const NPC_SHOPS = [
+  {
+    slug: 'crownfall-general-goods',
+    name: 'Crownfall General Goods',
+    locationSlug: 'crownfall-market-district',
+    description: 'Staples, supplies, and sundries — restocked in limited batches.',
+    markupBps: 12000,
+    sellbackBps: 5000,
+    restockIntervalSeconds: 1800,
+    restockJitterSeconds: 600,
+    poolConfig: {
+      restockSlots: 5,
+      pool: [
+        {
+          itemSlug: 'lesser-healing-draught',
+          weight: 30,
+          minQuantity: 5,
+          maxQuantity: 10,
+          perCharacterLimit: 3,
+        },
+        {
+          itemSlug: 'healing-draught',
+          weight: 15,
+          minQuantity: 3,
+          maxQuantity: 6,
+          perCharacterLimit: 2,
+        },
+        {
+          itemSlug: 'mana-tonic',
+          weight: 15,
+          minQuantity: 3,
+          maxQuantity: 6,
+          perCharacterLimit: 2,
+        },
+        {
+          itemSlug: 'traveler-ration',
+          weight: 25,
+          minQuantity: 8,
+          maxQuantity: 15,
+          perCharacterLimit: 5,
+        },
+        {
+          itemSlug: 'meadow-herb',
+          weight: 20,
+          minQuantity: 10,
+          maxQuantity: 20,
+          perCharacterLimit: 10,
+        },
+        {
+          itemSlug: 'forge-coal',
+          weight: 20,
+          minQuantity: 10,
+          maxQuantity: 20,
+          perCharacterLimit: 10,
+        },
+        {
+          itemSlug: 'harbor-spice-bundle',
+          weight: 8,
+          minQuantity: 2,
+          maxQuantity: 4,
+          perCharacterLimit: 2,
+        },
+      ],
+    },
+  },
+  {
+    slug: 'crownfall-forge',
+    name: 'Crownfall Forge',
+    locationSlug: 'crownfall-market-district',
+    description: 'Smith-made arms and armor in limited supply.',
+    markupBps: 12500,
+    sellbackBps: 5500,
+    restockIntervalSeconds: 2700,
+    restockJitterSeconds: 900,
+    poolConfig: {
+      restockSlots: 4,
+      pool: [
+        {
+          itemSlug: 'bronze-longblade',
+          weight: 12,
+          minQuantity: 1,
+          maxQuantity: 2,
+          perCharacterLimit: 1,
+        },
+        {
+          itemSlug: 'pinewood-buckler',
+          weight: 20,
+          minQuantity: 1,
+          maxQuantity: 3,
+          perCharacterLimit: 1,
+        },
+        {
+          itemSlug: 'worn-leather-cap',
+          weight: 20,
+          minQuantity: 1,
+          maxQuantity: 3,
+          perCharacterLimit: 1,
+        },
+        {
+          itemSlug: 'quilted-tunic',
+          weight: 18,
+          minQuantity: 1,
+          maxQuantity: 3,
+          perCharacterLimit: 1,
+        },
+        {
+          itemSlug: 'apprentice-focus',
+          weight: 12,
+          minQuantity: 1,
+          maxQuantity: 2,
+          perCharacterLimit: 1,
+        },
+        {
+          itemSlug: 'copper-ingot',
+          weight: 25,
+          minQuantity: 5,
+          maxQuantity: 10,
+          perCharacterLimit: 5,
+        },
+        {
+          itemSlug: 'iron-ingot',
+          weight: 20,
+          minQuantity: 4,
+          maxQuantity: 8,
+          perCharacterLimit: 4,
+        },
+      ],
+    },
+  },
+];
+
+/**
  * Cumulative XP required to hold each level (level cap = 20).
  * Strictly monotonic; validated at seed time.
  */

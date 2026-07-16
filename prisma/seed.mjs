@@ -11,6 +11,8 @@ import {
   LEVEL_PROGRESSION,
   LOCATION_FEATURES,
   LOCATIONS,
+  NPC_SHOPS,
+  REGIONAL_PRICE_MODIFIERS,
   TRAVEL_ROUTES,
 } from './seed-data.mjs';
 
@@ -107,10 +109,58 @@ async function main() {
     });
   }
 
+  for (const modifier of REGIONAL_PRICE_MODIFIERS) {
+    const locationId = locationIdBySlug.get(modifier.locationSlug);
+    if (!locationId)
+      throw new Error(`seed: unknown location ${modifier.locationSlug} for modifier`);
+    if (modifier.modifierBps < 1000 || modifier.modifierBps > 30000) {
+      throw new Error(`seed: modifier out of sane range for ${modifier.locationSlug}`);
+    }
+    await prisma.regionalPriceModifier.upsert({
+      where: { locationId_category: { locationId, category: modifier.category } },
+      create: { locationId, category: modifier.category, modifierBps: modifier.modifierBps },
+      update: { modifierBps: modifier.modifierBps },
+    });
+  }
+
+  const itemSlugSet = new Set(ITEM_DEFINITIONS.map((i) => i.slug));
+  for (const shop of NPC_SHOPS) {
+    const locationId = locationIdBySlug.get(shop.locationSlug);
+    if (!locationId) throw new Error(`seed: unknown location ${shop.locationSlug} for shop`);
+    // Resale spread invariant: sellback strictly below markup.
+    if (shop.sellbackBps >= shop.markupBps || shop.sellbackBps >= 10000) {
+      throw new Error(`seed: ${shop.slug} sellback must be strictly below markup and 100%`);
+    }
+    if (!Number.isInteger(shop.poolConfig.restockSlots) || shop.poolConfig.restockSlots < 1) {
+      throw new Error(`seed: ${shop.slug} restockSlots invalid`);
+    }
+    for (const entry of shop.poolConfig.pool) {
+      if (!itemSlugSet.has(entry.itemSlug)) {
+        throw new Error(`seed: ${shop.slug} pool references unknown item ${entry.itemSlug}`);
+      }
+      if (
+        entry.weight < 1 ||
+        entry.minQuantity < 1 ||
+        entry.maxQuantity < entry.minQuantity ||
+        entry.perCharacterLimit < 1
+      ) {
+        throw new Error(`seed: ${shop.slug} pool entry invalid for ${entry.itemSlug}`);
+      }
+    }
+    const { slug, locationSlug, ...data } = shop;
+    void locationSlug;
+    await prisma.npcShop.upsert({
+      where: { slug },
+      create: { slug, locationId, ...data },
+      update: { ...data, locationId },
+    });
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
-      `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items ensured`,
+      `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items, ` +
+      `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops ensured`,
   );
 }
 
