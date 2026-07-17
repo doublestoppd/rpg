@@ -8,12 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 12 complete** — classic
-initiative-gauge combat: persisted server-authoritative battles at three
-locations plus a gated boss, fixed-point initiative with exact tie rules,
-configurable damage formulas with elements/rows/statuses, versioned
-replay-safe commands, a deterministic server-secret PRNG, and exactly-once
-victory/defeat settlement. Quests arrive in Phase 13.
+for what exists today. **Currently: Phase 13 complete** — five typed quests
+driven by transactional in-process domain events: travel, mining, crafting,
+and combat emit progress inside their own verified transactions, the client
+can never submit progress, and manual claims grant XP/Gold/items exactly
+once (capacity-blocked claims stay safely unclaimed). The museum collection
+arrives in Phase 14.
 
 ## Stack (fixed)
 

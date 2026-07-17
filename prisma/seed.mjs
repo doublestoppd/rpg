@@ -11,6 +11,7 @@ import {
   ENCOUNTER_DEFINITIONS,
   ENEMY_DEFINITIONS,
   GATHERING_ACTIONS,
+  QUEST_DEFINITIONS,
   ITEM_DEFINITIONS,
   LEVEL_PROGRESSION,
   LOCATION_FEATURES,
@@ -291,13 +292,63 @@ async function main() {
     });
   }
 
+  const recipeSlugSet = new Set(CRAFTING_RECIPES.map((r) => r.slug));
+  const gatherableSlugSet = new Set(
+    GATHERING_ACTIONS.flatMap((a) => a.rewardTable.entries.map((e) => e.itemSlug)),
+  );
+  const locationSlugSet = new Set(LOCATIONS.map((l) => l.slug));
+  if (QUEST_DEFINITIONS.length !== 5) throw new Error('seed: exactly five quests are defined');
+  for (const quest of QUEST_DEFINITIONS) {
+    if (quest.rewardXp < 0 || quest.rewardGold < 0n) {
+      throw new Error(`seed: ${quest.slug} reward invalid`);
+    }
+    for (const reward of quest.rewardItems) {
+      if (!itemSlugSet.has(reward.itemSlug) || reward.quantity < 1) {
+        throw new Error(`seed: ${quest.slug} reward item invalid (${reward.itemSlug})`);
+      }
+    }
+    if (quest.objectives.length < 1) throw new Error(`seed: ${quest.slug} has no objectives`);
+    for (const objective of quest.objectives) {
+      if (objective.requiredCount < 1) {
+        throw new Error(`seed: ${quest.slug} objective count invalid`);
+      }
+      const target = objective.targetSlug;
+      const valid =
+        (objective.type === 'TRAVEL_TO_LOCATION' && locationSlugSet.has(target)) ||
+        (objective.type === 'GATHER_ITEM' && gatherableSlugSet.has(target)) ||
+        (objective.type === 'CRAFT_RECIPE' && recipeSlugSet.has(target)) ||
+        (objective.type === 'DEFEAT_ENEMY' && enemySlugSet.has(target)) ||
+        (objective.type === 'DONATE_ITEM' && itemSlugSet.has(target));
+      if (!valid) {
+        throw new Error(
+          `seed: ${quest.slug} objective targets unknown ${objective.type} ${target}`,
+        );
+      }
+    }
+    const { slug, objectives, ...data } = quest;
+    const row = await prisma.questDefinition.upsert({
+      where: { slug },
+      create: { slug, ...data },
+      update: data,
+    });
+    for (const objective of objectives) {
+      const { sortOrder, ...objectiveData } = objective;
+      await prisma.questObjective.upsert({
+        where: { questId_sortOrder: { questId: row.id, sortOrder } },
+        create: { questId: row.id, sortOrder, ...objectiveData },
+        update: objectiveData,
+      });
+    }
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
       `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items, ` +
       `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops, ` +
       `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes, ` +
-      `${ENEMY_DEFINITIONS.length} enemies, ${ENCOUNTER_DEFINITIONS.length} encounters ensured`,
+      `${ENEMY_DEFINITIONS.length} enemies, ${ENCOUNTER_DEFINITIONS.length} encounters, ` +
+      `${QUEST_DEFINITIONS.length} quests ensured`,
   );
 }
 

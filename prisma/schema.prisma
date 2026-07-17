@@ -168,6 +168,7 @@ model Character {
   professions          CraftingProfessionProgress[]
   craftingRuns         CraftingRun[]
   combats              Combat[]
+  characterQuests      CharacterQuest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -890,6 +891,102 @@ model CombatRewardGrant {
   drops Json
 
   createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Phase 13 — quests and transactional domain events
+// ---------------------------------------------------------------------------
+
+enum QuestObjectiveType {
+  TRAVEL_TO_LOCATION
+  GATHER_ITEM
+  CRAFT_RECIPE
+  DEFEAT_ENEMY
+  DONATE_ITEM
+}
+
+/// Seeded quest. Rewards are granted only through the manual claim
+/// transaction: XP, Gold (BIGINT), and items ([{itemSlug, quantity}]).
+model QuestDefinition {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  rewardXp    Int
+  rewardGold  BigInt
+  rewardItems Json
+
+  sortOrder Int @default(0)
+
+  objectives      QuestObjective[]
+  characterQuests CharacterQuest[]
+}
+
+/// One typed objective. Progress comes exclusively from typed in-process
+/// domain events emitted by verified actions (travel, gathering, crafting,
+/// combat, donation) inside their own transactions — never from the client.
+model QuestObjective {
+  id String @id @default(uuid())
+
+  questId String
+  quest   QuestDefinition @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  sortOrder     Int
+  type          QuestObjectiveType
+  /// What the event must match: a location, item, recipe, or enemy slug.
+  targetSlug    String
+  requiredCount Int
+  description   String
+
+  progress QuestProgress[]
+
+  @@unique([questId, sortOrder])
+}
+
+enum CharacterQuestStatus {
+  /// Reserved intermediate state (acceptance currently activates directly).
+  ACCEPTED
+  ACTIVE
+  COMPLETED_UNCLAIMED
+  CLAIMED
+}
+
+model CharacterQuest {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  questId String
+  quest   QuestDefinition @relation(fields: [questId], references: [id])
+
+  status CharacterQuestStatus @default(ACTIVE)
+
+  acceptedAt  DateTime  @default(now())
+  completedAt DateTime?
+  claimedAt   DateTime?
+
+  progress QuestProgress[]
+
+  @@unique([characterId, questId])
+  @@index([characterId, status])
+}
+
+model QuestProgress {
+  id String @id @default(uuid())
+
+  characterQuestId String
+  characterQuest   CharacterQuest @relation(fields: [characterQuestId], references: [id], onDelete: Cascade)
+
+  objectiveId String
+  objective   QuestObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  currentCount Int       @default(0)
+  completedAt  DateTime?
+
+  @@unique([characterQuestId, objectiveId])
 }
 
 // ---------------------------------------------------------------------------

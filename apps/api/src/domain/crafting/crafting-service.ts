@@ -23,6 +23,7 @@ import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
 import { toItemDefinitionInfo, type InventoryService } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
+import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
 export const CRAFTING_CONSUME_REASON = 'CRAFTING_CONSUME';
 export const CRAFTING_OUTPUT_REASON = 'CRAFTING_OUTPUT';
@@ -86,6 +87,7 @@ export function createCraftingService(
   locationService: LocationService,
   currencyService: CurrencyService,
   inventoryService: InventoryService,
+  questEvents: QuestEventSink = noopQuestEvents,
 ): CraftingService {
   type Tx = Prisma.TransactionClient;
 
@@ -139,7 +141,12 @@ export function createCraftingService(
   }
 
   /** Grants the snapshotted output inside the caller's transaction. */
-  async function grantOutput(tx: Tx, characterId: string, snapshot: OutputSnapshot): Promise<void> {
+  async function grantOutput(
+    tx: Tx,
+    characterId: string,
+    recipeSlug: string,
+    snapshot: OutputSnapshot,
+  ): Promise<void> {
     for (const output of snapshot.outputs) {
       if (output.stackable) {
         await inventoryService.addToStack(tx, {
@@ -165,6 +172,8 @@ export function createCraftingService(
         update: { xp: { increment: snapshot.xp } },
       });
     }
+    // Typed domain event in the same transaction as the verified grant.
+    await questEvents.handle(tx, characterId, { type: 'CRAFTING_COMPLETED', recipeSlug });
   }
 
   /**
@@ -172,7 +181,10 @@ export function createCraftingService(
    * grant, in one transaction — a capacity failure rolls both back and the
    * run is parked as OUTPUT_HELD with its pending output untouched.
    */
-  async function finalizeRun(run: CraftingRunRow, now: Date): Promise<void> {
+  async function finalizeRun(
+    run: CraftingRunRow & { recipe: CraftingRecipe },
+    now: Date,
+  ): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {
         await inventoryService.lockCharacter(tx, run.characterId);
@@ -181,7 +193,12 @@ export function createCraftingService(
           data: { status: 'COMPLETED', completedAt: now, claimedAt: now },
         });
         if (updated.count !== 1) return; // another request finalized it
-        await grantOutput(tx, run.characterId, outputSnapshotSchema.parse(run.output));
+        await grantOutput(
+          tx,
+          run.characterId,
+          run.recipe.slug,
+          outputSnapshotSchema.parse(run.output),
+        );
       });
     } catch (error) {
       if (error instanceof DomainError && CAPACITY_ERROR_CODES.has(error.code)) {
@@ -201,6 +218,7 @@ export function createCraftingService(
     async finalizeExpired(characterId, now) {
       const expired = await prisma.craftingRun.findFirst({
         where: { characterId, status: 'IN_PROGRESS', completesAt: { lte: now } },
+        include: { recipe: true },
       });
       if (expired) await finalizeRun(expired, now);
     },
@@ -439,7 +457,12 @@ export function createCraftingService(
         if (updated.count !== 1) {
           throw conflict('NOTHING_TO_CLAIM', 'You have no finished work to collect.');
         }
-        await grantOutput(tx, character.id, outputSnapshotSchema.parse(held.output));
+        await grantOutput(
+          tx,
+          character.id,
+          held.recipe.slug,
+          outputSnapshotSchema.parse(held.output),
+        );
       });
 
       const claimed = await prisma.craftingRun.findUniqueOrThrow({

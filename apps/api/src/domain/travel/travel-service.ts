@@ -5,6 +5,7 @@ import { conflict, DomainError } from '../../lib/http-errors.js';
 import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { toLocationInfo } from '../location/location-service.js';
+import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
 export const currentlyTraveling = () =>
   conflict('CURRENTLY_TRAVELING', 'You are on the road — local actions are unavailable.');
@@ -30,6 +31,7 @@ export interface TravelService {
 export function createTravelService(
   prisma: PrismaClient,
   characterService: CharacterService,
+  questEvents: QuestEventSink = noopQuestEvents,
 ): TravelService {
   async function toTravelState(
     row: TravelStateRow,
@@ -76,6 +78,17 @@ export function createTravelService(
             where: { id: characterId },
             data: { currentLocationId: expired.destinationLocationId },
           });
+          // Typed domain event in the same transaction as the arrival.
+          const destination = await tx.location.findUnique({
+            where: { id: expired.destinationLocationId },
+            select: { slug: true },
+          });
+          if (destination) {
+            await questEvents.handle(tx, characterId, {
+              type: 'TRAVEL_COMPLETED',
+              locationSlug: destination.slug,
+            });
+          }
         }
       });
     },

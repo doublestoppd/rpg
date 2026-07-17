@@ -23,6 +23,7 @@ import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { toItemDefinitionInfo, type InventoryService } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
+import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
 export const GATHERING_TRANSFER_REASON = 'GATHERING_REWARD';
 
@@ -86,6 +87,7 @@ export function createGatheringService(
   characterService: CharacterService,
   locationService: LocationService,
   inventoryService: InventoryService,
+  questEvents: QuestEventSink = noopQuestEvents,
 ): GatheringService {
   type Tx = Prisma.TransactionClient;
 
@@ -143,7 +145,12 @@ export function createGatheringService(
   }
 
   /** Grants the stored outcome inside the caller's transaction. */
-  async function grantOutcome(tx: Tx, characterId: string, outcome: Outcome): Promise<void> {
+  async function grantOutcome(
+    tx: Tx,
+    characterId: string,
+    actionSlug: string,
+    outcome: Outcome,
+  ): Promise<void> {
     for (const reward of outcome.rewards) {
       await inventoryService.addToStack(tx, {
         characterId,
@@ -159,6 +166,12 @@ export function createGatheringService(
         update: { xp: { increment: outcome.xp } },
       });
     }
+    // Typed domain event in the same transaction as the verified grant.
+    await questEvents.handle(tx as Prisma.TransactionClient, characterId, {
+      type: 'GATHERING_COMPLETED',
+      actionSlug,
+      rewards: outcome.rewards.map((r) => ({ itemSlug: r.itemSlug, quantity: r.quantity })),
+    });
   }
 
   /**
@@ -166,7 +179,10 @@ export function createGatheringService(
    * grant, in one transaction — a capacity failure rolls both back and the
    * run is parked as REWARD_HELD with its outcome untouched.
    */
-  async function finalizeRun(run: GatheringRunRow, now: Date): Promise<void> {
+  async function finalizeRun(
+    run: GatheringRunRow & { action: GatheringActionDefinition },
+    now: Date,
+  ): Promise<void> {
     try {
       await prisma.$transaction(async (tx) => {
         await inventoryService.lockCharacter(tx, run.characterId);
@@ -175,7 +191,7 @@ export function createGatheringService(
           data: { status: 'COMPLETED', completedAt: now, claimedAt: now },
         });
         if (updated.count !== 1) return; // another request finalized it
-        await grantOutcome(tx, run.characterId, outcomeSchema.parse(run.outcome));
+        await grantOutcome(tx, run.characterId, run.action.slug, outcomeSchema.parse(run.outcome));
       });
     } catch (error) {
       if (error instanceof DomainError && CAPACITY_ERROR_CODES.has(error.code)) {
@@ -195,6 +211,7 @@ export function createGatheringService(
     async finalizeExpired(characterId, now) {
       const expired = await prisma.gatheringRun.findFirst({
         where: { characterId, status: 'IN_PROGRESS', completesAt: { lte: now } },
+        include: { action: true },
       });
       if (expired) await finalizeRun(expired, now);
     },
@@ -397,7 +414,7 @@ export function createGatheringService(
         if (updated.count !== 1) {
           throw conflict('NOTHING_TO_CLAIM', 'You have no held rewards to claim.');
         }
-        await grantOutcome(tx, character.id, outcomeSchema.parse(held.outcome));
+        await grantOutcome(tx, character.id, held.action.slug, outcomeSchema.parse(held.outcome));
       });
 
       const claimed = await prisma.gatheringRun.findUniqueOrThrow({

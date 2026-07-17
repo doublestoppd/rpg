@@ -27,6 +27,7 @@ import { createInventoryService } from './domain/inventory/inventory-service.js'
 import { createLocationService } from './domain/location/location-service.js';
 import { createMarketplaceService } from './domain/marketplace/marketplace-service.js';
 import { createNpcShopService } from './domain/npc-shop/npc-shop-service.js';
+import { createQuestService } from './domain/quest/quest-service.js';
 import { createTravelService } from './domain/travel/travel-service.js';
 import { createTimedStateRunner } from './lib/timed-state.js';
 import { DomainError } from './lib/http-errors.js';
@@ -44,6 +45,7 @@ import { inventoryRoutes } from './routes/inventory.js';
 import { locationRoutes } from './routes/locations.js';
 import { marketplaceRoutes } from './routes/marketplace.js';
 import { npcShopRoutes } from './routes/npc-shops.js';
+import { questRoutes } from './routes/quests.js';
 import { travelRoutes } from './routes/travel.js';
 
 export interface AppDependencies {
@@ -107,7 +109,15 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   const currencyService = createCurrencyService(prisma);
   const characterService = createCharacterService(prisma, inventoryService, currencyService);
   const equipmentService = createEquipmentService(prisma, characterService, inventoryService);
-  const travelService = createTravelService(prisma, characterService);
+  // Quest progress is event-driven: verified actions emit typed events into
+  // this sink inside their own transactions (never from the client).
+  const questService = createQuestService(
+    prisma,
+    characterService,
+    currencyService,
+    inventoryService,
+  );
+  const travelService = createTravelService(prisma, characterService, questService.events);
   // Registered timed-state finalizers run before location-dependent actions.
   // The array is extended below once later-phase services exist.
   const timedStateFinalizers = [travelService.finalizer];
@@ -168,6 +178,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     characterService,
     locationService,
     inventoryService,
+    questService.events,
   );
   timedStateFinalizers.push(gatheringService.finalizer);
   const craftingService = createCraftingService(
@@ -176,6 +187,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     locationService,
     currencyService,
     inventoryService,
+    questService.events,
   );
   timedStateFinalizers.push(craftingService.finalizer);
   const combatService = createCombatService(
@@ -184,6 +196,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     locationService,
     currencyService,
     inventoryService,
+    questService.events,
   );
   const npcShopService = createNpcShopService(
     prisma,
@@ -210,6 +223,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   await app.register(gatheringRoutes, { prefix: '/api/v1', gatheringService });
   await app.register(craftingRoutes, { prefix: '/api/v1', craftingService });
   await app.register(combatRoutes, { prefix: '/api/v1', combatService });
+  await app.register(questRoutes, { prefix: '/api/v1', questService });
 
   return app;
 }

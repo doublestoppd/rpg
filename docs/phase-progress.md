@@ -3,6 +3,75 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 13 — Quests and Transactional Domain Events (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Five seeded typed quests** — Errand to the Market (travel), Copper for
+  the Forges (mining), Prove Your Metal (crafting), Thin the Hollow
+  (combat), and A Gift for the Museum (collection — acceptable now,
+  completable once Phase 14 donations exist). Rewards: XP, Gold, and items,
+  validated at seed time against real locations, items, recipes, and
+  enemies.
+- **Typed in-process domain events** (`QuestDomainEvent` +
+  `QuestEventSink`), deliberately not an event bus: the travel finalizer,
+  gathering/crafting grant paths, and combat victory settlement call the
+  sink synchronously inside the SAME transaction as their verified action,
+  so quest progress commits (or rolls back) atomically with the action.
+  Travel emits arrival + destination; gathering emits granted reward
+  quantities; crafting emits the completed recipe; combat emits every
+  defeated enemy slug.
+- **Progress only after acceptance**: accepting creates the CharacterQuest
+  (ACTIVE) with zeroed QuestProgress rows; prior actions are never counted
+  retroactively. Counts cap at the objective requirement, and completion
+  flips to COMPLETED_UNCLAIMED via a conditional update exactly once.
+- **The frontend never submits progress** — no progress endpoint exists at
+  all; the only writes are accept and claim.
+- **Manual claim, exactly once**: the claim transaction takes the character
+  lock, conditionally flips COMPLETED_UNCLAIMED → CLAIMED, then grants XP
+  (level-ups apply), Gold through the ledger (QUEST_REWARD, idempotent per
+  character-quest), and reward items. An inventory-capacity failure rolls
+  the whole transaction back — the quest stays COMPLETED_UNCLAIMED with
+  nothing granted, claimable again after space frees.
+- **Frontend**: a Quests page (new nav entry) with status chips, objective
+  progress bars, reward summaries, and accept/claim actions.
+
+### Database
+
+Migration `quests_domain_events`: `QuestDefinition`, `QuestObjective`
+(typed, slug-targeted, unique quest + sortOrder), `CharacterQuest`
+(ACCEPTED/ACTIVE/COMPLETED_UNCLAIMED/CLAIMED, unique character + quest),
+`QuestProgress` (unique characterQuest + objective).
+
+### Endpoints
+
+- `GET /api/v1/quests`
+- `POST /api/v1/quests/:id/accept`, `POST /api/v1/quests/:id/claim`
+
+### Tests
+
+Five quest definitions with valid objective/reward data (one of each
+objective type), progress gating (actions before acceptance never count;
+after acceptance granted quantities accumulate and cap), double-acceptance
+rejection, forged progress rejected (no route exists; early claims 409
+with nothing moved), event-driven updates end to end for travel arrival,
+two crafting completions, and combat victories counting each defeated
+enemy, the museum quest acceptable but inert pre-Phase 14, claim exactly
+once (XP + single ledger credit, ALREADY_CLAIMED on repeat with nothing
+re-granted), and the capacity-blocked claim cycle (rollback keeps
+COMPLETED_UNCLAIMED with zero grants, then a clean exactly-once claim
+after freeing space). Playwright: a courier accepts the market errand,
+walks the 30-second road, watches the quest complete on arrival, claims
+30 XP + 15 Gold once, and sees the XP on the character sheet.
+
+### Known limitations
+
+- The DONATE_ITEM objective waits on Phase 14's museum donations; the
+  ACCEPTED enum state is reserved (acceptance currently activates
+  directly).
+
 ## Phase 12 — Classic Initiative-Gauge Combat (2026-07-17)
 
 **Status: complete.**

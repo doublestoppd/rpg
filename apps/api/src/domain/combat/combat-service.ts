@@ -23,6 +23,7 @@ import { computeDerivedStats } from '../character/progression.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
 import type { InventoryService } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
+import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 import {
   EngineRuleError,
   runUntilPlayerCommand,
@@ -119,6 +120,7 @@ export function createCombatService(
   locationService: LocationService,
   currencyService: CurrencyService,
   inventoryService: InventoryService,
+  questEvents: QuestEventSink = noopQuestEvents,
 ): CombatService {
   type Tx = Prisma.TransactionClient;
 
@@ -443,6 +445,15 @@ export function createCombatService(
         gold,
         drops: { granted, leftBehind, leveledUp: progression.leveledUp, level: progression.level },
       },
+    });
+
+    // Typed domain event in the same transaction as the victory settlement.
+    await questEvents.handle(tx, combat.characterId, {
+      type: 'COMBAT_VICTORY',
+      encounterSlug: combat.encounter.slug,
+      defeatedEnemySlugs: enemyRows
+        .map((row) => byId.get(row.enemyDefinitionId!)?.slug)
+        .filter((slug): slug is string => Boolean(slug)),
     });
 
     state.log.push(`You gain ${xp} XP and ${gold} Gold.`);

@@ -11,6 +11,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
 import { MarketplacePage } from './pages/MarketplacePage';
+import { QuestsPage } from './pages/QuestsPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ShopPage } from './pages/ShopPage';
 import { TravelPage } from './pages/TravelPage';
@@ -67,6 +68,14 @@ export function App() {
           element={
             <RequireAuth>
               <ShopPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="quests"
+          element={
+            <RequireAuth>
+              <QuestsPage />
             </RequireAuth>
           }
         />

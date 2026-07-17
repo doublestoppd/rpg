@@ -1168,3 +1168,106 @@ export const ENCOUNTER_DEFINITIONS = [
     sortOrder: 3,
   },
 ];
+
+/**
+ * Quests (Phase 13): one each for travel, mining, crafting, combat, and the
+ * museum collection. Progress is event-driven and starts only after
+ * acceptance; the collection quest completes once donations exist (Phase 14).
+ */
+export const QUEST_DEFINITIONS = [
+  {
+    slug: 'errand-to-the-market',
+    name: 'Errand to the Market',
+    description:
+      'The Crownfall clerks need a runner. Walk the short road to the Market District and report in.',
+    rewardXp: 30,
+    rewardGold: 15n,
+    rewardItems: [],
+    sortOrder: 1,
+    objectives: [
+      {
+        sortOrder: 1,
+        type: 'TRAVEL_TO_LOCATION',
+        targetSlug: 'crownfall-market-district',
+        requiredCount: 1,
+        description: 'Travel to the Crownfall Market District.',
+      },
+    ],
+  },
+  {
+    slug: 'copper-for-the-forges',
+    name: 'Copper for the Forges',
+    description:
+      'The Market District forge is hungry for ore. Work the Ironroot copper seams until your pack rings with it.',
+    rewardXp: 40,
+    rewardGold: 25n,
+    rewardItems: [{ itemSlug: 'forge-coal', quantity: 2 }],
+    sortOrder: 2,
+    objectives: [
+      {
+        sortOrder: 1,
+        type: 'GATHER_ITEM',
+        targetSlug: 'copper-ore',
+        requiredCount: 6,
+        description: 'Mine 6 Copper Ore at Ironroot Mine.',
+      },
+    ],
+  },
+  {
+    slug: 'prove-your-metal',
+    name: 'Prove Your Metal',
+    description:
+      'Any hand can swing a pick. The forge masters want proof you can finish the job at the anvils.',
+    rewardXp: 50,
+    rewardGold: 30n,
+    rewardItems: [],
+    sortOrder: 3,
+    objectives: [
+      {
+        sortOrder: 1,
+        type: 'CRAFT_RECIPE',
+        targetSlug: 'smelt-copper-ingot',
+        requiredCount: 2,
+        description: 'Smelt 2 Copper Ingots at the Crownfall Forge.',
+      },
+    ],
+  },
+  {
+    slug: 'thin-the-hollow',
+    name: 'Thin the Hollow',
+    description:
+      'The slimes are pooling thick along the Blackwood paths again. Cull them before the wagons stop running.',
+    rewardXp: 60,
+    rewardGold: 40n,
+    rewardItems: [{ itemSlug: 'lesser-healing-draught', quantity: 1 }],
+    sortOrder: 4,
+    objectives: [
+      {
+        sortOrder: 1,
+        type: 'DEFEAT_ENEMY',
+        targetSlug: 'forest-slime',
+        requiredCount: 3,
+        description: 'Defeat 3 Forest Slimes in Blackwood Forest.',
+      },
+    ],
+  },
+  {
+    slug: 'a-gift-for-the-museum',
+    name: 'A Gift for the Museum',
+    description:
+      'The Museum of Regional Artifacts seeks a Sunken Crown Fragment for the permanent collection. Donations open soon.',
+    rewardXp: 80,
+    rewardGold: 50n,
+    rewardItems: [],
+    sortOrder: 5,
+    objectives: [
+      {
+        sortOrder: 1,
+        type: 'DONATE_ITEM',
+        targetSlug: 'sunken-crown-fragment',
+        requiredCount: 1,
+        description: 'Donate a Sunken Crown Fragment to the museum.',
+      },
+    ],
+  },
+];
