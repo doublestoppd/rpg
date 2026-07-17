@@ -123,3 +123,45 @@ describe('notification preparation stays on indexes', () => {
     );
   });
 });
+
+describe('chat queries stay on their indexes', () => {
+  it('channel history by cursor order (channelId, createdAt, id)', async () => {
+    await expectIndex(
+      'SELECT * FROM "ChatMessage" WHERE "channelId" = $1 ORDER BY "createdAt" DESC, "id" DESC LIMIT 50',
+      'ChatMessage_channelId_createdAt_id_idx',
+      [someUuid],
+    );
+  });
+
+  it('a message by author + idempotency key (send replay lookup)', async () => {
+    await expectIndex(
+      'SELECT * FROM "ChatMessage" WHERE "authorCharacterId" = $1 AND "idempotencyKey" = $2',
+      'ChatMessage_authorCharacterId_idempotencyKey_key',
+      [someUuid, 'k'],
+    );
+  });
+
+  it('a reporter their report for a message (duplicate-report check)', async () => {
+    await expectIndex(
+      'SELECT * FROM "ChatReport" WHERE "reporterCharacterId" = $1 AND "messageId" = $2',
+      'ChatReport_reporterCharacterId_messageId_key',
+      [someUuid, someUuid],
+    );
+  });
+
+  it('active restriction lookup by character', async () => {
+    await expectIndex(
+      `SELECT * FROM "ChatRestriction" WHERE "characterId" = $1 AND "status" = 'ACTIVE'`,
+      'ChatRestriction_characterId_status_expiresAt_idx',
+      [someUuid],
+    );
+  });
+
+  it('a blocker their blocks', async () => {
+    await expectIndex(
+      'SELECT * FROM "ChatBlock" WHERE "blockerCharacterId" = $1',
+      ['ChatBlock_pkey', 'ChatBlock_blockerCharacterId'],
+      [someUuid],
+    );
+  });
+});

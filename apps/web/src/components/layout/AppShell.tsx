@@ -48,6 +48,9 @@ export function AppShell() {
           <NavLink to="/collection" className={linkClass}>
             Collection
           </NavLink>
+          <NavLink to="/chat" className={linkClass}>
+            Chat
+          </NavLink>
           <NotificationsNavLink linkClass={linkClass} />
           <NavLink to="/settings" className={linkClass}>
             Settings

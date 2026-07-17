@@ -3,6 +3,121 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 16 — Player Chat, Safety, and Real-Time Delivery (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Persistent chat, two channel kinds**: one seeded GLOBAL channel and one
+  LOCATION channel per world location (nine total). A character always reads
+  and sends GLOBAL (unless restricted) and only the channel for its
+  authoritative current location; a traveling character has no location-chat
+  membership. Every location read/send/subscription first runs the
+  established lazy travel finalization, so starting travel revokes
+  location-chat access and arrival grants only the destination.
+- **PostgreSQL is authoritative; real-time is a hint** (ADR 0009). Messages
+  commit before anything is broadcast. The shared Phase 15 socket now carries
+  an additive `chat.message.created` invalidation (identifiers only, never
+  text); clients fetch bodies over REST and poll every 10s as the complete
+  fallback. Cross-instance fan-out uses PostgreSQL `LISTEN/NOTIFY` with an
+  identifier-only payload and a backoff-reconnecting listener — never storage,
+  never required for correctness.
+- **Server-derived identity and membership**: the client never submits an
+  author id, location id, timestamp, status, or read count. Bodies are
+  normalized (line endings, trimmed), Unicode plain text with NUL/control
+  characters rejected, bounded to 1–500 code points and 2000 UTF-8 bytes, and
+  stored verbatim. Clients render strictly as text (no
+  `dangerouslySetInnerHTML`, Markdown, or linkification).
+- **Idempotent, rate-limited sends**: idempotent per author + key (a replay,
+  including a concurrent same-key race, yields one row and one invalidation);
+  token-bucket limits per account and per IP return HTTP 429 with a bounded
+  `retryAfterSeconds` and `Retry-After` header. A rejected send never creates
+  a row.
+- **Cursor pagination**: opaque, stable `(createdAt, id)` cursors; backward
+  history (newest-first) and gap-free forward polling (oldest-first); hard
+  limit of 50, no offset pagination.
+- **Safety controls**: forward-only read state; unilateral blocking (blocked
+  authors vanish from the blocker's REST results and live invalidations,
+  invisible to the blocked player, self-block rejected at the DB); one report
+  per reporter + message with an immutable evidence snapshot that survives
+  retention and makes the message undeletable; and `ChatRestriction` enforced
+  lazily by the send service (active blocks sending but not reading/reporting;
+  expired and revoked treated as inactive without a worker). No public API
+  creates restrictions in this phase.
+- **Hardened socket**: cookie-session + Origin validation on upgrade, capped
+  inbound frames, a 15s heartbeat that terminates unresponsive sockets and
+  closes revoked/expired sessions, and slow-consumer disconnection instead of
+  unbounded buffering.
+- **Retention**: a best-effort daily worker job deletes unreported messages
+  older than `CHAT_RETENTION_DAYS` (default 90, range 7–365) in indexed
+  batches; reports, restrictions, read state, and all other audit domains are
+  never touched. Chat correctness never depends on the worker.
+- **Frontend**: a Chat page with Global / Current Location tabs, unread
+  badges, incrementally loaded history, a composer showing remaining length,
+  rate-limit retry time, restriction state and accessible errors, block/report
+  message actions, and a visible live-vs-polling status. The single app-wide
+  socket routes both notification and chat events.
+
+### Database
+
+Migration `player_chat`: `ChatChannel` (kind/location CHECK, one-global partial
+unique index, unique location), `ChatMessage` (unique author + idempotency key,
+`(channelId, createdAt, id)` index, RESTRICT to channel/author),
+`ChatChannelReadState` (composite id, copied ordering pair — no message FK),
+`ChatBlock` (composite id, self-block CHECK), `ChatReport` (unique reporter +
+message, immutable snapshot columns, RESTRICT to message), `ChatRestriction`
+(active-lookup index). Seed extends idempotently with the nine channels.
+
+### Endpoints
+
+- `GET /api/v1/chat/channels`
+- `GET /api/v1/chat/channels/:channelId/messages` (cursor, limit, direction)
+- `POST /api/v1/chat/channels/:channelId/messages`
+- `POST /api/v1/chat/channels/:channelId/read`
+- `GET /api/v1/chat/blocks`, `PUT`/`DELETE /api/v1/chat/blocks/:characterId`
+- `POST /api/v1/chat/messages/:messageId/reports`
+- WebSocket event added additively: `chat.message.created`
+  (eventId, channelId, messageId, occurredAt) on `/api/v1/notifications/ws`.
+
+### Environment
+
+`CHAT_RATE_LIMIT_BURST` (5), `CHAT_RATE_LIMIT_PER_MINUTE` (20),
+`CHAT_RATE_LIMIT_IP_BURST` (10), `CHAT_RATE_LIMIT_IP_PER_MINUTE` (60),
+`CHAT_RETENTION_DAYS` (90). All documented in `.env.example`.
+
+### Tests
+
+53 new across five files. Unit (no DB): body normalization/validation
+boundaries (Unicode, control chars, code-point vs byte limits), opaque cursor
+round-trip, and the account/IP token-bucket limiter on a deterministic clock.
+Live-hub: targeted delivery, slow-consumer disconnect, session-revocation
+close, and heartbeat termination. API (real PostgreSQL): seed + all four
+constraint classes, global/location send-read, wrong-location and traveling
+rejection with immediate membership change on travel, body validation and
+verbatim script/markup storage, deterministic cursor pagination over identical
+timestamps + gap-free forward polling + bounds, idempotent replay and a
+concurrent same-key race (one row), forward-only read state, blocking
+(hide/idempotent/self-block/foreign), reporting (snapshot, duplicate conflict,
+self-report, undeletable evidence), active/expired/revoked restrictions,
+retention cleanup (batched, idempotent, evidence-preserving), and chat metrics.
+Real-time: socket auth + Origin rejection, committed-then-delivered with post-
+disconnect REST recovery, blocked-author suppression over the socket, and two
+API instances against one database (instance-A commit invalidates an
+instance-B socket; polling recovers with NOTIFY unused). Rate-limit: burst then
+429 with retry-after, no bypass across channels, and no row on rejection.
+Database-plan: five chat EXPLAIN checks. Playwright: a two-player flow —
+global exchange (one player with WebSockets disabled, recovering purely by
+polling), shared local chat, travel revoking local access, block + report, and
+history surviving reload.
+
+### Known limitations
+
+- Direct messages, guild/party channels, presence, typing indicators, read
+  receipts, attachments, reactions, and automated moderation are deliberately
+  out of scope. Administrative report triage, message redaction, and
+  restriction management (creation/revocation) arrive with Phase 17.
+
 ## Phase 15 — Persistent Notifications and Worker Fallback (2026-07-17)
 
 **Status: complete.**

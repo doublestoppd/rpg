@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 
 import { useCharacter } from '../character/useCharacter';
-import { useNotifications, useNotificationSocket } from './useNotifications';
+import { useLiveSocket, useNotifications } from './useNotifications';
 
 /**
  * Nav entry with the unread indicator. Also owns the app-wide live socket:
@@ -16,7 +16,7 @@ export function NotificationsNavLink({
   // No character yet (fresh account): nothing to poll, no socket to open.
   const { data: character } = useCharacter();
   const notifications = useNotifications(Boolean(character));
-  useNotificationSocket(Boolean(character));
+  useLiveSocket(Boolean(character));
   const unread = notifications.data?.unreadCount ?? 0;
 
   return (

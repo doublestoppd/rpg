@@ -20,3 +20,15 @@ export const invalidCredentials = () =>
 export const forbidden = (code: string, message: string) => new DomainError(403, code, message);
 
 export const conflict = (code: string, message: string) => new DomainError(409, code, message);
+
+/** 429 with a bounded retry hint (surfaced as Retry-After + envelope field). */
+export class RateLimitError extends DomainError {
+  constructor(
+    code: string,
+    message: string,
+    public readonly retryAfterSeconds: number,
+  ) {
+    super(429, code, message);
+    this.name = 'RateLimitError';
+  }
+}

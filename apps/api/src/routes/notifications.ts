@@ -12,16 +12,21 @@ interface NotificationRouteOptions {
   notificationService: NotificationService;
   characterService: CharacterService;
   liveHub: LiveHub;
+  /** Origins allowed to upgrade the live socket (same list as CSRF). */
+  allowedOrigins: ReadonlySet<string>;
 }
+
+/** Inbound frames are never expected; cap them hard (ws closes with 1009). */
+const MAX_INBOUND_FRAME_BYTES = 4 * 1024;
 
 export async function notificationRoutes(
   app: FastifyInstance,
   opts: NotificationRouteOptions,
 ): Promise<void> {
   const typed = app.withTypeProvider<ZodTypeProvider>();
-  const { notificationService, characterService, liveHub } = opts;
+  const { notificationService, characterService, liveHub, allowedOrigins } = opts;
 
-  await app.register(fastifyWebsocket);
+  await app.register(fastifyWebsocket, { options: { maxPayload: MAX_INBOUND_FRAME_BYTES } });
 
   typed.get(
     '/notifications',
@@ -63,18 +68,43 @@ export async function notificationRoutes(
     async (request) => notificationService.markAllRead(request.currentUser!.id),
   );
 
-  // Optional live enhancement: authenticated sockets receive {"type":"sync"}
-  // nudges and refetch over REST. Losing the socket costs latency only —
-  // polling remains the fallback and persistence the source of truth.
+  // Optional live enhancement: authenticated sockets receive envelope events
+  // ({"type":"sync"} nudges, chat.message.created invalidations) and refetch
+  // over REST. Losing the socket costs latency only — polling remains the
+  // fallback and persistence the source of truth. The upgrade validates the
+  // cookie session (requireAuth) and the Origin header; inbound frames are
+  // size-capped, connections are heartbeated, and slow consumers are
+  // disconnected by the hub instead of buffering without bound.
   app.get(
     '/notifications/ws',
-    { websocket: true, preHandler: app.requireAuth },
+    {
+      websocket: true,
+      preHandler: [
+        app.requireAuth,
+        async (request, reply) => {
+          const origin = request.headers.origin;
+          if (typeof origin !== 'string' || !allowedOrigins.has(origin)) {
+            return reply.status(403).send({
+              error: {
+                code: 'ORIGIN_FORBIDDEN',
+                message: 'Request origin is missing or not allowed.',
+                requestId: request.id,
+              },
+            });
+          }
+        },
+      ],
+    },
     (socket, request) => {
       void (async () => {
         try {
           const character = await characterService.requireCharacter(request.currentUser!.id);
-          liveHub.add(character.id, socket);
-          socket.on('close', () => liveHub.remove(character.id, socket));
+          liveHub.add({
+            characterId: character.id,
+            sessionId: request.currentSession!.id,
+            socket,
+          });
+          socket.on('close', () => liveHub.remove(socket));
         } catch {
           socket.close(1008, 'no character');
         }

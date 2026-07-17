@@ -94,6 +94,22 @@ verified action — quest progress commits or rolls back atomically with
 the action. Synchronous, typed, in-process; deliberately not an event
 bus. New event types extend the `QuestDomainEvent` union.
 
+## Real-time delivery (Phase 15–16)
+
+PostgreSQL rows are authoritative; the WebSocket is a best-effort enhancement
+(ADR 0004, 0009). One authenticated socket — `/api/v1/notifications/ws`,
+owned by the notifications module and shared by chat — carries a small
+discriminated-union of envelope events (`sync` nudges,
+`chat.message.created` invalidations). Events carry identifiers only; clients
+fetch data over REST, and 10–15s polling is the complete fallback.
+
+The socket upgrade validates the cookie session and Origin; inbound frames are
+size-capped, a periodic sweep heartbeats connections and closes sockets whose
+session was revoked or expired, and the hub disconnects slow consumers instead
+of buffering without bound. Across API instances, chat commits fan out via
+PostgreSQL `LISTEN/NOTIFY` (identifier-only payloads, listener reconnects with
+backoff); missed notifications are repaired by polling. No Redis, no broker.
+
 ## Observability
 
 - Every state-changing request logs one structured `authoritative
@@ -102,8 +118,10 @@ mutation` entry (request id, account, route-pattern operation,
   redaction covers tokens and passwords elsewhere.
 - `lib/metrics.ts` keeps process-local operational counters (idempotency
   replays, concurrency conflicts, combat/marketplace/quest conflicts,
-  worker failures, lazy finalizer runs). Fixed name set, no
-  high-cardinality labels, never player-visible.
+  worker failures, lazy finalizer runs, and chat counters: accepted
+  messages, idempotent replays, rate-limit and authorization rejections,
+  reports, socket disconnects, listener reconnects, polling recoveries).
+  Fixed name set, no high-cardinality labels, never player-visible.
 
 ## Quality gates
 

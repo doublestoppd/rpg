@@ -5,6 +5,7 @@ import type { Env } from '../config/env.js';
 import type { SettingsService } from '../domain/account/settings-service.js';
 import type { AuthService } from '../domain/auth/auth-service.js';
 import type { CharacterService } from '../domain/character/character-service.js';
+import type { ChatService } from '../domain/chat/chat-service.js';
 import type { CombatService } from '../domain/combat/combat-service.js';
 import type { CraftingService } from '../domain/crafting/crafting-service.js';
 import type { CurrencyService } from '../domain/currency/currency-service.js';
@@ -15,6 +16,7 @@ import type { InventoryService } from '../domain/inventory/inventory-service.js'
 import type { LocationService } from '../domain/location/location-service.js';
 import type { MarketplaceService } from '../domain/marketplace/marketplace-service.js';
 import type { MuseumService } from '../domain/museum/museum-service.js';
+import type { LiveHub } from '../domain/notification/live-hub.js';
 import type { NotificationService } from '../domain/notification/notification-service.js';
 import type { NpcShopService } from '../domain/npc-shop/npc-shop-service.js';
 import type { QuestService } from '../domain/quest/quest-service.js';
@@ -34,6 +36,7 @@ export interface ServiceRegistry {
   inventoryService?: InventoryService;
   currencyService?: CurrencyService;
   characterService?: CharacterService;
+  liveHub?: LiveHub;
   notificationService?: NotificationService;
   equipmentService?: EquipmentService;
   questService?: QuestService;
@@ -46,6 +49,7 @@ export interface ServiceRegistry {
   craftingService?: CraftingService;
   combatService?: CombatService;
   museumService?: MuseumService;
+  chatService?: ChatService;
 }
 
 /** Everything a feature module may use to construct and register itself. */

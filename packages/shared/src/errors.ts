@@ -9,6 +9,8 @@ export const apiErrorSchema = z.object({
     code: z.string(),
     message: z.string(),
     requestId: z.string().optional(),
+    /** Present on 429 responses: wait at least this long before retrying. */
+    retryAfterSeconds: z.number().int().min(0).optional(),
   }),
 });
 

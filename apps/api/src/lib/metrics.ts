@@ -24,6 +24,22 @@ export const METRIC_NAMES = [
   'transaction_retry',
   /** A database deadlock was reported. */
   'deadlock',
+  /** A chat message was accepted and committed. */
+  'chat_message_accepted',
+  /** A chat send replayed an existing author + idempotency key. */
+  'chat_idempotency_replay',
+  /** A chat send was rejected by the account or IP rate limit. */
+  'chat_rate_limited',
+  /** A chat request was rejected by channel authorization or a restriction. */
+  'chat_authorization_rejected',
+  /** A chat report was created. */
+  'chat_report_created',
+  /** A live socket was disconnected by the server (slow consumer, revoked…). */
+  'chat_socket_disconnect',
+  /** The cross-instance LISTEN connection was (re)established after a drop. */
+  'chat_listener_reconnect',
+  /** A forward-direction chat poll recovered messages without a socket. */
+  'chat_polling_recovery',
 ] as const;
 
 export type MetricName = (typeof METRIC_NAMES)[number];

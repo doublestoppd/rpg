@@ -17,6 +17,19 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   /** Comma-separated list of origins allowed on state-changing requests. */
   ALLOWED_ORIGINS: z.string().min(1).default('http://localhost:5173,http://localhost:4173'),
+  /** Chat send burst per account (token-bucket capacity). */
+  CHAT_RATE_LIMIT_BURST: z.coerce.number().int().min(1).max(100).default(5),
+  /** Sustained chat sends per minute per account. */
+  CHAT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(600).default(20),
+  /** Chat send burst per client IP (covers multiple accounts per IP). */
+  CHAT_RATE_LIMIT_IP_BURST: z.coerce.number().int().min(1).max(200).default(10),
+  /** Sustained chat sends per minute per client IP. */
+  CHAT_RATE_LIMIT_IP_PER_MINUTE: z.coerce.number().int().min(1).max(1200).default(60),
+  /**
+   * Visible chat-message retention in days. Cleanup is best-effort worker
+   * work; reported messages and all audit records are never deleted by it.
+   */
+  CHAT_RETENTION_DAYS: z.coerce.number().int().min(7).max(365).default(90),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -104,6 +104,22 @@ async function main() {
     });
   }
 
+  // Chat channels: exactly one global channel plus one per location. The
+  // database CHECK + partial unique index enforce the same shape.
+  await prisma.chatChannel.upsert({
+    where: { slug: 'global' },
+    create: { slug: 'global', kind: 'GLOBAL' },
+    update: {},
+  });
+  for (const loc of LOCATIONS) {
+    const locationId = locationIdBySlug.get(loc.slug);
+    await prisma.chatChannel.upsert({
+      where: { slug: `location-${loc.slug}` },
+      create: { slug: `location-${loc.slug}`, kind: 'LOCATION', locationId },
+      update: { locationId },
+    });
+  }
+
   if (ITEM_DEFINITIONS.length !== 25)
     throw new Error('seed: the item catalog has exactly 25 items');
   for (const item of ITEM_DEFINITIONS) {
@@ -390,7 +406,8 @@ async function main() {
       `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops, ` +
       `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes, ` +
       `${ENEMY_DEFINITIONS.length} enemies, ${ENCOUNTER_DEFINITIONS.length} encounters, ` +
-      `${QUEST_DEFINITIONS.length} quests, ${COLLECTION_DEFINITIONS.length} collections ensured`,
+      `${QUEST_DEFINITIONS.length} quests, ${COLLECTION_DEFINITIONS.length} collections, ` +
+      `${1 + LOCATIONS.length} chat channels ensured`,
   );
 }
 

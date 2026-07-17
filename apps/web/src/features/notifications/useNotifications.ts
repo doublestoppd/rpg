@@ -1,13 +1,15 @@
 import {
+  liveSocketEventSchema,
   type NotificationsResponse,
   notificationsResponseSchema,
-  notificationSyncMessageSchema,
   okResponseSchema,
 } from '@rpg/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { apiGet, apiSend } from '../../lib/api';
+import { CHAT_CHANNELS_KEY, chatMessagesKey } from '../chat/useChat';
+import { setLiveSocketConnected } from './liveSocketStatus';
 
 export const NOTIFICATIONS_KEY = ['notifications'] as const;
 
@@ -47,11 +49,13 @@ export function useMarkAllNotificationsRead() {
 }
 
 /**
- * Optional live enhancement: an authenticated WebSocket whose only job is
- * to trigger refetches faster than the poll. Failures are silent — polling
- * keeps working, and stored notifications remain the source of truth.
+ * Optional live enhancement: one authenticated WebSocket (the shared Phase 15
+ * transport) whose only job is to trigger refetches faster than the poll. It
+ * carries both notification sync nudges and chat.message.created
+ * invalidations. Failures are silent — polling keeps working, and the
+ * persisted rows remain the source of truth.
  */
-export function useNotificationSocket(enabled: boolean) {
+export function useLiveSocket(enabled: boolean) {
   const queryClient = useQueryClient();
   useEffect(() => {
     if (!enabled) return;
@@ -70,16 +74,24 @@ export function useNotificationSocket(enabled: boolean) {
       }
       socket.onopen = () => {
         retryDelay = 2000;
+        setLiveSocketConnected(true);
       };
       socket.onmessage = (event) => {
-        try {
-          notificationSyncMessageSchema.parse(JSON.parse(String(event.data)));
+        const parsed = liveSocketEventSchema.safeParse(JSON.parse(String(event.data)));
+        if (!parsed.success) return; // unknown message: the poll catches up
+        if (parsed.data.type === 'sync') {
           void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
-        } catch {
-          // Unknown message: ignore; the poll will catch up.
+        } else {
+          // chat.message.created: refetch the affected channel and the
+          // channel list (unread counts). Content always comes over REST.
+          void queryClient.invalidateQueries({
+            queryKey: chatMessagesKey(parsed.data.channelId),
+          });
+          void queryClient.invalidateQueries({ queryKey: CHAT_CHANNELS_KEY });
         }
       };
       socket.onclose = () => {
+        setLiveSocketConnected(false);
         if (closed) return;
         retryTimer = setTimeout(connect, retryDelay);
         retryDelay = Math.min(retryDelay * 2, 60_000);
@@ -90,6 +102,7 @@ export function useNotificationSocket(enabled: boolean) {
     connect();
     return () => {
       closed = true;
+      setLiveSocketConnected(false);
       if (retryTimer) clearTimeout(retryTimer);
       socket?.close();
     };

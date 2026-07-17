@@ -10,12 +10,14 @@
 import { PgBoss } from 'pg-boss';
 
 import { loadEnv } from './config/env.js';
+import { cleanupExpiredChatMessages } from './domain/chat/chat-cleanup.js';
 import { createInventoryService } from './domain/inventory/inventory-service.js';
 import { sweepExpiredListings } from './domain/marketplace/marketplace-service.js';
 import { metrics } from './lib/metrics.js';
 import { createPrismaClient } from './lib/prisma.js';
 
 const CLEANUP_QUEUE = 'marketplace-expired-listing-cleanup';
+const CHAT_CLEANUP_QUEUE = 'chat-retention-cleanup';
 
 function log(level: string, msg: string, extra: Record<string, unknown> = {}): void {
   console.log(JSON.stringify({ level, msg, timestamp: new Date().toISOString(), ...extra }));
@@ -43,7 +45,18 @@ async function main(): Promise<void> {
     if (finalized > 0) log('info', 'expired listings finalized', { finalized });
   });
 
-  log('info', 'worker started', { queues: [CLEANUP_QUEUE] });
+  // Daily chat retention cleanup (batched, idempotent, best-effort). Chat
+  // correctness never depends on it; reported messages are undeletable.
+  await boss.createQueue(CHAT_CLEANUP_QUEUE);
+  await boss.schedule(CHAT_CLEANUP_QUEUE, '30 4 * * *');
+  await boss.work(CHAT_CLEANUP_QUEUE, async () => {
+    const deleted = await cleanupExpiredChatMessages(prisma, {
+      retentionDays: env.CHAT_RETENTION_DAYS,
+    });
+    if (deleted > 0) log('info', 'expired chat messages cleaned up', { deleted });
+  });
+
+  log('info', 'worker started', { queues: [CLEANUP_QUEUE, CHAT_CLEANUP_QUEUE] });
 
   const shutdown = async (signal: string): Promise<void> => {
     log('info', 'worker shutting down', { signal });

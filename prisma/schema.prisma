@@ -171,6 +171,12 @@ model Character {
   characterQuests      CharacterQuest[]
   collectionDonations  CharacterCollectionDonation[]
   notifications        Notification[]
+  chatMessages         ChatMessage[]                  @relation("ChatMessageAuthor")
+  chatReadStates       ChatChannelReadState[]
+  chatBlocksMade       ChatBlock[]                    @relation("ChatBlocksMade")
+  chatBlocksReceived   ChatBlock[]                    @relation("ChatBlocksReceived")
+  chatReportsMade      ChatReport[]                   @relation("ChatReportsMade")
+  chatRestrictions     ChatRestriction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -203,6 +209,7 @@ model Location {
   craftingRecipes  CraftingRecipe[]
   encounters       EncounterDefinition[]
   collections      CollectionDefinition[]
+  chatChannel      ChatChannel?
 }
 
 enum LocationFeatureType {
@@ -1396,4 +1403,170 @@ model TravelRoute {
 
   @@unique([fromLocationId, toLocationId])
   @@index([fromLocationId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 16 — player chat, safety, and real-time delivery
+// ---------------------------------------------------------------------------
+
+enum ChatChannelKind {
+  GLOBAL
+  LOCATION
+}
+
+/// Seeded chat channels: exactly one GLOBAL channel and one LOCATION channel
+/// per world location. A migration adds a CHECK constraint (GLOBAL has no
+/// location, LOCATION has exactly one) and a partial unique index enforcing
+/// the single global channel; unique locationId enforces one per location.
+model ChatChannel {
+  id   String          @id @default(uuid())
+  slug String          @unique
+  kind ChatChannelKind
+
+  locationId String?   @unique
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  messages   ChatMessage[]
+  readStates ChatChannelReadState[]
+}
+
+enum ChatMessageStatus {
+  VISIBLE
+}
+
+/// One immutable plain-text chat message. No edit or user-delete path exists;
+/// retention cleanup may remove old unreported rows, and later administrative
+/// redaction must preserve a tombstone (ordering and IDs survive).
+model ChatMessage {
+  id String @id @default(uuid())
+
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Restrict)
+
+  authorCharacterId String
+  author            Character @relation("ChatMessageAuthor", fields: [authorCharacterId], references: [id], onDelete: Restrict)
+
+  /// Validated, normalized plain text (1-500 code points, <= 2000 UTF-8
+  /// bytes, no disallowed control characters). Stored exactly as validated.
+  body String
+
+  status ChatMessageStatus @default(VISIBLE)
+
+  /// Client-supplied send idempotency key, unique per author: replays return
+  /// this message and concurrent same-key sends create exactly one row.
+  idempotencyKey String
+
+  createdAt DateTime @default(now())
+
+  reports ChatReport[]
+
+  @@unique([authorCharacterId, idempotencyKey])
+  /// Stable cursor pagination and unread counting order by (createdAt, id).
+  @@index([channelId, createdAt, id])
+}
+
+/// Per-character read position in a channel. Advances only forward (to a real
+/// message in the channel); the stored (createdAt, id) pair keeps comparisons
+/// stable without a foreign key, so retention cleanup never breaks it.
+model ChatChannelReadState {
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  /// Deliberately not a foreign key: the referenced message may be cleaned up
+  /// later; the copied (createdAt, id) ordering pair remains valid forever.
+  lastReadMessageId        String
+  lastReadMessageCreatedAt DateTime
+
+  updatedAt DateTime @updatedAt
+
+  @@id([characterId, channelId])
+}
+
+/// Unilateral block: the blocker no longer sees the blocked author's messages
+/// or live invalidations. Never visible to (and never alters data of) the
+/// blocked character. A migration adds a CHECK preventing self-blocks.
+model ChatBlock {
+  blockerCharacterId String
+  blocker            Character @relation("ChatBlocksMade", fields: [blockerCharacterId], references: [id], onDelete: Cascade)
+
+  blockedCharacterId String
+  blocked            Character @relation("ChatBlocksReceived", fields: [blockedCharacterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([blockerCharacterId, blockedCharacterId])
+}
+
+enum ChatReportReason {
+  HARASSMENT
+  SPAM
+  ABUSIVE_LANGUAGE
+  CHEATING_OR_EXPLOITS
+  OTHER
+}
+
+enum ChatReportStatus {
+  OPEN
+}
+
+/// One report per reporter and message, with an immutable evidence snapshot
+/// taken at report time — the evidence survives message retention cleanup
+/// (the Restrict relation makes reported messages undeletable) and any later
+/// redaction. The reporter is never revealed to the reported player.
+model ChatReport {
+  id String @id @default(uuid())
+
+  reporterCharacterId String
+  reporter            Character @relation("ChatReportsMade", fields: [reporterCharacterId], references: [id], onDelete: Restrict)
+
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Restrict)
+
+  reason ChatReportReason
+  /// Optional bounded free-text details from the reporter.
+  details String?
+
+  /// Immutable snapshots at report time (deliberately not foreign keys).
+  snapshotBody              String
+  snapshotAuthorCharacterId String
+  snapshotChannelId         String
+
+  status    ChatReportStatus @default(OPEN)
+  createdAt DateTime         @default(now())
+
+  @@unique([reporterCharacterId, messageId])
+  @@index([status, createdAt])
+}
+
+enum ChatRestrictionStatus {
+  ACTIVE
+  REVOKED
+}
+
+/// A temporary or indefinite chat-send restriction. Timestamp-authoritative:
+/// an ACTIVE row past its expiresAt is lazily treated as inactive — no worker
+/// is required. No public API creates these in Phase 16 (the send service
+/// enforces them; administration arrives in Phase 17).
+model ChatRestriction {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Restrict)
+
+  status   ChatRestrictionStatus @default(ACTIVE)
+  startsAt DateTime              @default(now())
+  /// Null means indefinite.
+  expiresAt DateTime?
+
+  reason String
+
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([characterId, status, expiresAt])
 }

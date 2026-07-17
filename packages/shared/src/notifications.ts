@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { chatMessageCreatedEventSchema } from './chat.js';
+
 export const notificationTypeSchema = z.enum([
   'TRAVEL_COMPLETED',
   'DELIVERY_COMPLETED',
@@ -31,3 +33,13 @@ export const notificationSyncMessageSchema = z.object({
   type: z.literal('sync'),
 });
 export type NotificationSyncMessage = z.infer<typeof notificationSyncMessageSchema>;
+
+/**
+ * Everything the live socket may push. Extended additively (Phase 16 added
+ * chat.message.created); clients must ignore unknown event types.
+ */
+export const liveSocketEventSchema = z.discriminatedUnion('type', [
+  notificationSyncMessageSchema,
+  chatMessageCreatedEventSchema,
+]);
+export type LiveSocketEvent = z.infer<typeof liveSocketEventSchema>;

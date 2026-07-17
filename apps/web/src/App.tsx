@@ -5,6 +5,7 @@ import { RequireAuth } from './features/auth/RequireAuth';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
 import { CharacterPage } from './pages/CharacterPage';
+import { ChatPage } from './pages/ChatPage';
 import { CollectionPage } from './pages/CollectionPage';
 import { CombatPage } from './pages/CombatPage';
 import { InventoryPage } from './pages/InventoryPage';
@@ -78,6 +79,14 @@ export function App() {
           element={
             <RequireAuth>
               <NotificationsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="chat"
+          element={
+            <RequireAuth>
+              <ChatPage />
             </RequireAuth>
           }
         />

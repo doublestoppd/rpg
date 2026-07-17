@@ -14,7 +14,7 @@ import {
 } from 'fastify-type-provider-zod';
 
 import type { Env } from './config/env.js';
-import { DomainError } from './lib/http-errors.js';
+import { DomainError, RateLimitError } from './lib/http-errors.js';
 import { buildLoggerOptions } from './lib/logger.js';
 import { metrics } from './lib/metrics.js';
 import { registerMutationAudit } from './lib/observability.js';
@@ -51,6 +51,19 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
 
   // Generic errors in production: internal details are logged, never returned.
   app.setErrorHandler((error: FastifyError | DomainError, request, reply) => {
+    if (error instanceof RateLimitError) {
+      return reply
+        .status(429)
+        .header('Retry-After', String(error.retryAfterSeconds))
+        .send({
+          error: {
+            code: error.code,
+            message: error.message,
+            requestId: request.id,
+            retryAfterSeconds: error.retryAfterSeconds,
+          },
+        });
+    }
     if (error instanceof DomainError) {
       return reply.status(error.statusCode).send({
         error: { code: error.code, message: error.message, requestId: request.id },
