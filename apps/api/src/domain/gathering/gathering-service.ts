@@ -6,22 +6,23 @@ import type {
   SkillType,
 } from '@prisma/client';
 import {
-  miningLevelForXp,
-  miningXpForNextLevel,
   type ClaimGatheringResponse,
   type GatheringActionsResponse,
   type GatheringResult,
   type GatheringRun,
   type GatheringStatusResponse,
+  miningLevelForXp,
   type MiningSkillInfo,
+  miningXpForNextLevel,
 } from '@rpg/shared';
 import { z } from 'zod';
 
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import { metrics } from '../../lib/metrics.js';
 import { secureInt, weightedSample } from '../../lib/rng.js';
 import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
-import { toItemDefinitionInfo, type InventoryService } from '../inventory/inventory-service.js';
+import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
 import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
@@ -167,7 +168,7 @@ export function createGatheringService(
       });
     }
     // Typed domain event in the same transaction as the verified grant.
-    await questEvents.handle(tx as Prisma.TransactionClient, characterId, {
+    await questEvents.handle(tx, characterId, {
       type: 'GATHERING_COMPLETED',
       actionSlug,
       rewards: outcome.rewards.map((r) => ({ itemSlug: r.itemSlug, quantity: r.quantity })),
@@ -267,7 +268,10 @@ export function createGatheringService(
         },
         include: { action: true },
       });
-      if (existingByKey) return toRun(existingByKey, existingByKey.action, now);
+      if (existingByKey) {
+        metrics.increment('idempotency_replay');
+        return toRun(existingByKey, existingByKey.action, now);
+      }
 
       const action = await requireAction(input.actionSlug);
 
@@ -344,6 +348,7 @@ export function createGatheringService(
           'code' in error &&
           (error as { code?: string }).code === 'P2002'
         ) {
+          metrics.increment('concurrency_conflict');
           const replay = await prisma.gatheringRun.findUnique({
             where: {
               characterId_idempotencyKey: {

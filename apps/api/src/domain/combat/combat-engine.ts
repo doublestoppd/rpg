@@ -1,4 +1,4 @@
-import { combatConfig, type AbilityDefinition } from '../../config/combat.js';
+import { type AbilityDefinition, combatConfig } from '../../config/combat.js';
 import type { CombatRng } from '../../lib/combat-rng.js';
 
 /**

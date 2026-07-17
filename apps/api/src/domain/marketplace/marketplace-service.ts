@@ -14,11 +14,12 @@ import type {
 
 import { gameConfig } from '../../config/game.js';
 import { DomainError } from '../../lib/http-errors.js';
+import { metrics } from '../../lib/metrics.js';
 import { applyBasisPoints, parseGold } from '../../lib/money.js';
 import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
-import { toItemDefinitionInfo, type InventoryService } from '../inventory/inventory-service.js';
+import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
 
 type Tx = Prisma.TransactionClient;
@@ -536,6 +537,7 @@ export function createMarketplaceService(
           include: { shop: true, itemDefinition: true },
         });
         if (listing.status !== 'ACTIVE' || listing.expiresAt <= now) {
+          metrics.increment('marketplace_purchase_conflict');
           throw new DomainError(409, 'LISTING_UNAVAILABLE', 'That listing is no longer available.');
         }
         if (listing.sellerCharacterId === character.id) {

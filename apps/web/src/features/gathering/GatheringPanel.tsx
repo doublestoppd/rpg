@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-
-import { useQueryClient } from '@tanstack/react-query';
-
 import type { GatheringResult, GatheringRun } from '@rpg/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '../../components/ui/Button';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { useToast } from '../../components/ui/Toast';
 import { ApiRequestError } from '../../lib/api';
+import { INVENTORY_KEY } from '../inventory/useInventory';
 import {
   GATHERING_ACTIONS_KEY,
   useClaimGathering,
@@ -15,7 +14,6 @@ import {
   useGatheringStatus,
   useStartGathering,
 } from './useGathering';
-import { INVENTORY_KEY } from '../inventory/useInventory';
 
 function RewardList({ result }: { result: GatheringResult }) {
   return (

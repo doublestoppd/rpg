@@ -1,3 +1,5 @@
+import { metrics } from './metrics.js';
+
 /**
  * Shared timed-state utility (ADR 0004).
  *
@@ -23,6 +25,7 @@ export function createTimedStateRunner(finalizers: TimedStateFinalizer[]): Timed
   return {
     async finalizeAll(characterId, now = new Date()) {
       for (const finalizer of finalizers) {
+        metrics.increment('lazy_finalizer_run');
         await finalizer.finalizeExpired(characterId, now);
       }
     },

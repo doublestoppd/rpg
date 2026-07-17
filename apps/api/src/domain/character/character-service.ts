@@ -4,7 +4,7 @@ import type { CharacterClassInfo, CharacterResponse, CharacterStatsResponse } fr
 import { gameConfig } from '../../config/game.js';
 import { conflict, DomainError } from '../../lib/http-errors.js';
 import type { CurrencyService } from '../currency/currency-service.js';
-import { TRANSFER_REASONS, type InventoryService } from '../inventory/inventory-service.js';
+import { type InventoryService, TRANSFER_REASONS } from '../inventory/inventory-service.js';
 import {
   computeDerivedStats,
   effectiveStamina,

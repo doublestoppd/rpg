@@ -1,16 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
-  okResponseSchema,
-  revokeOtherSessionsResponseSchema,
-  sessionResponseSchema,
   type ChangePasswordRequest,
   type LoginRequest,
+  okResponseSchema,
   type RegisterRequest,
+  revokeOtherSessionsResponseSchema,
   type SessionResponse,
+  sessionResponseSchema,
 } from '@rpg/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiGet, apiSend, ApiRequestError, setCsrfToken } from '../../lib/api';
+import { apiGet, ApiRequestError, apiSend, setCsrfToken } from '../../lib/api';
 
 const SESSION_KEY = ['auth', 'session'] as const;
 

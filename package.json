@@ -13,6 +13,9 @@
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "api:baseline": "UPDATE_API_BASELINE=1 vitest run apps/api/src/api-compat.test.ts",
     "typecheck": "npm run build --workspace packages/shared && npm run typecheck --workspaces --if-present",
     "pretest": "npm run build --workspace packages/shared && node scripts/prepare-db.mjs",
     "test": "vitest run",
@@ -29,9 +32,16 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.20.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
     "pg": "^8.22.0",
     "prettier": "^3.4.2",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.64.0",
     "vitest": "^4.1.10"
   }
 }

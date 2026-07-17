@@ -1,11 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
-  travelStateSchema,
-  travelStatusResponseSchema,
   type TravelStartRequest,
+  travelStateSchema,
   type TravelStatusResponse,
+  travelStatusResponseSchema,
 } from '@rpg/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiGet, apiSend } from '../../lib/api';
 import { DESTINATIONS_KEY, FEATURES_KEY, LOCATION_KEY } from '../location/useLocation';

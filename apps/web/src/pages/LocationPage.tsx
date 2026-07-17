@@ -1,6 +1,5 @@
-import { Link, Navigate } from 'react-router-dom';
-
 import type { LocationFeatureType } from '@rpg/shared';
+import { Link, Navigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -9,17 +8,17 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
 import { useCharacter } from '../features/character/useCharacter';
-import { useInnRest } from '../features/currency/useCurrency';
 import { EncounterPanel } from '../features/combat/EncounterPanel';
 import { CraftingPanel } from '../features/crafting/CraftingPanel';
+import { useInnRest } from '../features/currency/useCurrency';
 import { GatheringPanel } from '../features/gathering/GatheringPanel';
-import { useLocalShops } from '../features/npc-shops/useNpcShops';
 import { LocationArtwork } from '../features/location/LocationArtwork';
 import {
   useCurrentLocation,
   useLocationFeatures,
   useTravelDestinations,
 } from '../features/location/useLocation';
+import { useLocalShops } from '../features/npc-shops/useNpcShops';
 import { useTravelStatus } from '../features/travel/useTravel';
 
 const FEATURE_TYPE_LABELS: Record<LocationFeatureType, string> = {

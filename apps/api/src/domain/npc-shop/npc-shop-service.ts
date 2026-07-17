@@ -12,7 +12,7 @@ import { applyBasisPoints } from '../../lib/money.js';
 import { secureInt, weightedSample } from '../../lib/rng.js';
 import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
-import { toItemDefinitionInfo, type InventoryService } from '../inventory/inventory-service.js';
+import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
 
 /** Validated shape of NpcShop.poolConfig (stored as JSON). */

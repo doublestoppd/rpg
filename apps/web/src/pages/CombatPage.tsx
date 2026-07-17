@@ -1,7 +1,6 @@
+import type { CombatAbilityInfo, CombatantView, CombatView } from '@rpg/shared';
 import { useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-
-import type { CombatAbilityInfo, CombatantView, CombatView } from '@rpg/shared';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -133,7 +132,7 @@ export function CombatPage() {
       issue({ action: menu.action, abilitySlug: menu.abilitySlug!, targetCombatantId: enemy.id });
   };
 
-  const useAbility = (kind: 'ABILITY' | 'MAGIC', ability: CombatAbilityInfo) => {
+  const chooseAbility = (kind: 'ABILITY' | 'MAGIC', ability: CombatAbilityInfo) => {
     if (ability.targeting === 'ENEMY') {
       setMenu({ mode: 'TARGET', action: kind, abilitySlug: ability.slug });
     } else {
@@ -155,7 +154,7 @@ export function CombatPage() {
             <button
               type="button"
               disabled={busy || ability.mpCost > combat.player.mp}
-              onClick={() => useAbility(kind, ability)}
+              onClick={() => chooseAbility(kind, ability)}
               className="w-full rounded border border-stone-200 px-2 py-1.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
             >
               <span className="font-medium text-stone-900 dark:text-stone-100">{ability.name}</span>

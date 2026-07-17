@@ -4,6 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { SESSION_COOKIE } from '../plugins/auth-plugin.js';
 import {
   buildTestApp,
   cookieValue,
@@ -11,7 +12,6 @@ import {
   TEST_ORIGIN,
   truncateAll,
 } from '../test-helpers.js';
-import { SESSION_COOKIE } from '../plugins/auth-plugin.js';
 
 const REGISTER = {
   email: 'hero@example.com',

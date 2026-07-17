@@ -1,6 +1,5 @@
+import { type HealthResponse, healthResponseSchema } from '@rpg/shared';
 import { useQuery } from '@tanstack/react-query';
-
-import { healthResponseSchema, type HealthResponse } from '@rpg/shared';
 
 import { apiGet } from '../../lib/api';
 

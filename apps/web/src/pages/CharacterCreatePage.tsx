@@ -1,7 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
-
 import type { CharacterClassSlug } from '@rpg/shared';
+import { type FormEvent, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -37,7 +36,7 @@ export function CharacterCreatePage() {
     createCharacter.mutate(
       { name, classSlug },
       {
-        onSuccess: () => navigate('/character', { replace: true }),
+        onSuccess: () => void navigate('/character', { replace: true }),
         onError: (err) =>
           setError(err instanceof ApiRequestError ? err.message : 'Character creation failed.'),
       },

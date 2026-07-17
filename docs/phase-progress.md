@@ -3,6 +3,83 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 13B — Architecture Hardening, Quality Gates, Observability (2026-07-17)
+
+**Status: complete.** No gameplay changes; no migrations; no endpoint
+changes. Existing saves and the existing API remain fully compatible (and
+a test gate now proves the latter).
+
+### Delivered
+
+- **Feature-module composition** (ADR 0008): `app.ts` shrank to
+  infrastructure only; fourteen modules under `apps/api/src/modules/`
+  each expose one `register(ctx)` function owning service construction,
+  dependency wiring (via a progressively filled `ServiceRegistry` with
+  fail-fast `requireService`), finalizer registration, and routes.
+  Explicit ordered construction — deliberately no DI framework. A
+  composition test asserts the module list and that every module's routes
+  exist on the running app.
+- **Mandatory ESLint** (flat config, type-checked): no floating promises,
+  exhaustive switches, no explicit `any`, no unused imports/variables,
+  inline type-only imports, deterministic import ordering, React Hooks and
+  jsx-a11y rules — plus an architectural boundary rule forbidding route
+  files from importing the database client or gameplay-math helpers
+  (routes validate, authorize, delegate, serialize; nothing else).
+  Stylistic rules stay with Prettier. `npm run lint` / `lint:fix`.
+- **CI quality gates** (`.github/workflows/ci.yml`): format, lint,
+  typecheck, repository structure, the full test suite against a real
+  PostgreSQL service (including the new index-plan and API-compatibility
+  gates), and the production build fail the pipeline on violation.
+- **Structured observability**: every state-changing request logs one
+  structured `authoritative mutation` entry — requestId, accountId,
+  route-pattern operation, idempotency key (the only field ever lifted
+  from a body), duration, status, success. Secrets/passwords/tokens never
+  reach audit entries; pino redaction stays in place.
+- **Domain metrics** (`lib/metrics.ts`): process-local counters for
+  idempotency replays, unique-constraint concurrency conflicts, stale
+  combat commands, marketplace purchase conflicts, quest claim retries,
+  worker failures, lazy finalizer executions, transaction retries, and
+  deadlocks — wired at the exact conflict/replay sites. Fixed name set,
+  no high-cardinality labels, operational only.
+- **Concurrency test helpers** (`test-concurrency.ts`): `raceRequests`,
+  `expectSingleWinner`, `replayRequest`, `expectIdempotentReplay`,
+  `raceFinalizers` — existing race tests refactored onto them; still real
+  PostgreSQL underneath.
+- **Database performance verification** (`db-performance.test.ts`):
+  EXPLAIN plans captured under `enable_seqscan = off` prove
+  inventory, marketplace, combat, quest, and notification-preparation
+  queries have usable index paths (accepting equivalent unique/partial
+  indexes); no timing assertions.
+- **API compatibility gate**: the generated OpenAPI document (still
+  documentation only — shared Zod schemas remain the contract) is
+  snapshotted to `apps/api/api-baseline.json`; tests fail on removed
+  endpoints, removed properties, changed enums, or required fields
+  becoming optional, and mutation tests prove the comparator catches each
+  class. Regenerate intentionally with `npm run api:baseline`.
+- **Documentation**: `docs/architecture.md` (boundaries, transaction
+  rules, event flow, idempotency conventions, locking strategy, module
+  system, where new gameplay belongs) and ADR 0008.
+- **Flaky-test fix while proving "existing gameplay unchanged"**: combat
+  "killing blow" tests could miss (~5% accuracy roll) — victory paths now
+  swing until decided, preserving all exactly-once assertions.
+
+### Tests
+
+19 new: composition (module list, per-module routes, fail-fast ordering),
+observability (structured fields present, secrets absent, reads skipped),
+metrics (counting, snapshots, finalizer counter), concurrency helper
+self-tests (winner/replay/parallelism semantics), nine index-plan checks,
+and four API-compatibility checks including intentional-change detection.
+All 204 Vitest tests and 12 Playwright specs pass; lint, typecheck, and
+builds are clean.
+
+### Known limitations
+
+- The Prisma schema stays single-file (multi-file schema support was
+  judged not worth the churn); domain sections are clearly delimited.
+- Metrics are in-process counters without an export endpoint; the Phase 16
+  admin surface is the natural place to expose them.
+
 ## Phase 13 — Quests and Transactional Domain Events (2026-07-17)
 
 **Status: complete.**

@@ -10,6 +10,7 @@ import type { ClaimQuestResponse, QuestsResponse, QuestView } from '@rpg/shared'
 import { z } from 'zod';
 
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import { metrics } from '../../lib/metrics.js';
 import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
 import type { InventoryService } from '../inventory/inventory-service.js';
@@ -236,6 +237,7 @@ export function createQuestService(
         throw conflict('NOT_CLAIMABLE', 'That quest is not finished.');
       }
       if (existing.status === 'CLAIMED') {
+        metrics.increment('quest_claim_retry');
         throw conflict('ALREADY_CLAIMED', 'You already claimed that reward.');
       }
 
@@ -249,6 +251,7 @@ export function createQuestService(
           data: { status: 'CLAIMED', claimedAt: new Date() },
         });
         if (updated.count !== 1) {
+          metrics.increment('quest_claim_retry');
           throw conflict('ALREADY_CLAIMED', 'You already claimed that reward.');
         }
         if (quest.rewardXp > 0) {

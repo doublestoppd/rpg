@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
@@ -26,7 +26,7 @@ export function LoginPage() {
     loginMutation.mutate(
       { email, password },
       {
-        onSuccess: () => navigate(from, { replace: true }),
+        onSuccess: () => void navigate(from, { replace: true }),
         onError: (err) => setError(err instanceof ApiRequestError ? err.message : 'Login failed.'),
       },
     );

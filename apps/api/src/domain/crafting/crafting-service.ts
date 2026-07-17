@@ -18,10 +18,11 @@ import {
 import { z } from 'zod';
 
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import { metrics } from '../../lib/metrics.js';
 import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
-import { toItemDefinitionInfo, type InventoryService } from '../inventory/inventory-service.js';
+import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
 import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
@@ -284,7 +285,10 @@ export function createCraftingService(
         },
         include: { recipe: true },
       });
-      if (existingByKey) return toRun(existingByKey, existingByKey.recipe, now);
+      if (existingByKey) {
+        metrics.increment('idempotency_replay');
+        return toRun(existingByKey, existingByKey.recipe, now);
+      }
 
       const recipe = await prisma.craftingRecipe.findUnique({
         where: { slug: input.recipeSlug },
@@ -387,6 +391,7 @@ export function createCraftingService(
           'code' in error &&
           (error as { code?: string }).code === 'P2002'
         ) {
+          metrics.increment('concurrency_conflict');
           const replay = await prisma.craftingRun.findUnique({
             where: {
               characterId_idempotencyKey: {

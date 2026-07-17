@@ -1,16 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
-  characterClassListSchema,
-  characterResponseSchema,
-  characterStatsResponseSchema,
   type CharacterClassInfo,
+  characterClassListSchema,
   type CharacterResponse,
+  characterResponseSchema,
   type CharacterStatsResponse,
+  characterStatsResponseSchema,
   type CreateCharacterRequest,
 } from '@rpg/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { apiGet, apiSend, ApiRequestError } from '../../lib/api';
+import { apiGet, ApiRequestError, apiSend } from '../../lib/api';
 
 const CHARACTER_KEY = ['character', 'me'] as const;
 const STATS_KEY = ['character', 'stats'] as const;

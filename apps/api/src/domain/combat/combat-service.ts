@@ -14,10 +14,11 @@ import type {
 } from '@rpg/shared';
 import { z } from 'zod';
 
-import { combatConfig, abilitiesForClass, findAbility } from '../../config/combat.js';
+import { abilitiesForClass, combatConfig, findAbility } from '../../config/combat.js';
 import { gameConfig } from '../../config/game.js';
 import { createCombatRng, newCombatSeed } from '../../lib/combat-rng.js';
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import { metrics } from '../../lib/metrics.js';
 import type { CharacterService } from '../character/character-service.js';
 import { computeDerivedStats } from '../character/progression.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
@@ -25,13 +26,13 @@ import type { InventoryService } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
 import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 import {
-  EngineRuleError,
-  runUntilPlayerCommand,
-  resolvePlayerCommand,
-  GAUGE_MAX,
   type EngineCombatant,
+  EngineRuleError,
   type EngineState,
+  GAUGE_MAX,
   type PlayerCommand,
+  resolvePlayerCommand,
+  runUntilPlayerCommand,
 } from './combat-engine.js';
 
 export const COMBAT_TRANSFER_REASON = 'COMBAT_DROP';
@@ -582,7 +583,10 @@ export function createCombatService(
         },
         include: { encounter: true },
       });
-      if (existingByKey) return buildView(prisma, existingByKey, character.classSlug);
+      if (existingByKey) {
+        metrics.increment('idempotency_replay');
+        return buildView(prisma, existingByKey, character.classSlug);
+      }
 
       const active = await prisma.combat.findFirst({
         where: { characterId: character.id, status: 'ACTIVE' },
@@ -721,6 +725,7 @@ export function createCombatService(
           'code' in error &&
           (error as { code?: string }).code === 'P2002'
         ) {
+          metrics.increment('concurrency_conflict');
           const replay = await prisma.combat.findUnique({
             where: {
               characterId_idempotencyKey: {
@@ -769,6 +774,7 @@ export function createCombatService(
         }
         // Optimistic concurrency: a stale or replayed command never resolves.
         if (input.expectedVersion !== combat.version) {
+          metrics.increment('combat_command_conflict');
           throw conflict('STALE_COMBAT_VERSION', 'The battle has moved on — refresh and retry.');
         }
 

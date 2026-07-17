@@ -2,6 +2,7 @@ import type { Location, PrismaClient, TravelState as TravelStateRow } from '@pri
 import type { TravelState, TravelStatusResponse } from '@rpg/shared';
 
 import { conflict, DomainError } from '../../lib/http-errors.js';
+import { metrics } from '../../lib/metrics.js';
 import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { toLocationInfo } from '../location/location-service.js';
@@ -120,6 +121,7 @@ export function createTravelService(
         },
       });
       if (existingByKey) {
+        metrics.increment('idempotency_replay');
         return toTravelState(existingByKey, await loadLocations(existingByKey), now);
       }
 
@@ -191,6 +193,7 @@ export function createTravelService(
           'code' in error &&
           (error as { code?: string }).code === 'P2002'
         ) {
+          metrics.increment('concurrency_conflict');
           throw currentlyTraveling();
         }
         throw error;

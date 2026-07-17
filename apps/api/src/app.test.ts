@@ -1,9 +1,8 @@
 import { PrismaClient } from '@prisma/client';
+import { healthResponseSchema } from '@rpg/shared';
 import { describe, expect, it } from 'vitest';
 
-import { healthResponseSchema } from '@rpg/shared';
-
-import { buildApp, type AppDependencies } from './app.js';
+import { type AppDependencies, buildApp } from './app.js';
 import { loadEnv } from './config/env.js';
 
 const testEnvSource = {
@@ -54,7 +53,7 @@ describe('GET /api/v1/health', () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/docs/json' });
 
     expect(response.statusCode).toBe(200);
-    const spec = response.json() as { paths: Record<string, unknown> };
+    const spec = response.json();
     expect(Object.keys(spec.paths)).toContain('/api/v1/health');
     await app.close();
   });

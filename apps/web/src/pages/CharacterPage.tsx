@@ -1,6 +1,5 @@
-import { Navigate } from 'react-router-dom';
-
 import type { EquipmentSlotName } from '@rpg/shared';
+import { Navigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';

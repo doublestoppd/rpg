@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
@@ -24,7 +24,7 @@ export function RegisterPage() {
     registerMutation.mutate(
       { email, password, displayName },
       {
-        onSuccess: () => navigate('/', { replace: true }),
+        onSuccess: () => void navigate('/', { replace: true }),
         onError: (err) =>
           setError(err instanceof ApiRequestError ? err.message : 'Registration failed.'),
       },

@@ -12,6 +12,7 @@ import { PgBoss } from 'pg-boss';
 import { loadEnv } from './config/env.js';
 import { createInventoryService } from './domain/inventory/inventory-service.js';
 import { sweepExpiredListings } from './domain/marketplace/marketplace-service.js';
+import { metrics } from './lib/metrics.js';
 import { createPrismaClient } from './lib/prisma.js';
 
 const CLEANUP_QUEUE = 'marketplace-expired-listing-cleanup';
@@ -27,6 +28,7 @@ async function main(): Promise<void> {
   const inventoryService = createInventoryService(prisma);
 
   boss.on('error', (error: unknown) => {
+    metrics.increment('worker_failure');
     console.error(JSON.stringify({ level: 'error', msg: 'pg-boss error', err: String(error) }));
   });
 

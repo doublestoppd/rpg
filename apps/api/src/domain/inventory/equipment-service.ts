@@ -55,7 +55,7 @@ export function createEquipmentService(
         }
 
         // Resolve the concrete slot: accessories fit either accessory slot.
-        const isAccessory = ACCESSORY_SLOTS.includes(definition.equipmentSlot as EquipmentSlotName);
+        const isAccessory = ACCESSORY_SLOTS.includes(definition.equipmentSlot);
         let slot: EquipmentSlotName;
         if (input.slot) {
           const fits = isAccessory
@@ -75,7 +75,7 @@ export function createEquipmentService(
           }
           slot = free;
         } else {
-          slot = definition.equipmentSlot as EquipmentSlotName;
+          slot = definition.equipmentSlot;
         }
 
         // Swapping is capacity-neutral: the newly equipped item frees the slot

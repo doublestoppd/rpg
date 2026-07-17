@@ -9,8 +9,8 @@ import {
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 
-import type { AuthService, IssuedSession } from '../domain/auth/auth-service.js';
 import type { Env } from '../config/env.js';
+import type { AuthService, IssuedSession } from '../domain/auth/auth-service.js';
 import { SESSION_COOKIE } from '../plugins/auth-plugin.js';
 
 interface AuthRouteOptions {

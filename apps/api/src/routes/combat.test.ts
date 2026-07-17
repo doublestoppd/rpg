@@ -117,10 +117,39 @@ function command(
 }
 
 /** Starts a slime fight and returns the initial view. */
-async function startSlimes(auth: { cookie: string; csrf: string }, key = 'combat-0001') {
+async function startSlimes(
+  auth: { cookie: string; csrf: string },
+  key = 'combat-0001',
+): Promise<CombatViewLite> {
   const response = await start(auth, { encounterSlug: 'slime-hollow', idempotencyKey: key });
   expect(response.statusCode).toBe(200);
-  return response.json() as CombatViewLite;
+  return response.json();
+}
+
+/**
+ * Attacks the target until the fight is decided (attacks can miss ~5% of
+ * the time, so a single "killing blow" would be flaky). Returns the final
+ * response body.
+ */
+async function attackUntilVictory(
+  auth: { cookie: string; csrf: string },
+  view: CombatViewLite,
+  targetId: string,
+  keyPrefix: string,
+): Promise<CombatViewLite> {
+  let current = view;
+  for (let swing = 0; swing < 8 && current.status === 'ACTIVE'; swing++) {
+    const response = await command(auth, current.id, {
+      action: 'ATTACK',
+      targetCombatantId: targetId,
+      idempotencyKey: `${keyPrefix}-${swing}`,
+      expectedVersion: current.version,
+    });
+    expect(response.statusCode).toBe(200);
+    current = response.json();
+  }
+  expect(current.status).toBe('VICTORY');
+  return current;
 }
 
 /** Reduces every living enemy to 1 HP so the next attack wins the fight. */
@@ -145,10 +174,10 @@ describe('encounters', () => {
     const { auth } = await setupFighter();
     const response = await getEncounters(auth);
     expect(response.statusCode).toBe(200);
-    const body = response.json() as {
+    const body = response.json<{
       encounters: Array<{ slug: string; kind: string; enemies: Array<{ count: number }> }>;
       activeCombatId: string | null;
-    };
+    }>();
     expect(body.encounters.map((e) => e.slug)).toEqual([
       'slime-hollow',
       'briar-wolf-pack',
@@ -160,9 +189,9 @@ describe('encounters', () => {
 
   it('locks the boss behind level 5 and a recorded Ironhide Boar victory', async () => {
     const { auth, characterId } = await setupFighter({ locationSlug: 'ironroot-mine' });
-    const listed = (await getEncounters(auth)).json() as {
+    const listed = (await getEncounters(auth)).json<{
       encounters: Array<{ slug: string; unlocked: boolean; lockedReason: string | null }>;
-    };
+    }>();
     const boss = listed.encounters.find((e) => e.slug === 'warden-of-the-hollow-forge')!;
     expect(boss.unlocked).toBe(false);
     expect(boss.lockedReason).toContain('level 5');
@@ -203,7 +232,7 @@ describe('encounters', () => {
       idempotencyKey: 'boss-000003',
     });
     expect(opened.statusCode).toBe(200);
-    expect((opened.json() as CombatViewLite).status).toBe('ACTIVE');
+    expect(opened.json().status).toBe('ACTIVE');
   });
 
   it('rejects starting an encounter from another location', async () => {
@@ -228,7 +257,7 @@ describe('starting and persistence', () => {
       encounterSlug: 'slime-hollow',
       idempotencyKey: 'combat-0001',
     });
-    expect((replay.json() as CombatViewLite).id).toBe(view.id);
+    expect(replay.json().id).toBe(view.id);
     expect(await prisma.combat.count()).toBe(1);
 
     const conflict = await start(auth, {
@@ -250,7 +279,7 @@ describe('starting and persistence', () => {
     expect(first.body).not.toContain(combat.rngSeed);
     expect(first.body).not.toContain('rngSeed');
     // Refresh persistence also reaches the encounters list.
-    const encounters = (await getEncounters(auth)).json() as { activeCombatId: string };
+    const encounters = (await getEncounters(auth)).json();
     expect(encounters.activeCombatId).toBe(view.id);
   });
 
@@ -276,7 +305,7 @@ describe('commands: version and replay', () => {
       expectedVersion: view.version,
     });
     expect(ok.statusCode).toBe(200);
-    const after = ok.json() as CombatViewLite;
+    const after = ok.json();
     expect(after.version).toBe(view.version + 1);
 
     // A replay of the same command carries the old version: rejected.
@@ -289,7 +318,7 @@ describe('commands: version and replay', () => {
     expect(replay.statusCode).toBe(409);
     expect(replay.json().error.code).toBe('STALE_COMBAT_VERSION');
     // Nothing advanced: version and log length unchanged since the success.
-    const current = (await getCombat(auth, view.id)).json() as CombatViewLite;
+    const current = (await getCombat(auth, view.id)).json();
     expect(current.version).toBe(after.version);
     expect(current.log).toEqual(after.log);
   });
@@ -304,7 +333,7 @@ describe('commands: version and replay', () => {
       expectedVersion: view.version,
     });
     expect(bogus.statusCode).toBe(400);
-    const current = (await getCombat(auth, view.id)).json() as CombatViewLite;
+    const current = (await getCombat(auth, view.id)).json();
     expect(current.version).toBe(view.version);
   });
 });
@@ -325,7 +354,7 @@ describe('combat items', () => {
       expectedVersion: view.version,
     });
     expect(used.statusCode).toBe(200);
-    const after = used.json() as CombatViewLite;
+    const after = used.json();
     expect(after.player.hp).toBeGreaterThan(50 - 10); // healed (minus enemy hits)
     const stack = await prisma.inventoryStack.findFirst({
       where: { characterId, itemDefinition: { slug: 'lesser-healing-draught' } },
@@ -379,15 +408,7 @@ describe('victory', () => {
       await prisma.currencyAccount.findUniqueOrThrow({ where: { characterId } })
     ).balance;
 
-    const winning = await command(auth, view.id, {
-      action: 'ATTACK',
-      targetCombatantId: targetId,
-      idempotencyKey: 'cmd-win-0001',
-      expectedVersion: view.version,
-    });
-    expect(winning.statusCode).toBe(200);
-    const won = winning.json() as CombatViewLite;
-    expect(won.status).toBe('VICTORY');
+    const won = await attackUntilVictory(auth, view, targetId, 'cmd-win');
     expect(won.rewards).not.toBeNull();
     expect(won.rewards!.xp).toBe(18); // two slimes × 9
 
@@ -424,15 +445,10 @@ describe('victory', () => {
     const { auth } = await setupFighter();
     const view = await startSlimes(auth);
     const targetId = await weakenEnemies(view.id);
-    const winning = await command(auth, view.id, {
-      action: 'ATTACK',
-      targetCombatantId: targetId,
-      idempotencyKey: 'cmd-win-0003',
-      expectedVersion: view.version,
-    });
+    const won = await attackUntilVictory(auth, view, targetId, 'cmd-seed');
     const combat = await prisma.combat.findUniqueOrThrow({ where: { id: view.id } });
     // Even the completed view keeps the seed out of the public contract.
-    expect(winning.body).not.toContain(combat.rngSeed);
+    expect(JSON.stringify(won)).not.toContain(combat.rngSeed);
   });
 });
 
@@ -448,7 +464,7 @@ describe('defeat', () => {
     await prisma.currencyAccount.update({ where: { characterId }, data: { balance: 3n } });
 
     // Defend until the slimes finish the job (poison or hits).
-    let current = (await getCombat(auth, view.id)).json() as CombatViewLite;
+    let current = (await getCombat(auth, view.id)).json();
     for (let round = 0; round < 30 && current.status === 'ACTIVE'; round++) {
       const response = await command(auth, view.id, {
         action: 'DEFEND',
@@ -456,7 +472,7 @@ describe('defeat', () => {
         expectedVersion: current.version,
       });
       expect(response.statusCode).toBe(200);
-      current = response.json() as CombatViewLite;
+      current = response.json();
     }
     expect(current.status).toBe('DEFEAT');
 

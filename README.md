@@ -8,11 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 13 complete** — five typed quests
-driven by transactional in-process domain events: travel, mining, crafting,
-and combat emit progress inside their own verified transactions, the client
-can never submit progress, and manual claims grant XP/Gold/items exactly
-once (capacity-blocked claims stay safely unclaimed). The museum collection
+for what exists today. **Currently: Phase 13B complete** — an architecture
+and reliability phase with no gameplay changes: feature-module application
+composition, mandatory ESLint with architectural boundary rules, CI quality
+gates, structured mutation audit logging, internal domain metrics, reusable
+concurrency-test helpers, database index-plan verification, and an OpenAPI
+compatibility gate over the committed baseline. The museum collection
 arrives in Phase 14.
 
 ## Stack (fixed)
@@ -26,7 +27,9 @@ arrives in Phase 14.
 - Testing: Vitest, Fastify `inject()`, Playwright
 - Architecture: modular monolith — no microservices, Redis, GraphQL, or event sourcing
 
-Architecture decisions are recorded in [`docs/adr/`](docs/adr/).
+Architecture decisions are recorded in [`docs/adr/`](docs/adr/); the overall
+shape, layer boundaries, transaction/idempotency/locking rules, and where new
+gameplay belongs are documented in [`docs/architecture.md`](docs/architecture.md).
 
 ## Repository layout
 
@@ -62,12 +65,18 @@ npm run dev:web            # Vite dev server
 
 ```bash
 npm run typecheck          # strict TypeScript across all workspaces
+npm run lint               # ESLint (correctness + architectural boundaries)
 npm test                   # Vitest suites (needs PostgreSQL; test DB auto-created)
 npm run test:e2e           # Playwright against the production web build + real API
 npm run verify:structure   # repository-structure contract check
 npm run format:check       # Prettier
 npm run build              # production builds (shared → api → web)
+npm run api:baseline       # regenerate the OpenAPI compatibility baseline
 ```
+
+CI (`.github/workflows/ci.yml`) runs format, lint, typecheck, structure,
+tests (including index-plan and API-compatibility gates), and the build on
+every push.
 
 API tests use `TEST_DATABASE_URL` (default
 `postgresql://rpg:rpg@localhost:5432/rpg_test`); Playwright uses

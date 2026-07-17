@@ -1,13 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
-
 import {
-  currentLocationResponseSchema,
-  locationFeaturesResponseSchema,
-  travelDestinationsResponseSchema,
   type CurrentLocationResponse,
+  currentLocationResponseSchema,
   type LocationFeaturesResponse,
+  locationFeaturesResponseSchema,
   type TravelDestinationsResponse,
+  travelDestinationsResponseSchema,
 } from '@rpg/shared';
+import { useQuery } from '@tanstack/react-query';
 
 import { apiGet } from '../../lib/api';
 

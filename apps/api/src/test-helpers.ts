@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import type { FastifyInstance } from 'fastify';
 
 import { buildApp } from './app.js';
-import { loadEnv, type Env } from './config/env.js';
+import { type Env, loadEnv } from './config/env.js';
 
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgresql://rpg:rpg@localhost:5432/rpg_test';
@@ -63,7 +63,7 @@ export async function registerTestUser(
     throw new Error(`registerTestUser failed: ${response.statusCode} ${response.body}`);
   }
   const cookie = response.cookies.find((c) => c.name === 'rpg_session')!.value;
-  const body = response.json() as { csrfToken: string; user: { id: string } };
+  const body = response.json();
   return { cookie, csrf: body.csrfToken, userId: body.user.id };
 }
 

@@ -100,7 +100,7 @@ export function createAuthService(prisma: PrismaClient): AuthService {
         });
       }
       const { user, ...bare } = session;
-      return { session: bare as Session, user };
+      return { session: bare, user };
     },
 
     async changePassword({ user, currentSession, currentPassword, newPassword }) {

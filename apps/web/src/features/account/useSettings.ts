@@ -1,10 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
-  accountSettingsSchema,
   type AccountSettings,
+  accountSettingsSchema,
   type UpdateAccountSettings,
 } from '@rpg/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiGet, apiSend } from '../../lib/api';
 

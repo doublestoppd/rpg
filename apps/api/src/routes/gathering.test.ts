@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { gameConfig } from '../config/game.js';
 import { SESSION_COOKIE } from '../plugins/auth-plugin.js';
+import { expectSingleWinner, raceRequests } from '../test-concurrency.js';
 import {
   buildTestApp,
   createTestPrisma,
@@ -134,10 +135,10 @@ describe('mining levels', () => {
     const { auth } = await setupMiner({ miningXp: 25 }); // level 2
     const response = await getActions(auth);
     expect(response.statusCode).toBe(200);
-    const body = response.json() as {
+    const body = response.json<{
       skill: { level: number; xp: number; xpForNextLevel: number };
       actions: Array<{ slug: string; levelRequirement: number; unlocked: boolean }>;
-    };
+    }>();
     expect(body.skill).toMatchObject({ level: 2, xp: 25, xpForNextLevel: 50 });
     expect(body.actions.map((a) => a.slug)).toEqual([
       'mine-copper-seam',
@@ -215,9 +216,7 @@ describe('reward tables', () => {
     await expireRun(characterId);
     const status = await getStatus(auth);
     expect(status.statusCode).toBe(200);
-    const body = status.json() as {
-      lastCompleted: { rewards: Array<{ item: { slug: string }; quantity: number }> };
-    };
+    const body = status.json();
     // The granted reward is exactly the stored outcome — never rerolled.
     expect(body.lastCompleted.rewards[0]!.item.slug).toBe(outcome.rewards[0]!.itemSlug);
     expect(body.lastCompleted.rewards[0]!.quantity).toBe(outcome.rewards[0]!.quantity);
@@ -301,12 +300,11 @@ describe('starting a run', () => {
   it('handles concurrent starts with different keys: exactly one run and one charge', async () => {
     const { auth, characterId } = await setupMiner();
     const before = await prisma.character.findUniqueOrThrow({ where: { id: characterId } });
-    const [a, b] = await Promise.all([
-      start(auth, { actionSlug: 'mine-copper-seam', idempotencyKey: 'race-000a' }),
-      start(auth, { actionSlug: 'mine-copper-seam', idempotencyKey: 'race-000b' }),
+    const responses = await raceRequests([
+      () => start(auth, { actionSlug: 'mine-copper-seam', idempotencyKey: 'race-000a' }),
+      () => start(auth, { actionSlug: 'mine-copper-seam', idempotencyKey: 'race-000b' }),
     ]);
-    const codes = [a.statusCode, b.statusCode].sort();
-    expect(codes).toEqual([200, 409]);
+    expectSingleWinner(responses, 200, 409);
     expect(await prisma.gatheringRun.count({ where: { characterId } })).toBe(1);
     const after = await prisma.character.findUniqueOrThrow({ where: { id: characterId } });
     expect(after.stamina).toBe(before.stamina - 2);
@@ -328,10 +326,7 @@ describe('pending privacy and completion', () => {
       expect(body).not.toContain('iron-ore');
       expect(body).not.toContain('quantity');
     }
-    const status = (await getStatus(auth)).json() as {
-      active: { status: string; remainingSeconds: number };
-      lastCompleted: null;
-    };
+    const status = (await getStatus(auth)).json();
     expect(status.active.status).toBe('IN_PROGRESS');
     expect(status.active.remainingSeconds).toBeGreaterThan(0);
     expect(status.lastCompleted).toBeNull();
@@ -374,10 +369,7 @@ describe('pending privacy and completion', () => {
     });
     expect(transfers).toBe(1);
 
-    const status = (await getStatus(auth)).json() as {
-      active: null;
-      lastCompleted: { rewards: Array<{ quantity: number }>; xpAwarded: number };
-    };
+    const status = (await getStatus(auth)).json();
     expect(status.active).toBeNull();
     expect(status.lastCompleted.xpAwarded).toBe(8);
   });
@@ -389,9 +381,7 @@ describe('pending privacy and completion', () => {
     await start(auth, { actionSlug: 'mine-copper-seam', idempotencyKey: 'no-worker-01' });
     const stored = await prisma.gatheringRun.findFirstOrThrow({ where: { characterId } });
     await expireRun(characterId);
-    const status = (await getStatus(auth)).json() as {
-      lastCompleted: { rewards: Array<{ item: { slug: string }; quantity: number }> };
-    };
+    const status = (await getStatus(auth)).json();
     const outcome = stored.outcome as { rewards: Array<{ itemSlug: string; quantity: number }> };
     expect(status.lastCompleted.rewards[0]!.item.slug).toBe(outcome.rewards[0]!.itemSlug);
     expect(status.lastCompleted.rewards[0]!.quantity).toBe(outcome.rewards[0]!.quantity);
@@ -407,10 +397,7 @@ describe('capacity-held rewards', () => {
     await expireRun(characterId);
 
     // Finalization cannot place the reward: the run parks as REWARD_HELD.
-    const status = (await getStatus(auth)).json() as {
-      active: null;
-      held: { id: string; rewards: Array<{ item: { slug: string }; quantity: number }> };
-    };
+    const status = (await getStatus(auth)).json();
     expect(status.active).toBeNull();
     expect(status.held.id).toBe(stored.id);
     const outcome = stored.outcome as { rewards: Array<{ itemSlug: string; quantity: number }> };
@@ -445,10 +432,7 @@ describe('capacity-held rewards', () => {
     });
     const claimed = await claim(auth);
     expect(claimed.statusCode).toBe(200);
-    const claimedBody = claimed.json() as {
-      result: { rewards: Array<{ item: { slug: string }; quantity: number }> };
-      skill: { xp: number };
-    };
+    const claimedBody = claimed.json();
     expect(claimedBody.result.rewards[0]!.item.slug).toBe(outcome.rewards[0]!.itemSlug);
     expect(claimedBody.result.rewards[0]!.quantity).toBe(outcome.rewards[0]!.quantity);
     expect(claimedBody.skill.xp).toBe(8);

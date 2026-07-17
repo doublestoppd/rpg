@@ -1,7 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-
 import type { Theme } from '@rpg/shared';
+import { type FormEvent, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -139,7 +138,7 @@ export function AccountSettingsPage() {
           <Button
             variant="danger"
             onClick={() =>
-              logout.mutate(undefined, { onSuccess: () => navigate('/', { replace: true }) })
+              logout.mutate(undefined, { onSuccess: () => void navigate('/', { replace: true }) })
             }
             disabled={logout.isPending}
           >

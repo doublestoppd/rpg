@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { combatConfig, CLASS_ABILITIES, findAbility } from '../../config/combat.js';
-import { createCombatRng, type CombatRng } from '../../lib/combat-rng.js';
+import { CLASS_ABILITIES, combatConfig, findAbility } from '../../config/combat.js';
+import { type CombatRng, createCombatRng } from '../../lib/combat-rng.js';
 import {
   advanceToNextReady,
   applyStatus,
   effectiveRate,
+  type EngineCombatant,
   EngineRuleError,
+  type EngineState,
   GAUGE_MAX,
   getStatus,
   resolvePlayerCommand,
   rollDamage,
   runUntilPlayerCommand,
-  type EngineCombatant,
-  type EngineState,
 } from './combat-engine.js';
 
 /** Scriptable deterministic RNG that records the chances it was asked for. */

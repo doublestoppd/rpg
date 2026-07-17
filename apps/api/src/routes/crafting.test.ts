@@ -9,6 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { gameConfig } from '../config/game.js';
 import { SESSION_COOKIE } from '../plugins/auth-plugin.js';
+import { expectSingleWinner, raceRequests } from '../test-concurrency.js';
 import {
   buildTestApp,
   createTestPrisma,
@@ -205,10 +206,10 @@ describe('recipes and profession configuration', () => {
     const { auth } = await setupSmith({ professionXp: 30 }); // level 2
     const response = await getRecipes(auth);
     expect(response.statusCode).toBe(200);
-    const body = response.json() as {
+    const body = response.json<{
       profession: { level: number; xp: number; xpForNextLevel: number };
-      recipes: Array<{ slug: string; unlocked: boolean; inputs: Array<{ quantity: number }> }>;
-    };
+      recipes: Array<{ slug: string; unlocked: boolean }>;
+    }>();
     expect(body.profession).toMatchObject({ level: 2, xp: 30, xpForNextLevel: 60 });
     const bySlug = new Map(body.recipes.map((r) => [r.slug, r]));
     expect(bySlug.get('smelt-copper-ingot')!.unlocked).toBe(true);
@@ -262,11 +263,11 @@ describe('starting a run consumes once', () => {
   it('handles concurrent starts with different keys: one winner, one consumption', async () => {
     const { auth, characterId } = await setupSmith();
     const goldBefore = await goldOf(characterId);
-    const [a, b] = await Promise.all([
-      start(auth, { recipeSlug: 'smelt-copper-ingot', idempotencyKey: 'race-000a' }),
-      start(auth, { recipeSlug: 'smelt-copper-ingot', idempotencyKey: 'race-000b' }),
+    const responses = await raceRequests([
+      () => start(auth, { recipeSlug: 'smelt-copper-ingot', idempotencyKey: 'race-000a' }),
+      () => start(auth, { recipeSlug: 'smelt-copper-ingot', idempotencyKey: 'race-000b' }),
     ]);
-    expect([a.statusCode, b.statusCode].sort()).toEqual([200, 409]);
+    expectSingleWinner(responses, 200, 409);
     expect(await prisma.craftingRun.count({ where: { characterId } })).toBe(1);
     expect(await stackOf(characterId, 'copper-ore')).toBe(6);
     expect(await goldOf(characterId)).toBe(goldBefore - 2n);
@@ -379,10 +380,7 @@ describe('completion grants once', () => {
     });
     expect(grants).toBe(1);
 
-    const status = (await getStatus(auth)).json() as {
-      active: null;
-      lastCompleted: { output: Array<{ item: { slug: string }; quantity: number }> };
-    };
+    const status = (await getStatus(auth)).json();
     expect(status.active).toBeNull();
     expect(status.lastCompleted.output[0]!.item.slug).toBe('copper-ingot');
   });
@@ -433,10 +431,7 @@ describe('capacity-held outputs', () => {
     await fillInventory(characterId);
     await expireRun(characterId);
 
-    const status = (await getStatus(auth)).json() as {
-      active: null;
-      held: { id: string; output: Array<{ item: { slug: string }; quantity: number }> };
-    };
+    const status = (await getStatus(auth)).json();
     expect(status.active).toBeNull();
     expect(status.held.id).toBe(stored.id);
     expect(status.held.output[0]!.item.slug).toBe('copper-ingot');
@@ -465,10 +460,7 @@ describe('capacity-held outputs', () => {
     });
     const claimed = await claim(auth);
     expect(claimed.statusCode).toBe(200);
-    const claimedBody = claimed.json() as {
-      result: { output: Array<{ item: { slug: string }; quantity: number }> };
-      profession: { xp: number };
-    };
+    const claimedBody = claimed.json();
     expect(claimedBody.result.output[0]!.item.slug).toBe('copper-ingot');
     expect(claimedBody.profession.xp).toBe(10);
     expect(await stackOf(characterId, 'copper-ingot')).toBe(1);

@@ -1,12 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
-  inventoryResponseSchema,
-  okResponseSchema,
   type EquipRequest,
   type InventoryResponse,
+  inventoryResponseSchema,
+  okResponseSchema,
   type UnequipRequest,
 } from '@rpg/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiGet, apiSend } from '../../lib/api';
 

@@ -1,7 +1,6 @@
+import type { TravelState } from '@rpg/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-
-import type { TravelState } from '@rpg/shared';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';

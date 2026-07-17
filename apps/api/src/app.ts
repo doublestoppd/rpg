@@ -14,39 +14,14 @@ import {
 } from 'fastify-type-provider-zod';
 
 import type { Env } from './config/env.js';
-import { createSettingsService } from './domain/account/settings-service.js';
-import { createAuthService } from './domain/auth/auth-service.js';
-import { createCharacterService } from './domain/character/character-service.js';
-import { createCombatService } from './domain/combat/combat-service.js';
-import { createCraftingService } from './domain/crafting/crafting-service.js';
-import { createCurrencyService } from './domain/currency/currency-service.js';
-import { createGatheringService } from './domain/gathering/gathering-service.js';
-import { createInnService } from './domain/inn/inn-service.js';
-import { createEquipmentService } from './domain/inventory/equipment-service.js';
-import { createInventoryService } from './domain/inventory/inventory-service.js';
-import { createLocationService } from './domain/location/location-service.js';
-import { createMarketplaceService } from './domain/marketplace/marketplace-service.js';
-import { createNpcShopService } from './domain/npc-shop/npc-shop-service.js';
-import { createQuestService } from './domain/quest/quest-service.js';
-import { createTravelService } from './domain/travel/travel-service.js';
-import { createTimedStateRunner } from './lib/timed-state.js';
 import { DomainError } from './lib/http-errors.js';
 import { buildLoggerOptions } from './lib/logger.js';
-import { authPlugin } from './plugins/auth-plugin.js';
-import { accountRoutes } from './routes/account.js';
-import { authRoutes } from './routes/auth.js';
-import { characterRoutes } from './routes/characters.js';
-import { combatRoutes } from './routes/combat.js';
-import { craftingRoutes } from './routes/crafting.js';
-import { currencyRoutes } from './routes/currency.js';
-import { gatheringRoutes } from './routes/gathering.js';
+import { metrics } from './lib/metrics.js';
+import { registerMutationAudit } from './lib/observability.js';
+import { createTimedStateRunner, type TimedStateFinalizer } from './lib/timed-state.js';
+import { GAME_MODULES } from './modules/index.js';
+import type { ModuleContext, ServiceRegistry } from './modules/types.js';
 import { healthRoutes } from './routes/health.js';
-import { inventoryRoutes } from './routes/inventory.js';
-import { locationRoutes } from './routes/locations.js';
-import { marketplaceRoutes } from './routes/marketplace.js';
-import { npcShopRoutes } from './routes/npc-shops.js';
-import { questRoutes } from './routes/quests.js';
-import { travelRoutes } from './routes/travel.js';
 
 export interface AppDependencies {
   env: Env;
@@ -57,6 +32,11 @@ export interface AppDependencies {
   authRateLimit?: { max: number; timeWindowMs: number };
 }
 
+/**
+ * Application bootstrap: infrastructure concerns only (server, error shape,
+ * logging, docs, health). Every gameplay feature registers itself through a
+ * feature module in `modules/` — see docs/architecture.md.
+ */
 export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> {
   const { env, prisma } = deps;
   const authRateLimit = deps.authRateLimit ?? { max: 10, timeWindowMs: 60_000 };
@@ -76,6 +56,12 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
         error: { code: error.code, message: error.message, requestId: request.id },
       });
     }
+    const prismaCode =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code?: string }).code
+        : undefined;
+    if (prismaCode === 'P2034') metrics.increment('transaction_retry');
+    if (prismaCode === '40P01') metrics.increment('deadlock');
     const statusCode = error.statusCode && error.statusCode >= 400 ? error.statusCode : 500;
     if (statusCode >= 500) {
       request.log.error({ err: error }, 'request failed');
@@ -102,34 +88,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
 
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
-
-  const authService = createAuthService(prisma);
-  const settingsService = createSettingsService(prisma);
-  const inventoryService = createInventoryService(prisma);
-  const currencyService = createCurrencyService(prisma);
-  const characterService = createCharacterService(prisma, inventoryService, currencyService);
-  const equipmentService = createEquipmentService(prisma, characterService, inventoryService);
-  // Quest progress is event-driven: verified actions emit typed events into
-  // this sink inside their own transactions (never from the client).
-  const questService = createQuestService(
-    prisma,
-    characterService,
-    currencyService,
-    inventoryService,
-  );
-  const travelService = createTravelService(prisma, characterService, questService.events);
-  // Registered timed-state finalizers run before location-dependent actions.
-  // The array is extended below once later-phase services exist.
-  const timedStateFinalizers = [travelService.finalizer];
-  const timedStateRunner = createTimedStateRunner(timedStateFinalizers);
-  const locationService = createLocationService(prisma, characterService, {
-    async ensureAtLocation(characterId) {
-      await timedStateRunner.finalizeAll(characterId);
-      await travelService.assertNotTraveling(characterId);
-    },
-  });
-
-  await app.register(authPlugin, { env, authService });
+  registerMutationAudit(app);
 
   // OpenAPI is documentation only (ADR 0002); the frontend client is never generated from it.
   await app.register(fastifySwagger, {
@@ -143,87 +102,23 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     transform: jsonSchemaTransform,
   });
   await app.register(fastifySwaggerUi, { routePrefix: '/api/v1/docs' });
-
   await app.register(healthRoutes, { prefix: '/api/v1', pingDatabase: deps.pingDatabase });
-  await app.register(authRoutes, {
-    prefix: '/api/v1',
+
+  // Feature modules register themselves in a fixed, explicit order.
+  const timedStateFinalizers: TimedStateFinalizer[] = [];
+  const services: ServiceRegistry = {};
+  const context: ModuleContext = {
+    app,
     env,
-    authService,
-    loginRateLimit: authRateLimit,
-  });
-  await app.register(accountRoutes, { prefix: '/api/v1', settingsService });
-  await app.register(characterRoutes, { prefix: '/api/v1', characterService });
-  await app.register(locationRoutes, { prefix: '/api/v1', locationService });
-  await app.register(travelRoutes, { prefix: '/api/v1', travelService });
-  await app.register(inventoryRoutes, {
-    prefix: '/api/v1',
-    characterService,
-    inventoryService,
-    equipmentService,
-    timedStateRunner,
-  });
-  const marketplaceService = createMarketplaceService(
     prisma,
-    characterService,
-    locationService,
-    currencyService,
-    inventoryService,
-  );
-  timedStateFinalizers.push(
-    marketplaceService.deliveryFinalizer,
-    marketplaceService.listingExpiryFinalizer,
-  );
-  const gatheringService = createGatheringService(
-    prisma,
-    characterService,
-    locationService,
-    inventoryService,
-    questService.events,
-  );
-  timedStateFinalizers.push(gatheringService.finalizer);
-  const craftingService = createCraftingService(
-    prisma,
-    characterService,
-    locationService,
-    currencyService,
-    inventoryService,
-    questService.events,
-  );
-  timedStateFinalizers.push(craftingService.finalizer);
-  const combatService = createCombatService(
-    prisma,
-    characterService,
-    locationService,
-    currencyService,
-    inventoryService,
-    questService.events,
-  );
-  const npcShopService = createNpcShopService(
-    prisma,
-    characterService,
-    locationService,
-    currencyService,
-    inventoryService,
-  );
-  const innService = createInnService(
-    prisma,
-    characterService,
-    locationService,
-    currencyService,
-    inventoryService,
-  );
-  await app.register(currencyRoutes, {
-    prefix: '/api/v1',
-    characterService,
-    currencyService,
-    innService,
-  });
-  await app.register(npcShopRoutes, { prefix: '/api/v1', npcShopService });
-  await app.register(marketplaceRoutes, { prefix: '/api/v1', marketplaceService });
-  await app.register(gatheringRoutes, { prefix: '/api/v1', gatheringService });
-  await app.register(craftingRoutes, { prefix: '/api/v1', craftingService });
-  await app.register(combatRoutes, { prefix: '/api/v1', combatService });
-  await app.register(questRoutes, { prefix: '/api/v1', questService });
+    authRateLimit,
+    timedStateFinalizers,
+    timedStateRunner: createTimedStateRunner(timedStateFinalizers),
+    services,
+  };
+  for (const module of GAME_MODULES) {
+    await module.register(context);
+  }
 
   return app;
 }

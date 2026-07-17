@@ -1,7 +1,6 @@
+import type { NpcShopStockEntryInfo, StockLevel } from '@rpg/shared';
 import { useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-
-import type { NpcShopStockEntryInfo, StockLevel } from '@rpg/shared';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';

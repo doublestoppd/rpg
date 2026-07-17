@@ -70,7 +70,7 @@ interface QuestViewLite {
 async function questBySlug(auth: { cookie: string }, slug: string): Promise<QuestViewLite> {
   const response = await getQuests(auth);
   expect(response.statusCode).toBe(200);
-  const body = response.json() as { quests: QuestViewLite[] };
+  const body = response.json<{ quests: QuestViewLite[] }>();
   const quest = body.quests.find((q) => q.slug === slug);
   expect(quest, `quest ${slug}`).toBeDefined();
   return quest!;
@@ -143,7 +143,7 @@ async function winSlimeFight(auth: Auth, key: string) {
     payload: { encounterSlug: 'slime-hollow', idempotencyKey: key },
   });
   expect(started.statusCode).toBe(200);
-  const view = started.json() as { id: string; version: number };
+  const view = started.json();
   await prisma.combatantState.updateMany({
     where: { combatId: view.id, kind: 'ENEMY' },
     data: { currentHp: 1 },
@@ -155,20 +155,28 @@ async function winSlimeFight(auth: Auth, key: string) {
   for (const enemy of enemies.slice(1)) {
     await prisma.combatantState.update({ where: { id: enemy.id }, data: { currentHp: 0 } });
   }
-  const won = await app.inject({
-    method: 'POST',
-    url: `/api/v1/combat/${view.id}/commands`,
-    headers: { origin: TEST_ORIGIN, 'x-csrf-token': auth.csrf },
-    cookies: { [SESSION_COOKIE]: auth.cookie },
-    payload: {
-      action: 'ATTACK',
-      targetCombatantId: enemies[0]!.id,
-      idempotencyKey: `${key}-win`,
-      expectedVersion: view.version,
-    },
-  });
-  expect(won.statusCode).toBe(200);
-  expect((won.json() as { status: string }).status).toBe('VICTORY');
+  // Attacks can miss (~5%), so swing until the fight is decided.
+  let status = 'ACTIVE';
+  let version = view.version;
+  for (let swing = 0; swing < 8 && status === 'ACTIVE'; swing++) {
+    const won = await app.inject({
+      method: 'POST',
+      url: `/api/v1/combat/${view.id}/commands`,
+      headers: { origin: TEST_ORIGIN, 'x-csrf-token': auth.csrf },
+      cookies: { [SESSION_COOKIE]: auth.cookie },
+      payload: {
+        action: 'ATTACK',
+        targetCombatantId: enemies[0]!.id,
+        idempotencyKey: `${key}-win-${swing}`,
+        expectedVersion: version,
+      },
+    });
+    expect(won.statusCode).toBe(200);
+    const body = won.json<{ status: string; version: number }>();
+    status = body.status;
+    version = body.version;
+  }
+  expect(status).toBe('VICTORY');
 }
 
 describe('quest configuration', () => {
@@ -225,7 +233,7 @@ describe('acceptance and progress gating', () => {
     const quest = await questBySlug(auth, 'copper-for-the-forges');
     const accepted = await accept(auth, quest.id);
     expect(accepted.statusCode).toBe(200);
-    expect((accepted.json() as QuestViewLite).objectives[0]!.currentCount).toBe(0);
+    expect(accepted.json().objectives[0]!.currentCount).toBe(0);
 
     // Mining AFTER acceptance counts the granted quantities.
     await mineWithForcedOutcome(
@@ -411,7 +419,7 @@ describe('claiming', () => {
 
     const claimed = await claim(auth, questId);
     expect(claimed.statusCode).toBe(200);
-    const body = claimed.json() as { quest: QuestViewLite; granted: QuestViewLite['rewards'] };
+    const body = claimed.json();
     expect(body.quest.status).toBe('CLAIMED');
     expect(body.granted.xp).toBe(30);
 

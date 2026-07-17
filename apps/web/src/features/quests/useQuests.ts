@@ -1,13 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
   claimQuestResponseSchema,
+  type QuestsResponse,
   questsResponseSchema,
   questViewSchema,
-  type ClaimQuestResponse,
-  type QuestsResponse,
-  type QuestView,
 } from '@rpg/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiGet, apiSend } from '../../lib/api';
 import { CURRENCY_KEY, TRANSACTIONS_KEY } from '../currency/useCurrency';
@@ -30,7 +27,7 @@ export function useAcceptQuest() {
     mutationFn: (questId: string) =>
       apiSend('POST', `/api/v1/quests/${questId}/accept`, undefined, (raw) =>
         questViewSchema.parse(raw),
-      ) as Promise<QuestView>,
+      ),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: QUESTS_KEY }),
   });
 }
@@ -41,7 +38,7 @@ export function useClaimQuest() {
     mutationFn: (questId: string) =>
       apiSend('POST', `/api/v1/quests/${questId}/claim`, undefined, (raw) =>
         claimQuestResponseSchema.parse(raw),
-      ) as Promise<ClaimQuestResponse>,
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUESTS_KEY });
       void queryClient.invalidateQueries({ queryKey: INVENTORY_KEY });

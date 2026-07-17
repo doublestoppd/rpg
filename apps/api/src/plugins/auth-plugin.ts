@@ -2,8 +2,8 @@ import type { Session, User } from '@prisma/client';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
-import type { AuthService } from '../domain/auth/auth-service.js';
 import type { Env } from '../config/env.js';
+import type { AuthService } from '../domain/auth/auth-service.js';
 
 export const SESSION_COOKIE = 'rpg_session';
 

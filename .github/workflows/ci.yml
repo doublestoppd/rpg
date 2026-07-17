@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rpg
+          POSTGRES_PASSWORD: rpg
+          POSTGRES_DB: rpg
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U rpg"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Format check
+        run: npm run format:check
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Repository structure
+        run: npm run verify:structure
+      - name: Unit, API, integration, and compatibility tests
+        run: npm test
+        env:
+          TEST_DATABASE_URL: postgresql://rpg:rpg@localhost:5432/rpg_test
+      - name: Production build
+        run: npm run build

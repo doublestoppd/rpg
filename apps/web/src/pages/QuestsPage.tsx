@@ -1,7 +1,6 @@
+import type { QuestView } from '@rpg/shared';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-
-import type { QuestView } from '@rpg/shared';
 
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
