@@ -18,6 +18,7 @@ import {
   useLocationFeatures,
   useTravelDestinations,
 } from '../features/location/useLocation';
+import { MuseumPanel } from '../features/museum/MuseumPanel';
 import { useLocalShops } from '../features/npc-shops/useNpcShops';
 import { useTravelStatus } from '../features/travel/useTravel';
 
@@ -152,6 +153,7 @@ export function LocationPage() {
                 {feature.type === 'GATHERING' && <GatheringPanel />}
                 {feature.type === 'CRAFTING' && <CraftingPanel />}
                 {feature.type === 'COMBAT' && <EncounterPanel />}
+                {feature.type === 'MUSEUM' && <MuseumPanel />}
                 {feature.type === 'NPC_SHOP' &&
                   (() => {
                     const shop = localShops.data?.shops.find((s) => s.name === feature.name);

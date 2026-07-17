@@ -8,13 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 13B complete** — an architecture
-and reliability phase with no gameplay changes: feature-module application
-composition, mandatory ESLint with architectural boundary rules, CI quality
-gates, structured mutation audit logging, internal domain metrics, reusable
-concurrency-test helpers, database index-plan verification, and an OpenAPI
-compatibility gate over the committed baseline. The museum collection
-arrives in Phase 14.
+for what exists today. **Currently: Phase 14 complete** — the Museum of
+Regional Artifacts accepts atomic, irreversible donations of three eligible
+collectibles: the asset is destroyed with permanent transfer/destruction
+records, only the first copy of each artifact counts, locked assets are
+untouchable, and the museum quest completes in the same transaction.
+Notifications arrive in Phase 15.
 
 ## Stack (fixed)
 

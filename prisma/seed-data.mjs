@@ -469,7 +469,8 @@ export const ITEM_DEFINITIONS = [
     slug: 'painted-river-pebble',
     name: 'Painted River Pebble',
     category: 'COLLECTIBLE',
-    stackable: false,
+    stackable: true,
+    maxStackQuantity: 10,
     baseValue: 90n,
     description: 'A pebble bearing tiny painted figures — older than Crownfall itself.',
   },
@@ -904,7 +905,10 @@ export const ENEMY_DEFINITIONS = [
       xp: 16,
       goldMin: 4,
       goldMax: 8,
-      drops: [{ itemSlug: 'traveler-ration', chanceBps: 1500, minQuantity: 1, maxQuantity: 1 }],
+      drops: [
+        { itemSlug: 'traveler-ration', chanceBps: 1500, minQuantity: 1, maxQuantity: 1 },
+        { itemSlug: 'painted-river-pebble', chanceBps: 800, minQuantity: 1, maxQuantity: 1 },
+      ],
     },
   },
   {
@@ -1267,6 +1271,42 @@ export const QUEST_DEFINITIONS = [
         targetSlug: 'sunken-crown-fragment',
         requiredCount: 1,
         description: 'Donate a Sunken Crown Fragment to the museum.',
+      },
+    ],
+  },
+];
+
+/**
+ * Museum collections (Phase 14): the Regional Artifacts collection at the
+ * Crownfall City museum. Exactly the three COLLECTIBLE catalog items are
+ * eligible; only the first donation of each entry counts per character.
+ */
+export const COLLECTION_DEFINITIONS = [
+  {
+    slug: 'regional-artifacts',
+    name: 'Regional Artifacts',
+    description:
+      'The permanent collection of the Museum of Regional Artifacts: relics of the crown, the trade houses, and the river peoples.',
+    locationSlug: 'crownfall-city',
+    sortOrder: 1,
+    entries: [
+      {
+        itemSlug: 'sunken-crown-fragment',
+        sortOrder: 1,
+        curatorNote:
+          'Believed lost when the royal barge foundered. The museum is honored to hold a piece of the old crown.',
+      },
+      {
+        itemSlug: 'ancient-trade-seal',
+        sortOrder: 2,
+        curatorNote:
+          'The mark of a merchant house that once moved half the harbor. Its ledgers are dust; its seal endures.',
+      },
+      {
+        itemSlug: 'painted-river-pebble',
+        sortOrder: 3,
+        curatorNote:
+          'The river peoples painted their histories on stones. Each figure is a season; each stone, a life.',
       },
     ],
   },

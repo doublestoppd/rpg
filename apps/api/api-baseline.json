@@ -7428,6 +7428,690 @@
           }
         }
       }
+    },
+    "/api/v1/collections": {
+      "get": {
+        "summary": "Museum collections with this character donation progress",
+        "tags": ["museum"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collections": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "locationSlug": {
+                            "type": "string"
+                          },
+                          "entries": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "item": {
+                                  "type": "object",
+                                  "properties": {
+                                    "slug": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "category": {
+                                      "type": "string",
+                                      "enum": [
+                                        "RESOURCE",
+                                        "CONSUMABLE",
+                                        "EQUIPMENT",
+                                        "CRAFTING_COMPONENT",
+                                        "COLLECTIBLE",
+                                        "QUEST_ITEM",
+                                        "SPECIALTY"
+                                      ]
+                                    },
+                                    "stackable": {
+                                      "type": "boolean"
+                                    },
+                                    "maxStackQuantity": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "equipmentSlot": {
+                                      "nullable": true,
+                                      "type": "string",
+                                      "enum": [
+                                        "MAIN_HAND",
+                                        "OFF_HAND",
+                                        "HEAD",
+                                        "BODY",
+                                        "HANDS",
+                                        "LEGS",
+                                        "FEET",
+                                        "ACCESSORY_1",
+                                        "ACCESSORY_2"
+                                      ]
+                                    },
+                                    "levelRequirement": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "bonuses": {
+                                      "type": "object",
+                                      "properties": {
+                                        "strength": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "agility": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "magic": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "defense": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "magicDefense": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "luck": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "maxHp": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "maxMp": {
+                                          "type": "integer",
+                                          "minimum": -9007199254740991,
+                                          "maximum": 9007199254740991
+                                        }
+                                      },
+                                      "required": [
+                                        "strength",
+                                        "agility",
+                                        "magic",
+                                        "defense",
+                                        "magicDefense",
+                                        "luck",
+                                        "maxHp",
+                                        "maxMp"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "hpRestore": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "mpRestore": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "usableInCombat": {
+                                      "type": "boolean"
+                                    },
+                                    "baseValue": {
+                                      "type": "string",
+                                      "pattern": "^\\d+$"
+                                    }
+                                  },
+                                  "required": [
+                                    "slug",
+                                    "name",
+                                    "description",
+                                    "category",
+                                    "stackable",
+                                    "maxStackQuantity",
+                                    "equipmentSlot",
+                                    "levelRequirement",
+                                    "bonuses",
+                                    "hpRestore",
+                                    "mpRestore",
+                                    "usableInCombat",
+                                    "baseValue"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "donated": {
+                                  "type": "boolean"
+                                },
+                                "donatedAt": {
+                                  "nullable": true,
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                                },
+                                "curatorNote": {
+                                  "nullable": true,
+                                  "type": "string"
+                                },
+                                "ownedCount": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "item",
+                                "donated",
+                                "donatedAt",
+                                "curatorNote",
+                                "ownedCount"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "donatedCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "totalCount": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "description",
+                          "locationSlug",
+                          "entries",
+                          "donatedCount",
+                          "totalCount"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["collections"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{id}/donations": {
+      "post": {
+        "summary": "Donate an eligible artifact (atomic, first copy only, irreversible)",
+        "tags": ["museum"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemSlug": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["itemSlug"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "locationSlug": {
+                          "type": "string"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "item": {
+                                "type": "object",
+                                "properties": {
+                                  "slug": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "description": {
+                                    "type": "string"
+                                  },
+                                  "category": {
+                                    "type": "string",
+                                    "enum": [
+                                      "RESOURCE",
+                                      "CONSUMABLE",
+                                      "EQUIPMENT",
+                                      "CRAFTING_COMPONENT",
+                                      "COLLECTIBLE",
+                                      "QUEST_ITEM",
+                                      "SPECIALTY"
+                                    ]
+                                  },
+                                  "stackable": {
+                                    "type": "boolean"
+                                  },
+                                  "maxStackQuantity": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "equipmentSlot": {
+                                    "nullable": true,
+                                    "type": "string",
+                                    "enum": [
+                                      "MAIN_HAND",
+                                      "OFF_HAND",
+                                      "HEAD",
+                                      "BODY",
+                                      "HANDS",
+                                      "LEGS",
+                                      "FEET",
+                                      "ACCESSORY_1",
+                                      "ACCESSORY_2"
+                                    ]
+                                  },
+                                  "levelRequirement": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "bonuses": {
+                                    "type": "object",
+                                    "properties": {
+                                      "strength": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "agility": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "magic": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "defense": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "magicDefense": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "luck": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "maxHp": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      "maxMp": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      }
+                                    },
+                                    "required": [
+                                      "strength",
+                                      "agility",
+                                      "magic",
+                                      "defense",
+                                      "magicDefense",
+                                      "luck",
+                                      "maxHp",
+                                      "maxMp"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "hpRestore": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "mpRestore": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "usableInCombat": {
+                                    "type": "boolean"
+                                  },
+                                  "baseValue": {
+                                    "type": "string",
+                                    "pattern": "^\\d+$"
+                                  }
+                                },
+                                "required": [
+                                  "slug",
+                                  "name",
+                                  "description",
+                                  "category",
+                                  "stackable",
+                                  "maxStackQuantity",
+                                  "equipmentSlot",
+                                  "levelRequirement",
+                                  "bonuses",
+                                  "hpRestore",
+                                  "mpRestore",
+                                  "usableInCombat",
+                                  "baseValue"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "donated": {
+                                "type": "boolean"
+                              },
+                              "donatedAt": {
+                                "nullable": true,
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                              },
+                              "curatorNote": {
+                                "nullable": true,
+                                "type": "string"
+                              },
+                              "ownedCount": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "item",
+                              "donated",
+                              "donatedAt",
+                              "curatorNote",
+                              "ownedCount"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "donatedCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "totalCount": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "description",
+                        "locationSlug",
+                        "entries",
+                        "donatedCount",
+                        "totalCount"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "entry": {
+                      "type": "object",
+                      "properties": {
+                        "item": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "category": {
+                              "type": "string",
+                              "enum": [
+                                "RESOURCE",
+                                "CONSUMABLE",
+                                "EQUIPMENT",
+                                "CRAFTING_COMPONENT",
+                                "COLLECTIBLE",
+                                "QUEST_ITEM",
+                                "SPECIALTY"
+                              ]
+                            },
+                            "stackable": {
+                              "type": "boolean"
+                            },
+                            "maxStackQuantity": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            },
+                            "equipmentSlot": {
+                              "nullable": true,
+                              "type": "string",
+                              "enum": [
+                                "MAIN_HAND",
+                                "OFF_HAND",
+                                "HEAD",
+                                "BODY",
+                                "HANDS",
+                                "LEGS",
+                                "FEET",
+                                "ACCESSORY_1",
+                                "ACCESSORY_2"
+                              ]
+                            },
+                            "levelRequirement": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 9007199254740991
+                            },
+                            "bonuses": {
+                              "type": "object",
+                              "properties": {
+                                "strength": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "agility": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "magic": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "defense": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "magicDefense": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "luck": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "maxHp": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "maxMp": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "strength",
+                                "agility",
+                                "magic",
+                                "defense",
+                                "magicDefense",
+                                "luck",
+                                "maxHp",
+                                "maxMp"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "hpRestore": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "mpRestore": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "usableInCombat": {
+                              "type": "boolean"
+                            },
+                            "baseValue": {
+                              "type": "string",
+                              "pattern": "^\\d+$"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "name",
+                            "description",
+                            "category",
+                            "stackable",
+                            "maxStackQuantity",
+                            "equipmentSlot",
+                            "levelRequirement",
+                            "bonuses",
+                            "hpRestore",
+                            "mpRestore",
+                            "usableInCombat",
+                            "baseValue"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "donated": {
+                          "type": "boolean"
+                        },
+                        "donatedAt": {
+                          "nullable": true,
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                        },
+                        "curatorNote": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "ownedCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": ["item", "donated", "donatedAt", "curatorNote", "ownedCount"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["collection", "entry"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

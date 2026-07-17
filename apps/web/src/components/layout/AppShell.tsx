@@ -44,6 +44,9 @@ export function AppShell() {
           <NavLink to="/quests" className={linkClass}>
             Quests
           </NavLink>
+          <NavLink to="/collection" className={linkClass}>
+            Collection
+          </NavLink>
           <NavLink to="/settings" className={linkClass}>
             Settings
           </NavLink>

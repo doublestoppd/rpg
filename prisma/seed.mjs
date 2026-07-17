@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 
 import {
   CHARACTER_CLASSES,
+  COLLECTION_DEFINITIONS,
   CRAFTING_RECIPES,
   ENCOUNTER_DEFINITIONS,
   ENEMY_DEFINITIONS,
@@ -341,6 +342,47 @@ async function main() {
     }
   }
 
+  for (const collection of COLLECTION_DEFINITIONS) {
+    const locationId = locationIdBySlug.get(collection.locationSlug);
+    if (!locationId) {
+      throw new Error(`seed: unknown location ${collection.locationSlug} for collection`);
+    }
+    if (collection.entries.length < 1) {
+      throw new Error(`seed: ${collection.slug} has no entries`);
+    }
+    for (const entry of collection.entries) {
+      const item = ITEM_DEFINITIONS.find((i) => i.slug === entry.itemSlug);
+      if (!item) {
+        throw new Error(`seed: ${collection.slug} entry references unknown item ${entry.itemSlug}`);
+      }
+      if (item.category !== 'COLLECTIBLE') {
+        throw new Error(`seed: ${collection.slug} entry ${entry.itemSlug} is not a COLLECTIBLE`);
+      }
+    }
+    const { slug, locationSlug, entries, ...data } = collection;
+    void locationSlug;
+    const row = await prisma.collectionDefinition.upsert({
+      where: { slug },
+      create: { slug, locationId, ...data },
+      update: { ...data, locationId },
+    });
+    for (const entry of entries) {
+      const itemDefinitionId = itemIdBySlug.get(entry.itemSlug);
+      await prisma.collectionEntry.upsert({
+        where: {
+          collectionId_itemDefinitionId: { collectionId: row.id, itemDefinitionId },
+        },
+        create: {
+          collectionId: row.id,
+          itemDefinitionId,
+          curatorNote: entry.curatorNote,
+          sortOrder: entry.sortOrder,
+        },
+        update: { curatorNote: entry.curatorNote, sortOrder: entry.sortOrder },
+      });
+    }
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
@@ -348,7 +390,7 @@ async function main() {
       `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops, ` +
       `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes, ` +
       `${ENEMY_DEFINITIONS.length} enemies, ${ENCOUNTER_DEFINITIONS.length} encounters, ` +
-      `${QUEST_DEFINITIONS.length} quests ensured`,
+      `${QUEST_DEFINITIONS.length} quests, ${COLLECTION_DEFINITIONS.length} collections ensured`,
   );
 }
 

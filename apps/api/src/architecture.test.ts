@@ -45,6 +45,7 @@ describe('application composition', () => {
       'gathering',
       'crafting',
       'combat',
+      'museum',
     ]);
     expect(new Set(names).size).toBe(names.length);
   });
@@ -65,6 +66,7 @@ describe('application composition', () => {
       ['gathering', 'GET', '/api/v1/gathering/actions'],
       ['crafting', 'GET', '/api/v1/crafting/recipes'],
       ['combat', 'GET', '/api/v1/combat/encounters'],
+      ['museum', 'GET', '/api/v1/collections'],
     ];
     for (const [module, method, url] of representatives) {
       expect(app.hasRoute({ method: method, url }), `${module}: ${method} ${url}`).toBe(true);

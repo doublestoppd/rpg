@@ -8,6 +8,7 @@ import { economyCoreModule } from './economy-core.js';
 import { gatheringModule } from './gathering.js';
 import { inventoryModule } from './inventory.js';
 import { marketplaceModule } from './marketplace.js';
+import { museumModule } from './museum.js';
 import { npcShopsModule } from './npc-shops.js';
 import { questsModule } from './quests.js';
 import { travelModule } from './travel.js';
@@ -34,4 +35,5 @@ export const GAME_MODULES: readonly GameModule[] = [
   gatheringModule,
   craftingModule,
   combatModule,
+  museumModule,
 ];

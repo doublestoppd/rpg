@@ -169,6 +169,7 @@ model Character {
   craftingRuns         CraftingRun[]
   combats              Combat[]
   characterQuests      CharacterQuest[]
+  collectionDonations  CharacterCollectionDonation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -200,6 +201,7 @@ model Location {
   gatheringActions GatheringActionDefinition[]
   craftingRecipes  CraftingRecipe[]
   encounters       EncounterDefinition[]
+  collections      CollectionDefinition[]
 }
 
 enum LocationFeatureType {
@@ -990,6 +992,92 @@ model QuestProgress {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 14 — museum collection and item destruction
+// ---------------------------------------------------------------------------
+
+/// A seeded museum collection hosted at one location (Regional Artifacts at
+/// the Crownfall City museum).
+model CollectionDefinition {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+
+  sortOrder Int @default(0)
+
+  entries CollectionEntry[]
+}
+
+/// One eligible artifact in a collection. Only the FIRST donation of each
+/// entry counts per character (enforced by CharacterCollectionDonation).
+model CollectionEntry {
+  id String @id @default(uuid())
+
+  collectionId String
+  collection   CollectionDefinition @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  /// Curator's note shown once donated.
+  curatorNote String
+  sortOrder   Int    @default(0)
+
+  donations CharacterCollectionDonation[]
+
+  @@unique([collectionId, itemDefinitionId])
+}
+
+/// A character's donation of one entry — at most one per entry, forever.
+/// Normal gameplay cannot reverse a donation.
+model CharacterCollectionDonation {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  collectionEntryId String
+  collectionEntry   CollectionEntry @relation(fields: [collectionEntryId], references: [id])
+
+  itemDefinitionId String
+  /// Set when the donated asset was a tracked instance.
+  itemInstanceId   String?
+
+  donatedAt DateTime @default(now())
+
+  @@unique([characterId, collectionEntryId])
+  @@index([characterId])
+}
+
+/// Permanent record of destroyed goods (museum donations today; other
+/// destruction sources may reference this later). Written in the same
+/// transaction as the destruction itself.
+model ItemDestruction {
+  id String @id @default(uuid())
+
+  characterId String
+
+  itemDefinitionId String
+  itemDefinition   ItemDefinition @relation(fields: [itemDefinitionId], references: [id])
+
+  itemInstanceId String?
+  quantity       Int
+
+  reason String
+  /// Reference to the causing record (e.g. "CharacterCollectionDonation"/id).
+  refType String?
+  refId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([characterId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
 // Phase 7 — currency ledger
 // ---------------------------------------------------------------------------
 
@@ -1102,10 +1190,12 @@ model ItemDefinition {
   stacks    InventoryStack[]
   instances ItemInstance[]
   transfers ItemTransfer[]
-  npcStockEntries NpcShopStockEntry[]
-  marketListings  MarketplaceListing[]
-  deliveryLines   DeliveryLine[]
-  craftingOutputs CraftingRecipe[]
+  npcStockEntries   NpcShopStockEntry[]
+  marketListings    MarketplaceListing[]
+  deliveryLines     DeliveryLine[]
+  craftingOutputs   CraftingRecipe[]
+  collectionEntries CollectionEntry[]
+  destructions      ItemDestruction[]
 }
 
 /// One row per character + stackable item definition.

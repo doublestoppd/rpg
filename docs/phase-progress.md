@@ -3,6 +3,73 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 14 — Museum Collection and Item Destruction (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Regional Artifacts collection** at the Crownfall City Museum of
+  Regional Artifacts (the MUSEUM feature seeded back in Phase 4): exactly
+  the three COLLECTIBLE catalog items are eligible — Sunken Crown Fragment
+  and Ancient Trade Seal (instances), and the Painted River Pebble, now a
+  stackable collectible with a rare Briar Wolf drop so one artifact is
+  obtainable in normal play today.
+- **Atomic, irreversible donations**: one transaction under the character
+  row lock removes the asset (stack quantity −1, or instance stripped of
+  ownership and marked destroyed), records the ItemTransfer to the world
+  and a permanent ItemDestruction row, creates the
+  CharacterCollectionDonation, and emits the MUSEUM_DONATION quest event —
+  committing together or not at all, so the collection and quest progress
+  cannot diverge. No gameplay path reverses a donation.
+- **First copy only**: `unique(characterId, collectionEntryId)` plus an
+  in-transaction check — duplicate donations are rejected with the second
+  copy untouched.
+- **Locked-state protection**: listed, in-transit, equipped, destroyed, or
+  missing assets are unreachable by the donation filter (409
+  ITEM_UNAVAILABLE); donations require presence at the museum (NOT_HERE
+  elsewhere); non-entry items are NOT_ELIGIBLE.
+- **Curator notes**: each entry's story is revealed only after donating.
+- **Frontend**: museum panel on the Crownfall City location page (progress,
+  carried-copy counts, a donate flow with an explicit "Donations are
+  permanent" confirmation, revealed notes) and a read-only Collection
+  progress page in the nav that hides undonated artifacts behind `???`.
+- The museum feature module joins `GAME_MODULES`; the API baseline was
+  regenerated for the two new endpoints (pure additions).
+
+### Database
+
+Migration `museum_collection_destruction`: `CollectionDefinition`,
+`CollectionEntry` (unique collection + item), `CharacterCollectionDonation`
+(unique character + entry, forever), `ItemDestruction` (permanent record
+with reference to the causing donation).
+
+### Endpoints
+
+- `GET /api/v1/collections`
+- `POST /api/v1/collections/:id/donations`
+
+### Tests
+
+Nine new: seeded Regional Artifacts with exactly the three collectible
+definitions and hidden curator notes, instance donation (ownership removed,
+destroyed, transfer + destruction rows, note revealed), stack donation
+(quantity reduced, remainder kept), duplicate rejection with the second
+copy retained and single records, the full locked-state matrix (missing,
+LISTED, IN_TRANSIT, equipped — nothing recorded through any rejection),
+wrong-location and non-eligible rejections, quest-donation atomicity (the
+museum quest flips COMPLETED_UNCLAIMED in the same call), and rejected
+donations moving neither collection nor quest. Playwright: a patron
+accepts the museum quest, donates the crown fragment through the
+confirmation flow, sees it on display with its curator note, checks the
+collection page, claims the quest reward, and finds the artifact gone from
+the pack.
+
+### Known limitations
+
+- Only the Painted River Pebble drops in normal play today; the other two
+  artifacts await future acquisition sources (later-phase content).
+
 ## Phase 13B — Architecture Hardening, Quality Gates, Observability (2026-07-17)
 
 **Status: complete.** No gameplay changes; no migrations; no endpoint
