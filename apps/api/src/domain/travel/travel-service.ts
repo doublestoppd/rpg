@@ -6,6 +6,7 @@ import { metrics } from '../../lib/metrics.js';
 import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { toLocationInfo } from '../location/location-service.js';
+import { noopNotifications, type NotificationSink } from '../notification/notification-service.js';
 import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
 export const currentlyTraveling = () =>
@@ -33,6 +34,7 @@ export function createTravelService(
   prisma: PrismaClient,
   characterService: CharacterService,
   questEvents: QuestEventSink = noopQuestEvents,
+  notifications: NotificationSink = noopNotifications,
 ): TravelService {
   async function toTravelState(
     row: TravelStateRow,
@@ -82,12 +84,19 @@ export function createTravelService(
           // Typed domain event in the same transaction as the arrival.
           const destination = await tx.location.findUnique({
             where: { id: expired.destinationLocationId },
-            select: { slug: true },
+            select: { slug: true, name: true },
           });
           if (destination) {
             await questEvents.handle(tx, characterId, {
               type: 'TRAVEL_COMPLETED',
               locationSlug: destination.slug,
+            });
+            await notifications.create(tx, {
+              characterId,
+              type: 'TRAVEL_COMPLETED',
+              dedupeKey: `travel:${expired.id}`,
+              title: 'You have arrived',
+              body: `The road ends at ${destination.name}.`,
             });
           }
         }

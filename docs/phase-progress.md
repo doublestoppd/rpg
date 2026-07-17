@@ -3,6 +3,68 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 15 — Persistent Notifications and Worker Fallback (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Stored notifications as the source of truth** (`Notification`: type,
+  payload, dedupeKey, readAt, createdAt): six event types — travel
+  completed, remote delivery completed, listing sold, gathering completed,
+  crafting completed, quest completed. Created via a `NotificationSink`
+  (mirroring the quest event sink) INSIDE the same transaction as the
+  causing domain event, at the exact finalization/settlement sites in the
+  travel, marketplace, gathering, crafting, and quest services.
+- **Idempotent by dedupe key**: `unique(characterId, dedupeKey)` with
+  `createMany(skipDuplicates)` — the same domain event key
+  ("travel:<id>", "delivery:<id>", "listing-sold:<id>", …) can never
+  produce a duplicate, no matter how many times worker jobs and lazy
+  finalizers race over the same event.
+- **WebSocket as optional enhancement only**: an authenticated
+  `/api/v1/notifications/ws` socket receives tiny `{"type":"sync"}` nudges
+  (best-effort, fired post-tick after creation) and clients refetch over
+  REST. The frontend polls every 15 seconds regardless — losing the
+  socket, or never having one, costs latency only. Gameplay and
+  notifications remain fully correct with the worker and WebSockets both
+  unavailable (every generation test runs worker-less over plain REST).
+- **Read state**: mark-one and mark-all endpoints; foreign notifications
+  are invisible and unmarkable.
+- **Frontend**: a Notifications nav entry with a live unread badge (which
+  also owns the app-wide socket with exponential-backoff reconnect) and a
+  notification center page with mark-read/mark-all. The Vite proxy now
+  forwards WebSocket upgrades.
+
+### Database
+
+Migration `notifications`: `Notification` with
+`unique(characterId, dedupeKey)` and read/created indexes.
+
+### Endpoints
+
+- `GET /api/v1/notifications`
+- `POST /api/v1/notifications/:id/read`, `POST /api/v1/notifications/read-all`
+- `GET /api/v1/notifications/ws` (WebSocket, authenticated)
+
+### Tests
+
+Seven new: generation from every supported event (travel arrival with the
+destination named, gathering + crafting completions, quest completion,
+listing sold notifying the seller with proceeds, and a remote delivery
+notifying the buyer), dedupe-key idempotency under repeated finalization
+and direct double-writes, read/read-all with unread counts and foreign
+404s, and a live-socket test that receives the sync nudge over a real
+WebSocket then proves REST keeps working after disconnect. Playwright: a
+courier walks the 30-second road, the unread badge appears (socket nudge
+or poll), the center shows the stored arrival, and mark-all clears the
+badge.
+
+### Known limitations
+
+- The live nudge may fire marginally before the creating transaction
+  commits; the client's refetch plus 15s polling make this unobservable in
+  practice (documented best-effort behavior).
+
 ## Phase 14 — Museum Collection and Item Destruction (2026-07-17)
 
 **Status: complete.**

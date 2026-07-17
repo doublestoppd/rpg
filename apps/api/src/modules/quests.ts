@@ -14,6 +14,7 @@ export const questsModule: GameModule = {
       requireService(ctx.services, 'characterService'),
       requireService(ctx.services, 'currencyService'),
       requireService(ctx.services, 'inventoryService'),
+      requireService(ctx.services, 'notificationService'),
     );
     ctx.services.questService = questService;
     await ctx.app.register(questRoutes, { prefix: '/api/v1', questService });

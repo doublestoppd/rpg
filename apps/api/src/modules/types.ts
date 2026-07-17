@@ -15,6 +15,7 @@ import type { InventoryService } from '../domain/inventory/inventory-service.js'
 import type { LocationService } from '../domain/location/location-service.js';
 import type { MarketplaceService } from '../domain/marketplace/marketplace-service.js';
 import type { MuseumService } from '../domain/museum/museum-service.js';
+import type { NotificationService } from '../domain/notification/notification-service.js';
 import type { NpcShopService } from '../domain/npc-shop/npc-shop-service.js';
 import type { QuestService } from '../domain/quest/quest-service.js';
 import type { TravelService } from '../domain/travel/travel-service.js';
@@ -33,6 +34,7 @@ export interface ServiceRegistry {
   inventoryService?: InventoryService;
   currencyService?: CurrencyService;
   characterService?: CharacterService;
+  notificationService?: NotificationService;
   equipmentService?: EquipmentService;
   questService?: QuestService;
   travelService?: TravelService;

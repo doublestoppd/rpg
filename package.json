@@ -33,6 +33,7 @@
     "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.20.0",
+    "@types/ws": "^8.18.1",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",

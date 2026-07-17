@@ -24,6 +24,7 @@ import type { TimedStateFinalizer } from '../../lib/timed-state.js';
 import type { CharacterService } from '../character/character-service.js';
 import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
+import { noopNotifications, type NotificationSink } from '../notification/notification-service.js';
 import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
 export const GATHERING_TRANSFER_REASON = 'GATHERING_REWARD';
@@ -89,6 +90,7 @@ export function createGatheringService(
   locationService: LocationService,
   inventoryService: InventoryService,
   questEvents: QuestEventSink = noopQuestEvents,
+  notifications: NotificationSink = noopNotifications,
 ): GatheringService {
   type Tx = Prisma.TransactionClient;
 
@@ -193,6 +195,13 @@ export function createGatheringService(
         });
         if (updated.count !== 1) return; // another request finalized it
         await grantOutcome(tx, run.characterId, run.action.slug, outcomeSchema.parse(run.outcome));
+        await notifications.create(tx, {
+          characterId: run.characterId,
+          type: 'GATHERING_COMPLETED',
+          dedupeKey: `gathering:${run.id}`,
+          title: 'Mining complete',
+          body: `${run.action.name} is finished — your haul is in your pack.`,
+        });
       });
     } catch (error) {
       if (error instanceof DomainError && CAPACITY_ERROR_CODES.has(error.code)) {
@@ -420,6 +429,13 @@ export function createGatheringService(
           throw conflict('NOTHING_TO_CLAIM', 'You have no held rewards to claim.');
         }
         await grantOutcome(tx, character.id, held.action.slug, outcomeSchema.parse(held.outcome));
+        await notifications.create(tx, {
+          characterId: character.id,
+          type: 'GATHERING_COMPLETED',
+          dedupeKey: `gathering:${held.id}`,
+          title: 'Mining complete',
+          body: `${held.action.name} is finished — your haul is in your pack.`,
+        });
       });
 
       const claimed = await prisma.gatheringRun.findUniqueOrThrow({

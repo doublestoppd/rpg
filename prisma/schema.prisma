@@ -170,6 +170,7 @@ model Character {
   combats              Combat[]
   characterQuests      CharacterQuest[]
   collectionDonations  CharacterCollectionDonation[]
+  notifications        Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1074,6 +1075,38 @@ model ItemDestruction {
 
   createdAt DateTime @default(now())
 
+  @@index([characterId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 15 — persistent notifications
+// ---------------------------------------------------------------------------
+
+/// A stored player notification — the source of truth (WebSockets only
+/// nudge clients to refetch). Created inside the same transaction as the
+/// causing domain event; `dedupeKey` (unique per character) makes creation
+/// idempotent between lazy finalizers and worker jobs.
+model Notification {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  /// Stable type (TRAVEL_COMPLETED, DELIVERY_COMPLETED, LISTING_SOLD,
+  /// GATHERING_COMPLETED, CRAFTING_COMPLETED, QUEST_COMPLETED).
+  type String
+
+  /// Public display payload ({title, body}); never internal state.
+  payload Json
+
+  /// Domain-event key, e.g. "travel:<travelStateId>".
+  dedupeKey String
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([characterId, dedupeKey])
+  @@index([characterId, readAt])
   @@index([characterId, createdAt])
 }
 

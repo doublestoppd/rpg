@@ -12,6 +12,7 @@ export const marketplaceModule: GameModule = {
       requireService(ctx.services, 'locationService'),
       requireService(ctx.services, 'currencyService'),
       requireService(ctx.services, 'inventoryService'),
+      requireService(ctx.services, 'notificationService'),
     );
     ctx.services.marketplaceService = marketplaceService;
     ctx.timedStateFinalizers.push(

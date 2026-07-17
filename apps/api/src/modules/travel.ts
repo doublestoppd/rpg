@@ -10,6 +10,7 @@ export const travelModule: GameModule = {
       ctx.prisma,
       requireService(ctx.services, 'characterService'),
       requireService(ctx.services, 'questService').events,
+      requireService(ctx.services, 'notificationService'),
     );
     ctx.services.travelService = travelService;
     ctx.timedStateFinalizers.push(travelService.finalizer);

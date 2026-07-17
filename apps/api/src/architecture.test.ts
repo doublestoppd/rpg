@@ -35,6 +35,7 @@ describe('application composition', () => {
       'account',
       'economy-core',
       'characters',
+      'notifications',
       'quests',
       'travel',
       'world',
@@ -67,6 +68,7 @@ describe('application composition', () => {
       ['crafting', 'GET', '/api/v1/crafting/recipes'],
       ['combat', 'GET', '/api/v1/combat/encounters'],
       ['museum', 'GET', '/api/v1/collections'],
+      ['notifications', 'GET', '/api/v1/notifications'],
     ];
     for (const [module, method, url] of representatives) {
       expect(app.hasRoute({ method: method, url }), `${module}: ${method} ${url}`).toBe(true);

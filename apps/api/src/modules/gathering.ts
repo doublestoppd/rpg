@@ -12,6 +12,7 @@ export const gatheringModule: GameModule = {
       requireService(ctx.services, 'locationService'),
       requireService(ctx.services, 'inventoryService'),
       requireService(ctx.services, 'questService').events,
+      requireService(ctx.services, 'notificationService'),
     );
     ctx.services.gatheringService = gatheringService;
     ctx.timedStateFinalizers.push(gatheringService.finalizer);

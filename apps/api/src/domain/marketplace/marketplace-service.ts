@@ -21,6 +21,7 @@ import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
 import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
+import { noopNotifications, type NotificationSink } from '../notification/notification-service.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -123,6 +124,7 @@ export function createMarketplaceService(
   locationService: LocationService,
   currencyService: CurrencyService,
   inventoryService: InventoryService,
+  notifications: NotificationSink = noopNotifications,
 ): MarketplaceService {
   async function currentLocation(userId: string) {
     const locationId = await locationService.requireCurrentLocationId(userId);
@@ -221,6 +223,13 @@ export function createMarketplaceService(
               });
             }
           }
+          await notifications.create(tx, {
+            characterId,
+            type: 'DELIVERY_COMPLETED',
+            dedupeKey: `delivery:${delivery.id}`,
+            title: 'Delivery arrived',
+            body: 'Your marketplace goods have arrived and are in your pack.',
+          });
         });
       }
     },
@@ -597,6 +606,14 @@ export function createMarketplaceService(
             remote,
             idempotencyKey: input.idempotencyKey,
           },
+        });
+
+        await notifications.create(tx, {
+          characterId: listing.sellerCharacterId,
+          type: 'LISTING_SOLD',
+          dedupeKey: `listing-sold:${listing.id}`,
+          title: 'Listing sold',
+          body: `Your listing sold for ${gross} Gold — ${proceeds} Gold after tax.`,
         });
 
         let deliveryArrivesAt: string | null = null;

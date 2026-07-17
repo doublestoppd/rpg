@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { ThemeApplier } from '../../features/account/ThemeApplier';
 import { useSession } from '../../features/auth/useSession';
 import { DevHealthIndicator } from '../../features/health/DevHealthIndicator';
+import { NotificationsNavLink } from '../../features/notifications/NotificationsNavLink';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm font-medium ${
@@ -47,6 +48,7 @@ export function AppShell() {
           <NavLink to="/collection" className={linkClass}>
             Collection
           </NavLink>
+          <NotificationsNavLink linkClass={linkClass} />
           <NavLink to="/settings" className={linkClass}>
             Settings
           </NavLink>

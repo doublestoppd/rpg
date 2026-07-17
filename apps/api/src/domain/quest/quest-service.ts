@@ -14,6 +14,7 @@ import { metrics } from '../../lib/metrics.js';
 import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
 import type { InventoryService } from '../inventory/inventory-service.js';
+import { noopNotifications, type NotificationSink } from '../notification/notification-service.js';
 import type { QuestDomainEvent, QuestEventSink } from './quest-events.js';
 
 export const QUEST_TRANSFER_REASON = 'QUEST_REWARD';
@@ -69,6 +70,7 @@ export function createQuestService(
   characterService: CharacterService,
   currencyService: CurrencyService,
   inventoryService: InventoryService,
+  notifications: NotificationSink = noopNotifications,
 ): QuestService {
   async function rewardsView(quest: QuestDefinition) {
     const rewardItems = rewardItemsSchema.parse(quest.rewardItems);
@@ -152,10 +154,19 @@ export function createQuestService(
         if (allDone) {
           // Conditional flip: completion happens exactly once even if two
           // qualifying transactions race.
-          await tx.characterQuest.updateMany({
+          const flipped = await tx.characterQuest.updateMany({
             where: { id: characterQuest.id, status: 'ACTIVE' },
             data: { status: 'COMPLETED_UNCLAIMED', completedAt: now },
           });
+          if (flipped.count === 1) {
+            await notifications.create(tx, {
+              characterId,
+              type: 'QUEST_COMPLETED',
+              dedupeKey: `quest:${characterQuest.id}`,
+              title: 'Quest complete',
+              body: `"${characterQuest.quest.name}" is complete — claim your reward.`,
+            });
+          }
         }
       }
     },

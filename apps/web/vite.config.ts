@@ -6,6 +6,8 @@ const apiProxy: Record<string, ProxyOptions> = {
   '/api': {
     target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3000',
     changeOrigin: false,
+    // Forward WebSocket upgrades too (live notification sync).
+    ws: true,
   },
 };
 

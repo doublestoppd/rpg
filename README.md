@@ -8,12 +8,11 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 14 complete** — the Museum of
-Regional Artifacts accepts atomic, irreversible donations of three eligible
-collectibles: the asset is destroyed with permanent transfer/destruction
-records, only the first copy of each artifact counts, locked assets are
-untouchable, and the museum quest completes in the same transaction.
-Notifications arrive in Phase 15.
+for what exists today. **Currently: Phase 15 complete** — persistent
+notifications for six gameplay events, created inside the same transactions
+as the events themselves and deduplicated by domain-event key; REST +
+polling are the source of truth and an authenticated WebSocket adds
+best-effort live nudges. Administration arrives in Phase 16.
 
 ## Stack (fixed)
 

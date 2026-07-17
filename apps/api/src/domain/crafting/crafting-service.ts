@@ -24,6 +24,7 @@ import type { CharacterService } from '../character/character-service.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
 import { type InventoryService, toItemDefinitionInfo } from '../inventory/inventory-service.js';
 import type { LocationService } from '../location/location-service.js';
+import { noopNotifications, type NotificationSink } from '../notification/notification-service.js';
 import { noopQuestEvents, type QuestEventSink } from '../quest/quest-events.js';
 
 export const CRAFTING_CONSUME_REASON = 'CRAFTING_CONSUME';
@@ -89,6 +90,7 @@ export function createCraftingService(
   currencyService: CurrencyService,
   inventoryService: InventoryService,
   questEvents: QuestEventSink = noopQuestEvents,
+  notifications: NotificationSink = noopNotifications,
 ): CraftingService {
   type Tx = Prisma.TransactionClient;
 
@@ -200,6 +202,13 @@ export function createCraftingService(
           run.recipe.slug,
           outputSnapshotSchema.parse(run.output),
         );
+        await notifications.create(tx, {
+          characterId: run.characterId,
+          type: 'CRAFTING_COMPLETED',
+          dedupeKey: `crafting:${run.id}`,
+          title: 'Forge work complete',
+          body: `${run.recipe.name} is finished — the result is in your pack.`,
+        });
       });
     } catch (error) {
       if (error instanceof DomainError && CAPACITY_ERROR_CODES.has(error.code)) {
@@ -468,6 +477,13 @@ export function createCraftingService(
           held.recipe.slug,
           outputSnapshotSchema.parse(held.output),
         );
+        await notifications.create(tx, {
+          characterId: character.id,
+          type: 'CRAFTING_COMPLETED',
+          dedupeKey: `crafting:${held.id}`,
+          title: 'Forge work complete',
+          body: `${held.recipe.name} is finished — the result is in your pack.`,
+        });
       });
 
       const claimed = await prisma.craftingRun.findUniqueOrThrow({

@@ -13,6 +13,7 @@ export const craftingModule: GameModule = {
       requireService(ctx.services, 'currencyService'),
       requireService(ctx.services, 'inventoryService'),
       requireService(ctx.services, 'questService').events,
+      requireService(ctx.services, 'notificationService'),
     );
     ctx.services.craftingService = craftingService;
     ctx.timedStateFinalizers.push(craftingService.finalizer);
