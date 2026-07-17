@@ -8,12 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 10 complete** — timed mining at
-Ironroot Mine: three weighted actions gated by a Mining skill, rewards rolled
-with secure server RNG at start and stored server-privately (no pending leak,
-no refresh reroll), stamina charged once, lazy exactly-once completion, and
-capacity-blocked rewards held for claim — never rerolled or discarded.
-Blacksmithing arrives in Phase 11.
+for what exists today. **Currently: Phase 11 complete** — deterministic
+Blacksmithing at the Crownfall Forge: three recipes gated by a profession
+level, inputs and Gold consumed atomically at start (exactly once, replay-
+and race-safe), pending outputs granted exactly once at completion, and
+capacity-blocked outputs held for collection — never lost. Combat arrives
+in Phase 12.
 
 ## Stack (fixed)
 

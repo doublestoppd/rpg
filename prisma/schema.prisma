@@ -165,6 +165,8 @@ model Character {
   deliveries           Delivery[]                     @relation("DeliveryBuyer")
   skills               CharacterSkill[]
   gatheringRuns        GatheringRun[]
+  professions          CraftingProfessionProgress[]
+  craftingRuns         CraftingRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -194,6 +196,7 @@ model Location {
   priceModifiers RegionalPriceModifier[]
   npcShops       NpcShop[]
   gatheringActions GatheringActionDefinition[]
+  craftingRecipes  CraftingRecipe[]
 }
 
 enum LocationFeatureType {
@@ -583,6 +586,109 @@ model GatheringRun {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 11 — crafting professions and timed blacksmithing
+// ---------------------------------------------------------------------------
+
+enum ProfessionType {
+  BLACKSMITHING
+}
+
+/// Per-character crafting profession progress. Level is derived from xp by
+/// the shared profession progression (never stored).
+model CraftingProfessionProgress {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  profession ProfessionType
+  xp         Int            @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([characterId, profession])
+}
+
+/// Data-driven recipe (seeded, never hard-coded in services). Crafting is
+/// deterministic: fixed inputs, fixed Gold cost, fixed output — no RNG and
+/// no failure chance. `inputs` is a Zod-validated list of {itemSlug, quantity}.
+model CraftingRecipe {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  profession ProfessionType
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+
+  /// Minimum profession level to start this recipe.
+  levelRequirement Int
+  /// Forge fee in Gold, debited atomically at start (BIGINT).
+  goldCost         BigInt
+  durationSeconds  Int
+  /// Profession XP awarded on completion.
+  xpReward         Int
+
+  inputs Json
+
+  outputItemDefinitionId String
+  outputItemDefinition   ItemDefinition @relation(fields: [outputItemDefinitionId], references: [id])
+  outputQuantity         Int
+
+  sortOrder Int @default(0)
+
+  runs CraftingRun[]
+
+  @@index([locationId])
+}
+
+enum CraftingRunStatus {
+  IN_PROGRESS
+  /// Work finished but the output could not be placed (inventory full); the
+  /// pending output stays on the run — never rerolled or discarded.
+  OUTPUT_HELD
+  COMPLETED
+}
+
+/// One timed crafting run. Inputs and Gold are consumed atomically at start
+/// inside the run-creation transaction; `output` snapshots what will be
+/// granted so completion is exactly-once and immune to recipe edits.
+/// completesAt is the authority (ADR 0004); a migration adds a partial
+/// unique index so a character has at most one unfinished run.
+model CraftingRun {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  recipeId String
+  recipe   CraftingRecipe @relation(fields: [recipeId], references: [id])
+
+  status CraftingRunStatus @default(IN_PROGRESS)
+
+  startedAt   DateTime  @default(now())
+  completesAt DateTime
+  /// When the timed work was finalized (output granted or held).
+  completedAt DateTime?
+  /// When the output actually entered the inventory.
+  claimedAt   DateTime?
+
+  /// Snapshot of the pending output + profession XP, granted exactly once.
+  output Json
+
+  /// Gold debited at start (recorded for auditability).
+  goldPaid BigInt
+
+  idempotencyKey String
+
+  @@unique([characterId, idempotencyKey])
+  @@index([characterId, status])
+}
+
+// ---------------------------------------------------------------------------
 // Phase 7 — currency ledger
 // ---------------------------------------------------------------------------
 
@@ -698,6 +804,7 @@ model ItemDefinition {
   npcStockEntries NpcShopStockEntry[]
   marketListings  MarketplaceListing[]
   deliveryLines   DeliveryLine[]
+  craftingOutputs CraftingRecipe[]
 }
 
 /// One row per character + stackable item definition.

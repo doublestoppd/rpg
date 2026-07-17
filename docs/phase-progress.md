@@ -3,6 +3,87 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 11 — Blacksmithing and Timed Crafting (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Blacksmithing only, at the Crownfall Forge** (Market District CRAFTING
+  feature): three seeded deterministic recipes — Smelt Copper Ingot (level 1,
+  3 copper ore + 1 forge coal + 2 Gold, 12s, 10 XP), Smelt Iron Ingot
+  (level 2, 3 iron ore + 1 forge coal + 4 Gold, 20s, 14 XP), Forge Bronze
+  Longblade (level 3, 2 copper ingots + 1 iron ingot + 2 forge coal +
+  25 Gold, 40s, 30 XP → an equipment instance). No RNG and no failure
+  chance in this release; the economy loop closes: mine ore at Ironroot,
+  buy coal at the general goods shop, smelt and forge at the anvils.
+- **Consume once**: inputs (`removeFromStack`) and the Gold fee
+  (CRAFTING_FEE ledger debit) are consumed atomically inside the
+  run-creation transaction under the character row lock. Replays with the
+  same idempotency key return the original run without consuming again;
+  concurrent starts leave exactly one run, one consumption, one ledger
+  entry. A failed debit rolls back the input removal (nothing partial).
+  Goods held on marketplace listings are unreachable by construction —
+  listed stack quantities were already moved off the active stack.
+- **Complete once**: the crafting finalizer (registered with the shared
+  timed-state runner, domain-specific finalization) flips status
+  conditionally then grants the snapshotted output + profession XP in one
+  transaction — exactly-once under concurrent requests, no duplication
+  across refreshes or start retries. The pending output is snapshotted at
+  start so completion grants exactly what was promised. Stackable outputs
+  join stacks; the Bronze Longblade arrives as an owned, unlocked instance.
+- **Capacity-held outputs**: a full pack at completion parks the run as
+  OUTPUT_HELD with the pending output untouched — claimable exactly once
+  via `claim` after freeing space, never rerolled or discarded; held work
+  blocks new runs until collected.
+- **Blacksmithing profession**: per-character XP in
+  `CraftingProfessionProgress`; level derived from a shared monotonic
+  progression (cap 10) gating the deeper recipes.
+- **Guards**: wrong location (NOT_HERE), insufficient inputs
+  (INSUFFICIENT_ITEMS, nothing consumed), insufficient Gold
+  (INSUFFICIENT_GOLD, inputs restored by rollback), conflicting run
+  (partial unique index + in-transaction re-check), profession too low.
+- **Frontend**: forge panel on the Market District location page — recipe
+  cards with input requirements against the pack ("have N"), Gold cost and
+  duration, live progress bar, held-output collection, and completion
+  notice with output and XP.
+
+### Database
+
+Migration `crafting_blacksmithing`: `CraftingProfessionProgress` (unique
+character + profession), `CraftingRecipe` (seeded, Zod-validated JSON
+inputs, output item + quantity), `CraftingRun` (pending-output snapshot,
+status IN_PROGRESS/OUTPUT_HELD/COMPLETED, unique character + idempotency
+key, and a partial unique index allowing at most one unfinished run per
+character).
+
+### Endpoints
+
+- `GET /api/v1/crafting/recipes`, `GET /api/v1/crafting/status`
+- `POST /api/v1/crafting/start`, `POST /api/v1/crafting/claim`
+
+### Tests
+
+Blacksmithing progression (monotonic, capped, boundary XP), three seeded
+recipes validated over real items (blade chain outputs non-stackable
+equipment), unlock reporting and SKILL_TOO_LOW, atomic consume-once
+(replays and a concurrent two-key race: one run, one consumption, one
+ledger entry), insufficient inputs/Gold with full rollback, wrong-location
+and conflicting-run rejections, listed-goods unreachability, exactly-once
+lazy completion (single output grant, single transfer, single XP award)
+with no duplication across refreshes or retries, instance output for the
+longblade, and the full capacity-hold cycle (hold → blocked claim →
+blocked new run → freed capacity → exact grant once → second claim
+rejected). Playwright: a smith at the Market District forge smelts a
+copper ingot — recipe list with lock states and "have N" requirements,
+progress bar surviving refresh with nothing granted, then the revealed
+ingot, Blacksmithing XP, and the ingot in inventory.
+
+### Known limitations
+
+- Blacksmithing is the only profession; more arrive with later phases.
+  Quest events for crafting are deliberately not emitted yet (Phase 13).
+
 ## Phase 10 — Mining and Timed Gathering (2026-07-17)
 
 **Status: complete.**

@@ -10,6 +10,7 @@ import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
 import { useCharacter } from '../features/character/useCharacter';
 import { useInnRest } from '../features/currency/useCurrency';
+import { CraftingPanel } from '../features/crafting/CraftingPanel';
 import { GatheringPanel } from '../features/gathering/GatheringPanel';
 import { useLocalShops } from '../features/npc-shops/useNpcShops';
 import { LocationArtwork } from '../features/location/LocationArtwork';
@@ -149,6 +150,7 @@ export function LocationPage() {
                 </p>
                 {feature.type === 'INN' && <InnRestAction />}
                 {feature.type === 'GATHERING' && <GatheringPanel />}
+                {feature.type === 'CRAFTING' && <CraftingPanel />}
                 {feature.type === 'NPC_SHOP' &&
                   (() => {
                     const shop = localShops.data?.shops.find((s) => s.name === feature.name);

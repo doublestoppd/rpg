@@ -17,6 +17,7 @@ import type { Env } from './config/env.js';
 import { createSettingsService } from './domain/account/settings-service.js';
 import { createAuthService } from './domain/auth/auth-service.js';
 import { createCharacterService } from './domain/character/character-service.js';
+import { createCraftingService } from './domain/crafting/crafting-service.js';
 import { createCurrencyService } from './domain/currency/currency-service.js';
 import { createGatheringService } from './domain/gathering/gathering-service.js';
 import { createInnService } from './domain/inn/inn-service.js';
@@ -33,6 +34,7 @@ import { authPlugin } from './plugins/auth-plugin.js';
 import { accountRoutes } from './routes/account.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './routes/characters.js';
+import { craftingRoutes } from './routes/crafting.js';
 import { currencyRoutes } from './routes/currency.js';
 import { gatheringRoutes } from './routes/gathering.js';
 import { healthRoutes } from './routes/health.js';
@@ -166,6 +168,14 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     inventoryService,
   );
   timedStateFinalizers.push(gatheringService.finalizer);
+  const craftingService = createCraftingService(
+    prisma,
+    characterService,
+    locationService,
+    currencyService,
+    inventoryService,
+  );
+  timedStateFinalizers.push(craftingService.finalizer);
   const npcShopService = createNpcShopService(
     prisma,
     characterService,
@@ -189,6 +199,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   await app.register(npcShopRoutes, { prefix: '/api/v1', npcShopService });
   await app.register(marketplaceRoutes, { prefix: '/api/v1', marketplaceService });
   await app.register(gatheringRoutes, { prefix: '/api/v1', gatheringService });
+  await app.register(craftingRoutes, { prefix: '/api/v1', craftingService });
 
   return app;
 }

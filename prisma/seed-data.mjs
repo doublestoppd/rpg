@@ -773,3 +773,66 @@ export const GATHERING_ACTIONS = [
     },
   },
 ];
+
+/**
+ * Blacksmithing recipes at the Crownfall Forge (Phase 11). Crafting is
+ * deterministic: fixed inputs + Gold at start, fixed output at completion —
+ * no RNG and no failure chance in this release.
+ */
+export const CRAFTING_RECIPES = [
+  {
+    slug: 'smelt-copper-ingot',
+    name: 'Smelt Copper Ingot',
+    description: 'Roast copper ore over hot coal and cast the melt into a bar mold.',
+    profession: 'BLACKSMITHING',
+    locationSlug: 'crownfall-market-district',
+    levelRequirement: 1,
+    goldCost: 2n,
+    durationSeconds: 12,
+    xpReward: 10,
+    sortOrder: 1,
+    inputs: [
+      { itemSlug: 'copper-ore', quantity: 3 },
+      { itemSlug: 'forge-coal', quantity: 1 },
+    ],
+    outputItemSlug: 'copper-ingot',
+    outputQuantity: 1,
+  },
+  {
+    slug: 'smelt-iron-ingot',
+    name: 'Smelt Iron Ingot',
+    description: 'Iron asks for a hotter fire and a steadier hand than copper.',
+    profession: 'BLACKSMITHING',
+    locationSlug: 'crownfall-market-district',
+    levelRequirement: 2,
+    goldCost: 4n,
+    durationSeconds: 20,
+    xpReward: 14,
+    sortOrder: 2,
+    inputs: [
+      { itemSlug: 'iron-ore', quantity: 3 },
+      { itemSlug: 'forge-coal', quantity: 1 },
+    ],
+    outputItemSlug: 'iron-ingot',
+    outputQuantity: 1,
+  },
+  {
+    slug: 'forge-bronze-longblade',
+    name: 'Forge Bronze Longblade',
+    description: 'Alloy copper with iron at the anvil and draw out a working blade.',
+    profession: 'BLACKSMITHING',
+    locationSlug: 'crownfall-market-district',
+    levelRequirement: 3,
+    goldCost: 25n,
+    durationSeconds: 40,
+    xpReward: 30,
+    sortOrder: 3,
+    inputs: [
+      { itemSlug: 'copper-ingot', quantity: 2 },
+      { itemSlug: 'iron-ingot', quantity: 1 },
+      { itemSlug: 'forge-coal', quantity: 2 },
+    ],
+    outputItemSlug: 'bronze-longblade',
+    outputQuantity: 1,
+  },
+];

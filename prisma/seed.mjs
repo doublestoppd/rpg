@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 
 import {
   CHARACTER_CLASSES,
+  CRAFTING_RECIPES,
   GATHERING_ACTIONS,
   ITEM_DEFINITIONS,
   LEVEL_PROGRESSION,
@@ -186,12 +187,55 @@ async function main() {
     });
   }
 
+  const itemIdBySlug = new Map();
+  for (const item of ITEM_DEFINITIONS) {
+    const row = await prisma.itemDefinition.findUnique({ where: { slug: item.slug } });
+    itemIdBySlug.set(item.slug, row.id);
+  }
+  for (const recipe of CRAFTING_RECIPES) {
+    const locationId = locationIdBySlug.get(recipe.locationSlug);
+    if (!locationId) throw new Error(`seed: unknown location ${recipe.locationSlug} for recipe`);
+    const outputItemDefinitionId = itemIdBySlug.get(recipe.outputItemSlug);
+    if (!outputItemDefinitionId) {
+      throw new Error(`seed: ${recipe.slug} outputs unknown item ${recipe.outputItemSlug}`);
+    }
+    if (
+      recipe.levelRequirement < 1 ||
+      recipe.goldCost < 0n ||
+      recipe.durationSeconds < 1 ||
+      recipe.xpReward < 1 ||
+      recipe.outputQuantity < 1 ||
+      recipe.inputs.length < 1
+    ) {
+      throw new Error(`seed: ${recipe.slug} recipe definition invalid`);
+    }
+    for (const input of recipe.inputs) {
+      if (!itemSlugSet.has(input.itemSlug)) {
+        throw new Error(`seed: ${recipe.slug} input references unknown item ${input.itemSlug}`);
+      }
+      if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+        throw new Error(`seed: ${recipe.slug} input quantity invalid for ${input.itemSlug}`);
+      }
+      if (input.itemSlug === recipe.outputItemSlug) {
+        throw new Error(`seed: ${recipe.slug} output cannot be one of its own inputs`);
+      }
+    }
+    const { slug, locationSlug, outputItemSlug, ...data } = recipe;
+    void locationSlug;
+    void outputItemSlug;
+    await prisma.craftingRecipe.upsert({
+      where: { slug },
+      create: { slug, locationId, outputItemDefinitionId, ...data },
+      update: { ...data, locationId, outputItemDefinitionId },
+    });
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
       `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items, ` +
       `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops, ` +
-      `${GATHERING_ACTIONS.length} gathering actions ensured`,
+      `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes ensured`,
   );
 }
 
