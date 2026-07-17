@@ -18,6 +18,7 @@ import { createSettingsService } from './domain/account/settings-service.js';
 import { createAuthService } from './domain/auth/auth-service.js';
 import { createCharacterService } from './domain/character/character-service.js';
 import { createCurrencyService } from './domain/currency/currency-service.js';
+import { createGatheringService } from './domain/gathering/gathering-service.js';
 import { createInnService } from './domain/inn/inn-service.js';
 import { createEquipmentService } from './domain/inventory/equipment-service.js';
 import { createInventoryService } from './domain/inventory/inventory-service.js';
@@ -33,6 +34,7 @@ import { accountRoutes } from './routes/account.js';
 import { authRoutes } from './routes/auth.js';
 import { characterRoutes } from './routes/characters.js';
 import { currencyRoutes } from './routes/currency.js';
+import { gatheringRoutes } from './routes/gathering.js';
 import { healthRoutes } from './routes/health.js';
 import { inventoryRoutes } from './routes/inventory.js';
 import { locationRoutes } from './routes/locations.js';
@@ -157,6 +159,13 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     marketplaceService.deliveryFinalizer,
     marketplaceService.listingExpiryFinalizer,
   );
+  const gatheringService = createGatheringService(
+    prisma,
+    characterService,
+    locationService,
+    inventoryService,
+  );
+  timedStateFinalizers.push(gatheringService.finalizer);
   const npcShopService = createNpcShopService(
     prisma,
     characterService,
@@ -179,6 +188,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   });
   await app.register(npcShopRoutes, { prefix: '/api/v1', npcShopService });
   await app.register(marketplaceRoutes, { prefix: '/api/v1', marketplaceService });
+  await app.register(gatheringRoutes, { prefix: '/api/v1', gatheringService });
 
   return app;
 }

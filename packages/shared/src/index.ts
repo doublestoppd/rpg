@@ -12,6 +12,7 @@ export * from './auth.js';
 export * from './character.js';
 export * from './currency.js';
 export * from './errors.js';
+export * from './gathering.js';
 export * from './health.js';
 export * from './items.js';
 export * from './location.js';

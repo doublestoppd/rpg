@@ -25,7 +25,8 @@ export async function truncateAll(prisma: PrismaClient): Promise<void> {
   // Gameplay/account state only — seeded configuration tables
   // (CharacterClassDefinition, LevelProgression) are left intact.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "DeliveryLine", "Delivery", "MarketplaceSale", "MarketplaceListing", ' +
+    'TRUNCATE TABLE "GatheringRun", "CharacterSkill", ' +
+      '"DeliveryLine", "Delivery", "MarketplaceSale", "MarketplaceListing", ' +
       '"PlayerShop", "NpcShopPurchase", "NpcShopStockEntry", "NpcShopRestock", ' +
       '"CurrencyTransaction", "CurrencyAccount", ' +
       '"ItemTransfer", "EquipmentAssignment", "InventoryCapacityReservation", ' +

@@ -8,11 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 9 complete** — one player shop per
-character registered to a region, whole-listing marketplace commerce with
-listing fees, sales tax, expiry with safe returns, and race-safe purchases;
-local buys deliver instantly while remote buys charge shipping and arrive by
-timed delivery with reserved capacity. Mining arrives in Phase 10.
+for what exists today. **Currently: Phase 10 complete** — timed mining at
+Ironroot Mine: three weighted actions gated by a Mining skill, rewards rolled
+with secure server RNG at start and stored server-privately (no pending leak,
+no refresh reroll), stamina charged once, lazy exactly-once completion, and
+capacity-blocked rewards held for claim — never rerolled or discarded.
+Blacksmithing arrives in Phase 11.
 
 ## Stack (fixed)
 

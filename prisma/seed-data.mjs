@@ -709,3 +709,67 @@ export const LEVEL_PROGRESSION = [
   { level: 19, cumulativeXp: 32500 },
   { level: 20, cumulativeXp: 37800 },
 ];
+
+/**
+ * Mining actions at Ironroot Mine (Phase 10). Each run draws exactly one
+ * weighted entry from its reward table with secure server RNG at start;
+ * durations are short enough to feel responsive while still being timed.
+ */
+export const GATHERING_ACTIONS = [
+  {
+    slug: 'mine-copper-seam',
+    name: 'Mine Copper Seam',
+    description: 'Chip green-veined copper from the shallow galleries. Easy, reliable work.',
+    skill: 'MINING',
+    locationSlug: 'ironroot-mine',
+    levelRequirement: 1,
+    staminaCost: 2,
+    durationSeconds: 12,
+    xpReward: 8,
+    sortOrder: 1,
+    rewardTable: {
+      entries: [
+        { itemSlug: 'copper-ore', weight: 85, minQuantity: 2, maxQuantity: 4 },
+        { itemSlug: 'iron-ore', weight: 15, minQuantity: 1, maxQuantity: 1 },
+      ],
+    },
+  },
+  {
+    slug: 'mine-iron-vein',
+    name: 'Mine Iron Vein',
+    description: 'Work the deeper iron veins with pick and wedge. Harder rock, better ore.',
+    skill: 'MINING',
+    locationSlug: 'ironroot-mine',
+    levelRequirement: 2,
+    staminaCost: 3,
+    durationSeconds: 20,
+    xpReward: 12,
+    sortOrder: 2,
+    rewardTable: {
+      entries: [
+        { itemSlug: 'iron-ore', weight: 70, minQuantity: 1, maxQuantity: 3 },
+        { itemSlug: 'copper-ore', weight: 30, minQuantity: 2, maxQuantity: 3 },
+      ],
+    },
+  },
+  {
+    slug: 'search-crystal-pocket',
+    name: 'Search Crystal Pocket',
+    description:
+      'Follow the faint glow into stranger seams. Slow, careful work — sometimes it pays.',
+    skill: 'MINING',
+    locationSlug: 'ironroot-mine',
+    levelRequirement: 4,
+    staminaCost: 4,
+    durationSeconds: 30,
+    xpReward: 18,
+    sortOrder: 3,
+    rewardTable: {
+      entries: [
+        { itemSlug: 'glimmer-crystal', weight: 40, minQuantity: 1, maxQuantity: 2 },
+        { itemSlug: 'iron-ore', weight: 35, minQuantity: 1, maxQuantity: 2 },
+        { itemSlug: 'copper-ore', weight: 25, minQuantity: 2, maxQuantity: 4 },
+      ],
+    },
+  },
+];

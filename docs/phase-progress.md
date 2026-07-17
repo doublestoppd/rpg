@@ -3,6 +3,82 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 10 — Mining and Timed Gathering (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Mining at Ironroot Mine only**, offered through the Mining Galleries
+  GATHERING feature: three data-driven actions — Mine Copper Seam (level 1,
+  2 stamina, 12s, 8 XP), Mine Iron Vein (level 2, 3 stamina, 20s, 12 XP),
+  Search Crystal Pocket (level 4, 4 stamina, 30s, 18 XP) — each with its own
+  weighted reward table over seeded ores (copper/iron/glimmer crystal).
+- **Unrevealed stored outcomes**: the authoritative reward is rolled once at
+  start with secure server RNG (one weighted table entry + quantity range)
+  and stored server-privately on the run. Pending responses (`start`,
+  `status`) carry no reward information whatsoever; refreshing can never
+  reroll it. The reveal happens only after the timestamp passes.
+- **Replay-safe completion** via the shared timed-state utility: the
+  gathering finalizer is registered with the runner, so any
+  location-dependent request (or `status`/`claim`) lazily finalizes an
+  expired run — conditional status flip first, then the grant, in one
+  transaction under the character row lock, making rewards and skill XP
+  exactly-once even under concurrent requests. Works with the worker
+  stopped; the timestamp is the authority.
+- **Capacity-held rewards**: if inventory has no room at completion, the run
+  parks as REWARD_HELD with its outcome untouched — never rerolled or
+  discarded. `claim` grants it exactly once after space is freed (a claim
+  while still full is rejected and changes nothing); held rewards block new
+  runs until claimed.
+- **Mining skill**: per-character XP in `CharacterSkill`; level derived from
+  a shared strictly monotonic progression (cap 10) so API and frontend agree.
+  Higher levels unlock the deeper actions.
+- **Guards**: wrong location (NOT_HERE), insufficient stamina (charged
+  exactly once at start, atomically with run creation), active conflicting
+  run (partial unique index + in-transaction re-check), stale replays
+  (idempotency key returns the original run without recharging), skill too
+  low.
+- **Frontend**: mining panel on the Ironroot Mine location page — skill
+  progress, action list with lock states, live progress bar, held-reward
+  claim flow, and a result reveal that only appears once the server reveals
+  the outcome.
+
+### Database
+
+Migration `gathering_mining_skills`: `CharacterSkill` (unique character +
+skill), `GatheringActionDefinition` (seeded, Zod-validated reward tables),
+`GatheringRun` (server-private `outcome` JSON, status
+IN_PROGRESS/REWARD_HELD/COMPLETED, unique character + idempotency key, and a
+partial unique index allowing at most one unfinished run per character).
+
+### Endpoints
+
+- `GET /api/v1/gathering/actions`, `GET /api/v1/gathering/status`
+- `POST /api/v1/gathering/start`, `POST /api/v1/gathering/claim`
+
+### Tests
+
+Mining level progression (monotonic, capped, boundary XP values), unlock
+reporting and SKILL_TOO_LOW, three seeded reward tables validated against
+real stackable items (distinct weighted tables), stored-outcome-equals-grant,
+stamina charged exactly once (including idempotent replay and a concurrent
+two-key race with one winner), insufficient stamina creates no run,
+wrong-location and conflicting-run rejections, pending responses leak no
+reward fields, no reroll across refreshes, exactly-once concurrent
+finalization (single stack grant, single transfer, single XP award),
+worker-stopped determinism, and the full capacity-hold cycle (hold → blocked
+claim → blocked new run → freed capacity → exact grant once → second claim
+rejected). Playwright: a miner at Ironroot Mine starts a copper seam run,
+sees a progress bar with no reward text before and after a refresh, then the
+revealed haul, Mining XP progress, and the ore in inventory.
+
+### Known limitations
+
+- Mining is the only gathering skill; other skills and locations arrive with
+  their own phases. Quest events for gathering are deliberately not emitted
+  yet (Phase 13).
+
 ## Phase 9 — Player Shops, Listings, Marketplace, Regional Delivery (2026-07-16)
 
 **Status: complete.**

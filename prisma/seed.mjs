@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 
 import {
   CHARACTER_CLASSES,
+  GATHERING_ACTIONS,
   ITEM_DEFINITIONS,
   LEVEL_PROGRESSION,
   LOCATION_FEATURES,
@@ -156,11 +157,41 @@ async function main() {
     });
   }
 
+  for (const action of GATHERING_ACTIONS) {
+    const locationId = locationIdBySlug.get(action.locationSlug);
+    if (!locationId) throw new Error(`seed: unknown location ${action.locationSlug} for action`);
+    if (
+      action.levelRequirement < 1 ||
+      action.staminaCost < 1 ||
+      action.durationSeconds < 1 ||
+      action.xpReward < 1 ||
+      action.rewardTable.entries.length < 1
+    ) {
+      throw new Error(`seed: ${action.slug} action definition invalid`);
+    }
+    for (const entry of action.rewardTable.entries) {
+      if (!itemSlugSet.has(entry.itemSlug)) {
+        throw new Error(`seed: ${action.slug} reward references unknown item ${entry.itemSlug}`);
+      }
+      if (entry.weight < 1 || entry.minQuantity < 1 || entry.maxQuantity < entry.minQuantity) {
+        throw new Error(`seed: ${action.slug} reward entry invalid for ${entry.itemSlug}`);
+      }
+    }
+    const { slug, locationSlug, ...data } = action;
+    void locationSlug;
+    await prisma.gatheringActionDefinition.upsert({
+      where: { slug },
+      create: { slug, locationId, ...data },
+      update: { ...data, locationId },
+    });
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
       `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items, ` +
-      `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops ensured`,
+      `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops, ` +
+      `${GATHERING_ACTIONS.length} gathering actions ensured`,
   );
 }
 

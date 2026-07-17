@@ -163,6 +163,8 @@ model Character {
   marketListings       MarketplaceListing[]           @relation("ListingSeller")
   marketPurchases      MarketplaceSale[]              @relation("SaleBuyer")
   deliveries           Delivery[]                     @relation("DeliveryBuyer")
+  skills               CharacterSkill[]
+  gatheringRuns        GatheringRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,6 +193,7 @@ model Location {
   characters  Character[]
   priceModifiers RegionalPriceModifier[]
   npcShops       NpcShop[]
+  gatheringActions GatheringActionDefinition[]
 }
 
 enum LocationFeatureType {
@@ -479,6 +482,104 @@ model DeliveryLine {
   itemInstanceId String?
 
   @@index([deliveryId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10 — gathering skills and timed mining
+// ---------------------------------------------------------------------------
+
+enum SkillType {
+  MINING
+}
+
+/// Per-character gathering skill progress. Level is derived from xp by the
+/// skill progression table (never stored, so the two cannot disagree).
+model CharacterSkill {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  skill SkillType
+  xp    Int       @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([characterId, skill])
+}
+
+/// Data-driven gathering action (seeded, never hard-coded in services).
+/// rewardTable is a Zod-validated weighted pool; one entry is drawn per run.
+model GatheringActionDefinition {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  skill SkillType
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+
+  /// Minimum skill level to start this action.
+  levelRequirement Int
+  staminaCost      Int
+  durationSeconds  Int
+  /// Skill XP awarded on completion.
+  xpReward         Int
+
+  rewardTable Json
+  sortOrder   Int  @default(0)
+
+  runs GatheringRun[]
+
+  @@index([locationId])
+}
+
+enum GatheringRunStatus {
+  IN_PROGRESS
+  /// Work finished but the reward could not be placed (inventory full); the
+  /// rolled reward is held on the run — never rerolled or discarded.
+  REWARD_HELD
+  COMPLETED
+}
+
+/// One timed gathering run. The authoritative reward is rolled with secure
+/// server RNG at start and stored in `outcome`; it is server-private and is
+/// never serialized into pending API responses. completesAt is the authority
+/// (ADR 0004); a migration adds a partial unique index so a character has at
+/// most one unfinished (non-COMPLETED) run.
+model GatheringRun {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  actionId String
+  action   GatheringActionDefinition @relation(fields: [actionId], references: [id])
+
+  status GatheringRunStatus @default(IN_PROGRESS)
+
+  startedAt   DateTime  @default(now())
+  completesAt DateTime
+  /// When the timed work was finalized (rewards granted or held).
+  completedAt DateTime?
+  /// When rewards actually entered the inventory (equals completedAt unless
+  /// the run passed through REWARD_HELD).
+  claimedAt   DateTime?
+
+  /// Server-private rolled outcome: rewards + skill XP. Never exposed while
+  /// the run is IN_PROGRESS.
+  outcome Json
+
+  /// Stamina charged once at start (recorded for auditability).
+  staminaCost Int
+
+  idempotencyKey String
+
+  @@unique([characterId, idempotencyKey])
+  @@index([characterId, status])
 }
 
 // ---------------------------------------------------------------------------
