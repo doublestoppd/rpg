@@ -3,6 +3,109 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 12 — Classic Initiative-Gauge Combat (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Server-authoritative persisted combat** at Blackwood Forest (Slime
+  Hollow, Briar Wolf Pack, The Ironhide Boar elite), North Road (Roadside
+  Ambush), and Ironroot Mine (Beetle Warren, Ember Roost, and the Warden of
+  the Hollow Forge boss — instanced, unfleeable, gated on level 5 plus a
+  recorded Ironhide Boar victory). Seven seeded enemies with element
+  affinities, weighted AI, and reward tables. No permanent tick loop: state
+  advances only through the locked, versioned command endpoint.
+- **Initiative gauge (0–100 fixed-point)**: rate `max(1, agility)` scaled
+  by Haste/Slow; the next ready combatant comes from advancing all gauges
+  by the minimum virtual time, with ties broken by higher Agility, then
+  higher Luck, then stable slot. The player always pauses at a full gauge
+  for a command; enemy actions use weighted AI (silenced casters fall back
+  to attacks).
+- **Damage**: fixed-point integer formulas from configuration —
+  physical (Strength × power + base − Defense mitigation), magical (Magic ×
+  spell power − Magic Defense mitigation), secure 90–110% variance from the
+  combat PRNG, elemental multipliers (weak 1.5 / neutral 1.0 / resistant
+  0.5 / immune 0 in bps), Guard reduction, and a back-row melee penalty
+  unless the attack is ranged (ember bats shoot from the back row; Quick
+  Shot reaches it at full force).
+- **Statuses with exact timing**: Poison ticks after the affected
+  combatant completes any action (stun skips included); Blind reduces
+  physical accuracy; Silence blocks Magic; Slow/Haste change the initiative
+  rate; Guard (Defend) activates immediately and expires when the
+  defender's next command phase begins; Stun at full gauge skips the
+  action, resets to 0, consumes one charge, and still processes post-action
+  ticks; Armor Break lowers effective Defense.
+- **Commands** (Attack, Ability, Magic, Item, Defend, Flee) carry an
+  idempotency key and expected combat version: the combat row is locked,
+  stale versions and replays are rejected without resolving, and every
+  resolved command increments the version. Class books: Vanguard Heavy
+  Strike / Shield Guard / Break Armor; Wayfarer Quick Shot / Twin Cut /
+  Smoke Step; Arcanist Flame Spark / Frost Shard / Storm Pulse (all
+  data-driven configuration).
+- **Deterministic server-secret PRNG**: HMAC-SHA256(seed, counter) with the
+  counter persisted per combat — a refresh replays nothing and rerolls
+  nothing; the seed never appears in any API response.
+- **Flee**: Agility difference, encounter modifier, and a failed-attempt
+  bonus, clamped to configured bounds; failed attempts consume the action;
+  the boss is unfleeable.
+- **Items in combat**: ownership and combat usability validated; the stack
+  decrements inside the same successful command transaction — stale or
+  failed commands consume nothing.
+- **Victory (exactly once)**: one transaction flips the combat, creates the
+  unique CombatRewardGrant marker, grants XP (multi-level-ups apply), Gold
+  through the ledger, and capacity-aware drops (anything that cannot fit is
+  recorded as left behind, never duplicated). **Defeat (exactly once)**:
+  return to Crownfall City, 40% HP/MP restore rounded up, and a level-based
+  recovery fee capped and clamped so Gold never goes negative.
+- **Frontend**: encounter lists on combat locations (kind badges, rosters,
+  lock reasons, mid-battle return link) and a combat screen with HP/MP/
+  gauge bars, status chips, command menus with target selection, usable
+  items, rewards, and a readable battle log at `/combat/:id`.
+
+### Database
+
+Migration `combat_initiative_gauge`: `EnemyDefinition`,
+`EncounterDefinition`, `Combat` (version, server-secret rngSeed +
+rngCounter, log, unique character + idempotency key, partial unique index
+for one ACTIVE combat per character), `CombatantState` (snapshot stats,
+fixed-point gauge, unique combat + slot), `CombatStatusEffect`,
+`CombatRewardGrant` (unique per combat).
+
+### Endpoints
+
+- `GET /api/v1/combat/encounters`, `POST /api/v1/combat/start`
+- `GET /api/v1/combat/:id`, `POST /api/v1/combat/:id/commands`
+
+### Tests
+
+Engine (pure, no DB): initiative advancement and every tie-break rule,
+Haste/Slow rates, physical/magical formulas with variance bounds, all four
+elemental multipliers including immunity, back-row melee reduction vs
+ranged and magic, Blind accuracy, Armor Break, Guard reduction and
+expiry-at-next-command, Poison timing (after actions and stun skips), Stun
+semantics, Silence blocking Magic with nothing consumed, flee formula
+(clamping, retry bonus, consumption, unfleeable), multi-hit and
+all-enemies abilities, MP gating, victory/defeat outcomes, and PRNG
+determinism for a persisted (seed, counter). API: encounter listing, boss
+gating (level and prior-victory requirements enforced end to end),
+wrong-location and conflicting-combat rejections, idempotent starts,
+refresh persistence with identical reads and zero PRNG leakage, stale
+version/replay rejection with no state advance, combat item atomicity
+(exactly-once decrement, non-usable rejection, stale replays consume
+nothing), victory settlement exactly once (XP, single ledger credit,
+unique grant marker, no duplication after COMBAT_OVER), and defeat
+settlement (home to Crownfall, 40% restore rounded up, fee clamped to the
+balance). Playwright: a Vanguard fights the Slime Hollow — encounter list,
+persisted mid-fight refresh, target selection, victory rewards, and the XP
+on the character page.
+
+### Known limitations
+
+- Quest events from combat are deliberately not emitted yet (Phase 13).
+- Resting at an inn does not interact with an in-progress combat's
+  snapshotted HP; combat state is authoritative until the battle ends.
+
 ## Phase 11 — Blacksmithing and Timed Crafting (2026-07-17)
 
 **Status: complete.**

@@ -8,12 +8,12 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 11 complete** — deterministic
-Blacksmithing at the Crownfall Forge: three recipes gated by a profession
-level, inputs and Gold consumed atomically at start (exactly once, replay-
-and race-safe), pending outputs granted exactly once at completion, and
-capacity-blocked outputs held for collection — never lost. Combat arrives
-in Phase 12.
+for what exists today. **Currently: Phase 12 complete** — classic
+initiative-gauge combat: persisted server-authoritative battles at three
+locations plus a gated boss, fixed-point initiative with exact tie rules,
+configurable damage formulas with elements/rows/statuses, versioned
+replay-safe commands, a deterministic server-secret PRNG, and exactly-once
+victory/defeat settlement. Quests arrive in Phase 13.
 
 ## Stack (fixed)
 

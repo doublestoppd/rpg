@@ -9,7 +9,17 @@ import { createPrismaClient, pingDatabase } from './lib/prisma.js';
 async function main(): Promise<void> {
   const env = loadEnv();
   const prisma = createPrismaClient(env);
-  const app = await buildApp({ env, prisma, pingDatabase: () => pingDatabase(prisma) });
+  // Test harnesses (Playwright registers many accounts per run) may widen the
+  // auth rate limit; production keeps the strict default.
+  const authMaxOverride = Number(process.env['AUTH_RATE_LIMIT_MAX'] ?? '');
+  const app = await buildApp({
+    env,
+    prisma,
+    pingDatabase: () => pingDatabase(prisma),
+    ...(Number.isInteger(authMaxOverride) && authMaxOverride > 0
+      ? { authRateLimit: { max: authMaxOverride, timeWindowMs: 60_000 } }
+      : {}),
+  });
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'shutting down API');

@@ -28,6 +28,9 @@ export default defineConfig({
         DATABASE_URL: E2E_DATABASE_URL,
         PORT: '3000',
         ALLOWED_ORIGINS: 'http://localhost:4173,http://localhost:5173',
+        // Every spec registers fresh accounts; the strict production limit
+        // (10/min) would rate-limit a full parallel run.
+        AUTH_RATE_LIMIT_MAX: '200',
       },
     },
     {

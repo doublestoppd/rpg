@@ -8,6 +8,8 @@ import { PrismaClient } from '@prisma/client';
 import {
   CHARACTER_CLASSES,
   CRAFTING_RECIPES,
+  ENCOUNTER_DEFINITIONS,
+  ENEMY_DEFINITIONS,
   GATHERING_ACTIONS,
   ITEM_DEFINITIONS,
   LEVEL_PROGRESSION,
@@ -230,12 +232,72 @@ async function main() {
     });
   }
 
+  const enemySlugSet = new Set(ENEMY_DEFINITIONS.map((e) => e.slug));
+  for (const enemy of ENEMY_DEFINITIONS) {
+    for (const element of ['FLAME', 'FROST', 'STORM', 'STONE']) {
+      const bps = enemy.affinities[element];
+      if (![0, 5000, 10000, 15000].includes(bps)) {
+        throw new Error(`seed: ${enemy.slug} affinity ${element} must be 0/5000/10000/15000`);
+      }
+    }
+    const totalWeight = enemy.aiConfig.actions.reduce((sum, a) => sum + a.weight, 0);
+    if (totalWeight < 1) throw new Error(`seed: ${enemy.slug} AI weights invalid`);
+    if (enemy.rewardConfig.goldMax < enemy.rewardConfig.goldMin || enemy.rewardConfig.xp < 1) {
+      throw new Error(`seed: ${enemy.slug} reward config invalid`);
+    }
+    for (const drop of enemy.rewardConfig.drops) {
+      if (!itemSlugSet.has(drop.itemSlug)) {
+        throw new Error(`seed: ${enemy.slug} drop references unknown item ${drop.itemSlug}`);
+      }
+      if (drop.chanceBps < 1 || drop.chanceBps > 10000 || drop.maxQuantity < drop.minQuantity) {
+        throw new Error(`seed: ${enemy.slug} drop entry invalid for ${drop.itemSlug}`);
+      }
+    }
+    const { slug, ...data } = enemy;
+    await prisma.enemyDefinition.upsert({
+      where: { slug },
+      create: { slug, ...data },
+      update: data,
+    });
+  }
+
+  const encounterSlugSet = new Set(ENCOUNTER_DEFINITIONS.map((e) => e.slug));
+  for (const encounter of ENCOUNTER_DEFINITIONS) {
+    const locationId = locationIdBySlug.get(encounter.locationSlug);
+    if (!locationId) {
+      throw new Error(`seed: unknown location ${encounter.locationSlug} for encounter`);
+    }
+    if (encounter.composition.length < 1) {
+      throw new Error(`seed: ${encounter.slug} has no enemies`);
+    }
+    for (const member of encounter.composition) {
+      if (!enemySlugSet.has(member.enemySlug)) {
+        throw new Error(`seed: ${encounter.slug} references unknown enemy ${member.enemySlug}`);
+      }
+    }
+    if (encounter.kind === 'BOSS' && encounter.fleeable) {
+      throw new Error(`seed: boss ${encounter.slug} must not be fleeable`);
+    }
+    const requires = encounter.unlockRequirements?.requiresVictoryOverEncounterSlug;
+    if (requires && !encounterSlugSet.has(requires)) {
+      throw new Error(`seed: ${encounter.slug} requires unknown encounter ${requires}`);
+    }
+    const { slug, locationSlug, ...data } = encounter;
+    void locationSlug;
+    await prisma.encounterDefinition.upsert({
+      where: { slug },
+      create: { slug, locationId, ...data },
+      update: { ...data, locationId },
+    });
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
       `${TRAVEL_ROUTES.length} routes, ${ITEM_DEFINITIONS.length} items, ` +
       `${REGIONAL_PRICE_MODIFIERS.length} price modifiers, ${NPC_SHOPS.length} shops, ` +
-      `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes ensured`,
+      `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes, ` +
+      `${ENEMY_DEFINITIONS.length} enemies, ${ENCOUNTER_DEFINITIONS.length} encounters ensured`,
   );
 }
 

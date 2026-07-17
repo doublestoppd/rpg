@@ -167,6 +167,7 @@ model Character {
   gatheringRuns        GatheringRun[]
   professions          CraftingProfessionProgress[]
   craftingRuns         CraftingRun[]
+  combats              Combat[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -197,6 +198,7 @@ model Location {
   npcShops       NpcShop[]
   gatheringActions GatheringActionDefinition[]
   craftingRecipes  CraftingRecipe[]
+  encounters       EncounterDefinition[]
 }
 
 enum LocationFeatureType {
@@ -686,6 +688,208 @@ model CraftingRun {
 
   @@unique([characterId, idempotencyKey])
   @@index([characterId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 12 — classic initiative-gauge combat
+// ---------------------------------------------------------------------------
+
+/// Seeded enemy archetype. Stats mirror character attributes; `affinities`
+/// maps element → damage-taken multiplier in basis points (15000 weak,
+/// 10000 neutral, 5000 resistant, 0 immune). `aiConfig` is a Zod-validated
+/// weighted action list; `rewardConfig` holds XP, a Gold range, and drops.
+model EnemyDefinition {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  level        Int
+  maxHp        Int
+  maxMp        Int
+  strength     Int
+  agility      Int
+  magic        Int
+  defense      Int
+  magicDefense Int
+  luck         Int
+
+  /// Attacks ignore the back-row melee penalty (flying/shooting foes).
+  ranged Boolean @default(false)
+
+  affinities   Json
+  aiConfig     Json
+  rewardConfig Json
+}
+
+enum EncounterKind {
+  NORMAL
+  ELITE
+  BOSS
+}
+
+/// Seeded encounter at a combat location. `composition` lists enemy slugs
+/// with rows; `unlockRequirements` optionally gates on character level and a
+/// prior victory over another encounter (the boss gate).
+model EncounterDefinition {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String @unique
+
+  description String
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id])
+
+  kind     EncounterKind
+  fleeable Boolean       @default(true)
+
+  composition        Json
+  /// Additional flee-chance modifier in basis points (signed).
+  fleeModifierBps    Int   @default(0)
+  unlockRequirements Json?
+
+  sortOrder Int @default(0)
+
+  combats Combat[]
+}
+
+enum CombatStatus {
+  ACTIVE
+  VICTORY
+  DEFEAT
+  FLED
+}
+
+/// A persisted combat instance. Fully server-authoritative: state advances
+/// only through the command endpoint (optimistic `version` check, combat row
+/// lock) — there is no permanent tick loop. The PRNG seed is server-secret
+/// until completion; `rngCounter` makes every draw deterministic and
+/// replayable for a persisted combat.
+model Combat {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  encounterId String
+  encounter   EncounterDefinition @relation(fields: [encounterId], references: [id])
+
+  status  CombatStatus @default(ACTIVE)
+  /// Incremented by every resolved command; commands carry expectedVersion.
+  version Int          @default(0)
+
+  /// Server-secret deterministic PRNG seed (hex); never exposed while ACTIVE.
+  rngSeed    String
+  rngCounter Int    @default(0)
+
+  /// Append-only human-readable combat log.
+  log Json
+
+  /// Failed flee attempts so far (feeds the retry bonus).
+  fleeAttempts Int @default(0)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  idempotencyKey String
+
+  combatants  CombatantState[]
+  rewardGrant CombatRewardGrant?
+
+  @@unique([characterId, idempotencyKey])
+  @@index([characterId, status])
+}
+
+enum CombatantKind {
+  PLAYER
+  ENEMY
+}
+
+enum CombatRow {
+  FRONT
+  BACK
+}
+
+/// One participant's persisted state. Attributes are snapshotted at combat
+/// start (player: class + level + equipment). The initiative gauge is stored
+/// in fixed-point thousandths (0..100000 == 0..100).
+model CombatantState {
+  id String @id @default(uuid())
+
+  combatId String
+  combat   Combat @relation(fields: [combatId], references: [id], onDelete: Cascade)
+
+  kind CombatantKind
+  /// Deterministic tie-break ordinal (lower wins the final tie).
+  slot Int
+  name String
+
+  enemyDefinitionId String?
+
+  row    CombatRow
+  ranged Boolean   @default(false)
+
+  currentHp Int
+  currentMp Int
+  /// Fixed-point gauge: 100000 = ready.
+  gauge     Int @default(0)
+
+  maxHp        Int
+  maxMp        Int
+  strength     Int
+  agility      Int
+  magic        Int
+  defense      Int
+  magicDefense Int
+  luck         Int
+
+  /// Element → damage-taken multiplier bps (players are all-neutral).
+  affinities Json
+
+  statusEffects CombatStatusEffect[]
+
+  @@unique([combatId, slot])
+  @@index([combatId])
+}
+
+/// An active status on a combatant. `magnitude` is status-specific (poison
+/// damage per tick, blind accuracy penalty bps, slow/haste rate bps, guard
+/// reduction bps, stun charges, armor-break defense reduction bps).
+/// `remainingTurns` decrements after the affected combatant completes an
+/// action (poison ticks then too); GUARD instead expires when the defender's
+/// next command phase begins.
+model CombatStatusEffect {
+  id String @id @default(uuid())
+
+  combatantId String
+  combatant   CombatantState @relation(fields: [combatantId], references: [id], onDelete: Cascade)
+
+  type           String
+  magnitude      Int
+  remainingTurns Int
+
+  @@index([combatantId])
+}
+
+/// Exactly-once victory reward marker: created in the same transaction that
+/// flips the combat to VICTORY (unique per combat), alongside XP, Gold, and
+/// item grants.
+model CombatRewardGrant {
+  id String @id @default(uuid())
+
+  combatId String @unique
+  combat   Combat @relation(fields: [combatId], references: [id])
+
+  characterId String
+
+  xp   Int
+  gold BigInt
+  /// Granted drops [{itemSlug, quantity}] and any left behind for capacity.
+  drops Json
+
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------
