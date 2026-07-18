@@ -23,10 +23,16 @@ if (result.status !== 0) {
   process.exit(1);
 }
 
-// Regenerate into a temp copy and compare, so a stale-but-committed baseline is
-// also caught (not just uncommitted edits).
+// Regenerate and compare, so a stale-but-committed baseline is also caught
+// (not just uncommitted edits). The generator writes expanded JSON; the
+// committed file is Prettier-formatted, so normalize before diffing.
 const regen = spawnSync('npm', ['run', 'api:baseline'], { stdio: 'inherit' });
 if (regen.status !== 0) process.exit(regen.status ?? 1);
+
+const fmt = spawnSync('npx', ['prettier', '--write', 'apps/api/api-baseline.json'], {
+  stdio: 'inherit',
+});
+if (fmt.status !== 0) process.exit(fmt.status ?? 1);
 
 const after = spawnSync('git', ['diff', '--exit-code', '--', 'apps/api/api-baseline.json'], {
   stdio: 'inherit',
