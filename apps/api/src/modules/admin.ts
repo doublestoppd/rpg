@@ -1,8 +1,10 @@
 import { createAdminAuthService } from '../domain/admin/admin-auth.js';
+import { createAdminContentService } from '../domain/admin/admin-content.js';
 import { createAdminEconomyService } from '../domain/admin/admin-economy.js';
 import { createAdminInvestigationService } from '../domain/admin/admin-investigation.js';
 import { createAdminModerationService } from '../domain/admin/admin-moderation.js';
 import { adminRoutes } from '../routes/admin.js';
+import { adminContentRoutes } from '../routes/admin-content.js';
 import { type GameModule, requireService } from './types.js';
 
 /**
@@ -26,6 +28,7 @@ export const adminModule: GameModule = {
       requireService(ctx.services, 'npcShopService'),
     );
     const moderationService = createAdminModerationService(ctx.prisma);
+    const contentService = createAdminContentService(ctx.prisma);
 
     await ctx.app.register(adminRoutes, {
       prefix: '/api/v1',
@@ -36,6 +39,14 @@ export const adminModule: GameModule = {
       reauthWindowMs,
       // Reauth is a password check: rate-limit it like login.
       reauthRateLimit: { max: ctx.env.ADMIN_REAUTH_RATE_LIMIT_MAX, timeWindowMs: 60_000 },
+    });
+
+    // Content Studio (Phase 20): versioned authoring, validation, and atomic
+    // publication onto the live tables the engine already reads.
+    await ctx.app.register(adminContentRoutes, {
+      prefix: '/api/v1',
+      contentService,
+      reauthWindowMs,
     });
   },
 };

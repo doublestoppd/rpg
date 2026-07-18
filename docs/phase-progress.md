@@ -3,6 +3,63 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 20 — Admin Content Studio and apply-on-publish (2026-07-18)
+
+**Status: core complete.** Builds the administrator Content Studio on the Phase
+19 platform and the mechanism that makes a published release take effect —
+**apply-on-publish** — without changing the gameplay read path. Acceptance test
+met: _an administrator creates a new item, location, route, shop, encounter, and
+quest in a draft release; previews them; publishes the release atomically; and
+all content becomes available with no code deployment._
+
+### Delivered
+
+- **apply-on-publish engine** (`domain/content/content-apply.ts`): an idempotent
+  applier per content type upserts definitions into the live gameplay tables by
+  stable key, resolving references in dependency order. Upsert-only — never
+  deletes a live row, so historical records keep resolving.
+- **Content authoring service** (`domain/admin/admin-content.ts`): create a
+  draft (cloned from live content or a prior release), read/edit/remove draft
+  definitions with domain-specific structural validation, validate, diff against
+  the published baseline, "where used", and preview a definition with its
+  references resolved.
+- **Atomic publication**: one transaction re-validates the whole bundle, applies
+  it to the live tables, flips `DRAFT → PUBLISHED` (conditional compare-and-set),
+  and writes an append-only audit row — all committing together. A publish
+  carries a mandatory reason, expected version (optimistic), idempotency key, and
+  requires recent re-authentication. Retirement (`PUBLISHED → RETIRED`, audited,
+  definitions preserved) and roll-forward rollback are also provided.
+- **Content Studio UI** (admin): releases list with status/version, "new draft
+  from live", a per-release workspace with a searchable definition catalog,
+  a definition editor (domain-validated on save), a validation panel
+  (errors/warnings), a diff view (added/changed/removed), and the
+  publish/retire workflow with mandatory reason.
+
+### Endpoints (additive)
+
+`/admin/content/releases` (GET list, POST create draft); per release: `GET :id`,
+`GET :id/validate`, `GET :id/diff`; per definition:
+`GET|PUT|DELETE :id/definitions/:type/:key`, `.../where-used`, `.../preview`;
+lifecycle (reauth): `POST :id/publish`, `POST :id/retire`,
+`POST /admin/content/rollback`. OpenAPI baseline regenerated (additive).
+
+### Tests
+
+10 new (1 file): the six-type acceptance test (author → validate → preview →
+diff → publish → assert live rows), plus publication safety (reauth required,
+stale-version 409, validation blocks publish and applies nothing, idempotent
+replay, retire preserves definitions, editing a published release is rejected)
+and authoring validation/authorization (invalid payload 422, slug/key mismatch
+422, non-admin 403).
+
+### Scope note (foundational, not yet full breadth)
+
+The definition editor is JSON with domain-specific server validation rather than
+bespoke per-type forms; a graphical world editor and preview-as-a-player at full
+fidelity are layered on the same API in later work. All safety-critical behavior
+(validation, atomic apply-on-publish, audit, immutability, reauth) is complete
+and tested. See ADR 0013.
+
 ## Phase 19 — Versioned Game Content and Publishing Lifecycle (2026-07-18)
 
 **Status: complete.** A content platform only — **no gameplay or API behavior
