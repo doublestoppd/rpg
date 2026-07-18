@@ -40,6 +40,8 @@ jobs:
         run: npm run typecheck
       - name: Repository structure
         run: npm run verify:structure
+      - name: Visual assets are bundled, checksummed, and have valid fallbacks
+        run: npm run assets:verify
       - name: API baseline is frozen (unreviewed contract changes fail)
         run: npm run verify:baseline
         env:

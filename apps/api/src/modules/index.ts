@@ -1,5 +1,6 @@
 import { accountModule } from './account.js';
 import { adminModule } from './admin.js';
+import { assetsModule } from './assets.js';
 import { authModule } from './auth.js';
 import { charactersModule } from './characters.js';
 import { chatModule } from './chat.js';
@@ -26,6 +27,7 @@ import { worldModule } from './world.js';
 export const GAME_MODULES: readonly GameModule[] = [
   authModule,
   accountModule,
+  assetsModule,
   economyCoreModule,
   charactersModule,
   notificationsModule,

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-label="Placeholder combat background">
+  <defs>
+    <linearGradient id="g-combat-background-default" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#94a3b8"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="958" height="538" rx="43" fill="url(#g-combat-background-default)" stroke="#e2e8f0" stroke-opacity="0.25"/>
+  <circle cx="480" cy="226.79999999999998" r="86.4" fill="#e2e8f0" fill-opacity="0.18"/>
+  <text x="480" y="432" font-family="system-ui, sans-serif" font-size="65" fill="#e2e8f0" fill-opacity="0.85" text-anchor="middle">combat background</text>
+</svg>

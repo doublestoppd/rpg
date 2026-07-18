@@ -7,6 +7,7 @@ import type {
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 
+import { Asset } from '../components/ui/Asset';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
@@ -183,8 +184,16 @@ export function InventoryPage() {
                   onClick={() => setSelected({ kind: 'stack', stack })}
                   className="flex w-full items-center justify-between gap-2 py-2 text-left text-sm hover:bg-stone-50 dark:hover:bg-stone-800/50"
                 >
-                  <span className="font-medium text-stone-900 dark:text-stone-100">
-                    {stack.item.name}
+                  <span className="flex items-center gap-2">
+                    <Asset
+                      assetRole="ITEM_ICON"
+                      contentKey={stack.item.slug}
+                      decorative
+                      className="size-8 shrink-0 rounded"
+                    />
+                    <span className="font-medium text-stone-900 dark:text-stone-100">
+                      {stack.item.name}
+                    </span>
                   </span>
                   <span className="flex items-center gap-2">
                     <span className="text-xs text-stone-500">
@@ -204,8 +213,16 @@ export function InventoryPage() {
                   onClick={() => setSelected({ kind: 'instance', instance })}
                   className="flex w-full items-center justify-between gap-2 py-2 text-left text-sm hover:bg-stone-50 dark:hover:bg-stone-800/50"
                 >
-                  <span className="font-medium text-stone-900 dark:text-stone-100">
-                    {instance.item.name}
+                  <span className="flex items-center gap-2">
+                    <Asset
+                      assetRole="ITEM_ICON"
+                      contentKey={instance.item.slug}
+                      decorative
+                      className="size-8 shrink-0 rounded"
+                    />
+                    <span className="font-medium text-stone-900 dark:text-stone-100">
+                      {instance.item.name}
+                    </span>
                   </span>
                   <span className="flex items-center gap-2 text-xs">
                     <span className="text-stone-500">

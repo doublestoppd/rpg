@@ -3,6 +3,62 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 21 — Visual Asset Framework and player-UI refresh (2026-07-18)
+
+**Status: framework complete; UI refresh foundational.** Establishes a stable
+asset contract before any art: presentation is data referenced by key, not paths
+baked into components. Acceptance test met — (1) every visual content reference
+has a valid fallback, and (2) replacing an asset changes the presentation with
+no React component change (both proven in tests).
+
+### Delivered
+
+- **Asset contract** (`packages/shared/assets.ts`): 13 asset roles; an asset
+  definition schema (stable key, role, bundled path, aspect ratio, dimensions,
+  focal point, alt text, fallback key, light/dark/regional variant, SHA-256
+  checksum); a manifest with a default per role; and `AssetResolver` — a pure
+  resolver that returns the keyed asset or follows the fallback chain to the
+  role default, guaranteeing a valid asset for every reference (cycles broken).
+- **Bundled placeholders + generator**: `scripts/generate-assets.mjs` writes a
+  consistent placeholder SVG per catalog entry into `apps/web/public/assets/
+game`, computes checksums, and emits the manifest. No database blobs, no
+  remote URLs.
+- **Build-time validation**: `scripts/verify-assets.mjs` (a CI gate and a test)
+  checks every file exists, every checksum matches, every fallback chain
+  terminates, and every role has a default.
+- **Assets API**: `GET /api/v1/assets` serves the compiled-in manifest
+  (public, cacheable) for the client and the admin asset picker.
+- **Data-driven UI**: an `<Asset>` component that renders from the resolver
+  (never a hardcoded path), with skeleton loading and reduced-motion handling;
+  applied to illustrated location banners and inventory item icons; plus an
+  admin asset gallery previewing every asset in its real render path.
+
+### Endpoints (additive)
+
+`GET /api/v1/assets`. OpenAPI baseline regenerated (additive).
+
+### Commands
+
+| Command                   | Purpose                                                 |
+| ------------------------- | ------------------------------------------------------- |
+| `npm run assets:generate` | Regenerate the bundled SVGs and the asset manifest      |
+| `npm run assets:verify`   | Validate files, checksums, fallbacks, and role defaults |
+
+### Tests
+
+11 new: resolver unit tests (specific hit, unknown-key fallback for every role,
+fallback-chain cycle breaking, wrong-role isolation), the two acceptance tests
+(every reference resolves to a file-backed asset; swapping an asset changes the
+resolved output with no consumer change), a manifest-integrity test that runs
+the verifier, and the public `GET /assets` API test.
+
+### Scope note (foundational, not yet full breadth)
+
+The framework, validation, resolver, and API are complete. The player-UI refresh
+applies `<Asset>` to location banners, item icons, and the admin gallery this
+phase; the world graph, combat/enemy portraits, and the remaining panels adopt
+the same component in later work with no framework change. See ADR 0014.
+
 ## Phase 20 — Admin Content Studio and apply-on-publish (2026-07-18)
 
 **Status: core complete.** Builds the administrator Content Studio on the Phase

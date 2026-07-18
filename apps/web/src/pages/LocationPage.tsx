@@ -112,7 +112,7 @@ export function LocationPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <LocationArtwork artworkKey={current.artworkKey} name={current.name} />
+      <LocationArtwork slug={current.slug} name={current.name} />
 
       <div>
         <div className="flex items-baseline justify-between gap-2">

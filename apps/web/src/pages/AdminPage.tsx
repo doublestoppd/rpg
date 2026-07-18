@@ -7,6 +7,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { TextField } from '../components/ui/TextField';
 import { useToast } from '../components/ui/Toast';
+import { AssetGallery } from '../features/admin/AssetGallery';
 import { ContentStudio } from '../features/admin/ContentStudio';
 import {
   useAdminCharacterSearch,
@@ -53,6 +54,7 @@ export function AdminPage() {
           <PlayerInvestigation />
           <EconomySection />
           <ContentStudio />
+          <AssetGallery />
           <ModerationSection />
         </>
       ) : (

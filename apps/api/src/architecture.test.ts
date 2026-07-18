@@ -33,6 +33,7 @@ describe('application composition', () => {
     expect(names).toEqual([
       'auth',
       'account',
+      'assets',
       'economy-core',
       'characters',
       'notifications',
@@ -58,6 +59,7 @@ describe('application composition', () => {
     const representatives: Array<[string, string, string]> = [
       ['auth', 'POST', '/api/v1/auth/login'],
       ['account', 'GET', '/api/v1/account/settings'],
+      ['assets', 'GET', '/api/v1/assets'],
       ['characters', 'GET', '/api/v1/characters/me'],
       ['quests', 'GET', '/api/v1/quests'],
       ['travel', 'POST', '/api/v1/travel/start'],

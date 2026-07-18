@@ -10,6 +10,8 @@ export const SHARED_PACKAGE_NAME = '@rpg/shared';
 
 export * from './admin.js';
 export * from './admin-content.js';
+export * from './asset-manifest.generated.js';
+export * from './assets.js';
 export * from './auth.js';
 export * from './character.js';
 export * from './chat.js';

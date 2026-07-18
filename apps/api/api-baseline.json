@@ -627,6 +627,152 @@
         }
       }
     },
+    "/api/v1/assets": {
+      "get": {
+        "summary": "The bundled visual asset manifest (roles, defaults, checksums)",
+        "tags": ["assets"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "formatVersion": {
+                      "type": "number",
+                      "enum": [1]
+                    },
+                    "roleDefaults": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "required": [
+                        "LOCATION_BANNER",
+                        "LOCATION_THUMBNAIL",
+                        "ITEM_ICON",
+                        "ENEMY_PORTRAIT",
+                        "CLASS_PORTRAIT",
+                        "NPC_PORTRAIT",
+                        "FEATURE_ICON",
+                        "QUEST_ICON",
+                        "COLLECTION_ART",
+                        "WORLD_MAP_NODE",
+                        "COMBAT_BACKGROUND",
+                        "STATUS_ICON",
+                        "ABILITY_ICON"
+                      ]
+                    },
+                    "assets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "role": {
+                            "type": "string",
+                            "enum": [
+                              "LOCATION_BANNER",
+                              "LOCATION_THUMBNAIL",
+                              "ITEM_ICON",
+                              "ENEMY_PORTRAIT",
+                              "CLASS_PORTRAIT",
+                              "NPC_PORTRAIT",
+                              "FEATURE_ICON",
+                              "QUEST_ICON",
+                              "COLLECTION_ART",
+                              "WORLD_MAP_NODE",
+                              "COMBAT_BACKGROUND",
+                              "STATUS_ICON",
+                              "ABILITY_ICON"
+                            ]
+                          },
+                          "path": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^\\/.*"
+                          },
+                          "aspectRatio": {
+                            "type": "string",
+                            "pattern": "^\\d+:\\d+$"
+                          },
+                          "width": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "height": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "focalPoint": {
+                            "nullable": true,
+                            "type": "object",
+                            "properties": {
+                              "x": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "y": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              }
+                            },
+                            "required": ["x", "y"],
+                            "additionalProperties": false
+                          },
+                          "alt": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "fallbackKey": {
+                            "nullable": true,
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "variant": {
+                            "type": "string",
+                            "enum": ["default", "light", "dark"]
+                          },
+                          "checksum": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "role",
+                          "path",
+                          "aspectRatio",
+                          "width",
+                          "height",
+                          "focalPoint",
+                          "alt",
+                          "fallbackKey",
+                          "variant",
+                          "checksum"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["formatVersion", "roleDefaults", "assets"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/characters/classes": {
       "get": {
         "summary": "List playable classes",
