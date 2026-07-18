@@ -39,9 +39,40 @@ const envSchema = z.object({
    * production. Disabled by default so no privilege change happens implicitly.
    */
   ADMIN_BOOTSTRAP_ENABLED: z.string().optional(),
+  /**
+   * Fastify proxy trust (Phase 18). "true"/"false", a hop count, or a
+   * comma-separated subnet/IP list. Behind a reverse proxy this must be set so
+   * request.ip (rate limiting) and secure-cookie detection are correct.
+   */
+  TRUST_PROXY: z.string().optional(),
+  /** Send HSTS only when TLS is terminated ahead of the app ("true"). */
+  ENABLE_HSTS: z.string().optional(),
+  /**
+   * Bearer token guarding the OpenMetrics endpoint. When unset the endpoint is
+   * disabled (process metrics stay network-private); set it to allow scraping.
+   */
+  METRICS_TOKEN: z.string().optional(),
+  /** Worker health probe port (liveness + recent pg-boss poll). 0 disables. */
+  WORKER_HEALTH_PORT: z.coerce.number().int().min(0).max(65535).default(0),
+  /** Expired/revoked session retention in days before cleanup removes them. */
+  SESSION_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /** Read-notification retention in days before cleanup removes them. */
+  NOTIFICATION_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+  /** Build/commit identifier surfaced in diagnostics (never a secret). */
+  BUILD_VERSION: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/** Parses TRUST_PROXY into the value Fastify's `trustProxy` option expects. */
+export function parseTrustProxy(value: string | undefined): boolean | number | string[] {
+  if (value === undefined || value === '') return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  const asNumber = Number(value);
+  if (Number.isInteger(asNumber) && asNumber >= 0) return asNumber;
+  return value.split(',').map((entry) => entry.trim());
+}
 
 export class EnvValidationError extends Error {
   constructor(message: string) {

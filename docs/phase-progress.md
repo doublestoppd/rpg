@@ -3,6 +3,72 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 18 — Production Hardening, Release Validation, and Operations (2026-07-18)
+
+**Status: complete.** Infrastructure only — no new gameplay, economy, social,
+or admin capability. Closes evidenced production gaps.
+
+### Delivered
+
+- **Security hardening**: a security-headers plugin (CSP `default-src 'none'`,
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`,
+  `Cross-Origin-Resource-Policy`, HSTS only when `ENABLE_HSTS=true`); explicit
+  Fastify `trustProxy` from `TRUST_PROXY` so `request.ip` (rate limiting) and
+  secure-cookie detection are correct behind a proxy; a 256 KB body limit;
+  production error redaction preserved.
+- **Health, readiness, shutdown**: liveness (`/api/v1/health/live`, never
+  touches the DB), readiness (`/api/v1/health/ready`, DB + migration state,
+  503 when not ready), and the legacy `/api/v1/health` kept backward-compatible;
+  `BUILD_VERSION` in diagnostics; an optional non-public worker health probe
+  (`WORKER_HEALTH_PORT`) reporting liveness + recent pg-boss polling; graceful
+  shutdown for API and worker with a 15s forced-exit deadline.
+- **Observability export**: a token-guarded (`METRICS_TOKEN`) OpenMetrics
+  endpoint (`GET /api/v1/metrics`) exposing the fixed-name process counters with
+  no user-supplied labels; disabled (404) when the token is unset. Economy truth
+  stays in the admin database-derived endpoints.
+- **Data-lifecycle cleanup** (`lib/cleanup.ts`): batched, idempotent removal of
+  expired/revoked sessions and old READ notifications, plus a new worker job;
+  a code-enforced deletable-table allowlist (`Session`, `Notification`,
+  `ChatMessage`) so audit/economic evidence is never touched.
+- **Migration, integrity, backup/restore**: a clean-database migration +
+  seed-idempotency test; a read-only integrity-check script (ledger chain,
+  non-negative balances/stock, single active travel/combat, sale↔listing
+  linkage, unique notification dedupe, chat report evidence, one account per
+  character) with a zero-violations test; `pg_dump`/`pg_restore` scripts with a
+  restore round-trip smoke test into a fresh database.
+- **Supply chain & CI**: `npm run audit:prod` (high/critical gate, 0
+  vulnerabilities), `npm run sbom` (CycloneDX), an API-baseline freeze check
+  (`verify:baseline`), and CI updated with least-privilege permissions plus the
+  new audit/SBOM/baseline steps.
+- **Operations docs**: deployment guide, environment reference, threat model +
+  security checklist, retention policy, monitoring/alerts + incident runbooks,
+  backup/restore + rollback runbook, and a go/no-go release report (`RELEASE.md`).
+
+### Endpoints (additive)
+
+`GET /api/v1/health/live`, `GET /api/v1/health/ready`, `GET /api/v1/metrics`
+(hidden from the contract, token-guarded). OpenAPI baseline regenerated
+(additive: the two health paths).
+
+### Tests
+
+19 new (34 files, 324 tests total): security headers + HSTS toggle, liveness
+vs readiness (incl. DB-down), body limit, metrics endpoint (disabled/401/200,
+no labels), `parseTrustProxy` + Phase 18 env defaults, data-lifecycle cleanup
+(allowlist, batched, unread-kept, idempotent), integrity checks zero-violations,
+clean-DB migration + double-seed idempotency, and backup→restore→integrity→seed
+round trip.
+
+### Known limitations
+
+Environment-dependent release conditions are documented in `docs/RELEASE.md` and
+NOT executed in this validation run: container image build + non-root runtime,
+a real two-node deployment behind a load balancer, and a production-volume load
+smoke. Per the release rule (unknown = NO-GO), the candidate is **NO-GO
+(conditional)** until those are executed and recorded; the code and all
+automated gates are green. GitHub Action SHA-pinning and production secret-store
+wiring are likewise operational follow-ups noted in the threat model.
+
 ## Phase 17 — Administration, Moderation, and Auditable Economy Operations (2026-07-18)
 
 **Status: complete.**

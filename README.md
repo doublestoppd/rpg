@@ -8,20 +8,21 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 17 complete** — a role-protected
-administrator workspace: bootstrap-free promotion, recent-auth-gated player
-investigation, safe Gold and item operations, optimistic-concurrency
-configuration edits, database-derived economy metrics, and chat moderation
-(report triage, tombstone redaction, restrictions). Every admin mutation is
-domain-service-backed, idempotent, and paired with an append-only
-same-transaction audit row. Production hardening and release validation arrive
-in Phase 18.
+for what exists today. **Currently: Phase 18 complete** — production hardening
+and release validation: security headers, explicit proxy trust + bounded body
+size, liveness/readiness split + worker health probe, graceful shutdown, a
+token-guarded OpenMetrics export, allowlisted data-lifecycle cleanup,
+clean-DB migration + seed-idempotency tests, database integrity checks, a
+backup/restore round-trip smoke test, a dependency-audit + SBOM gate, and an
+API-baseline freeze check. See [`docs/RELEASE.md`](docs/RELEASE.md) for the
+go/no-go, [`docs/deployment.md`](docs/deployment.md),
+[`docs/threat-model.md`](docs/threat-model.md), and the runbooks under `docs/`.
 
-Earlier: **Phase 16** — persistent player chat (global + per-location), plain-text
-bounded messages, idempotent sends, cursor pagination, blocking, snapshotted
-reporting, and enforceable restrictions, delivered over the shared WebSocket
-(cross-instance via PostgreSQL `LISTEN/NOTIFY`) with polling as the complete
-fallback.
+Earlier: **Phase 17** — a role-protected administrator workspace (bootstrap-free
+promotion, recent-auth-gated investigation, safe Gold/item ops, config edits,
+database-derived metrics, chat moderation) with append-only same-transaction
+auditing. **Phase 16** — persistent player chat over the shared WebSocket
+(cross-instance via PostgreSQL `LISTEN/NOTIFY`) with polling fallback.
 
 ## Stack (fixed)
 

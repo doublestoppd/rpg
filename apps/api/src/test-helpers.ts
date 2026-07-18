@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { buildApp } from './app.js';
 import { type Env, loadEnv } from './config/env.js';
+import { checkMigrationsApplied } from './lib/prisma.js';
 
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgresql://rpg:rpg@localhost:5432/rpg_test';
@@ -96,6 +97,7 @@ export async function buildTestApp(
     pingDatabase: async () => {
       await prisma.$queryRawUnsafe('SELECT 1');
     },
+    checkMigrations: () => checkMigrationsApplied(prisma),
     // High default so unrelated tests never trip the limiter; the dedicated
     // rate-limit test builds its own app with a small max.
     authRateLimit: options.authRateLimit ?? { max: 10_000, timeWindowMs: 60_000 },

@@ -128,6 +128,26 @@ process counters — and are documented in `docs/economy-metrics.md`. Chat
 moderation redacts to a tombstone (never hard-deletes), preserves report
 evidence, and never reveals the reporter.
 
+## Production hardening (Phase 18)
+
+Infrastructure-only, no new gameplay. Security headers (CSP `default-src
+'none'`, nosniff, `X-Frame-Options: DENY`, Referrer-Policy, HSTS behind TLS) via
+a Fastify plugin; explicit `trustProxy` from `TRUST_PROXY`; a 256 KB body limit;
+production error redaction (unchanged contract). Health splits into liveness
+(`/health/live`, no DB dependency) and readiness (`/health/ready`, DB +
+migration state), keeping the legacy `/health`; the worker exposes an optional
+non-public health probe (`WORKER_HEALTH_PORT`). Both processes shut down
+gracefully with a bounded deadline (the API closes live sockets and the chat
+listener via onClose hooks). Process counters export as token-guarded
+OpenMetrics at `/metrics` (no user labels); economy truth stays in the admin
+database-derived endpoints. Data-lifecycle cleanup (`lib/cleanup.ts`) is batched,
+idempotent, and restricted to an allowlist (`Session`, `Notification`,
+`ChatMessage`); audit and economic evidence are retained. Operational scripts
+(`scripts/integrity-check.mjs`, `backup.mjs`, `restore.mjs`,
+`check-api-baseline.mjs`) back the migration, integrity, backup/restore, and
+baseline-freeze tests and CI gates. Deployment, environment, threat model,
+retention, monitoring, backup/restore, and go/no-go docs live under `docs/`.
+
 ## Observability
 
 - Every state-changing request logs one structured `authoritative
