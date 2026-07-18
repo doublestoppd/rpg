@@ -3,6 +3,80 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 19 — Versioned Game Content and Publishing Lifecycle (2026-07-18)
+
+**Status: complete.** A content platform only — **no gameplay or API behavior
+change**. The engine keeps reading the live definition tables; a versioned,
+checksummed content registry is added alongside them. Acceptance test met:
+_"import all current content as Release 1 with no observable gameplay or API
+behavior change."_
+
+### Delivered
+
+- **Content registry** (`prisma`): two additive tables — `ContentRelease`
+  (version, `DRAFT`/`VALIDATING`/`PUBLISHED`/`RETIRED` status, title, notes,
+  timestamps) and `ContentDefinition` (release, content type, stable key,
+  revision, canonical JSON payload, SHA-256 checksum), with a
+  `BEFORE UPDATE OR DELETE` trigger that rejects mutating a **published**
+  release's definitions. Gameplay tables are untouched.
+- **Deterministic export** (`domain/content`): a `ContentTypeSpec` registry for
+  all 14 content types (items, locations, routes, features, price modifiers,
+  shops, gathering, recipes, enemies, encounters, quests, collections, classes,
+  level progression). Each spec reads its live table into stable-key-addressed
+  payloads; a canonicalizer (sorted keys, ordered arrays, `BigInt`→string,
+  `undefined` dropped) makes two exports of unchanged content byte-identical.
+- **Dependency graph**: every stable-key reference a definition declares becomes
+  a graph edge (route endpoints, recipe inputs/output, shop pool, enemy drops,
+  quest objectives, collection entries), powering referential validation, world
+  connectivity, and "where used".
+- **Publication validation**: `validateBundle` rejects (as publication-blocking
+  errors) duplicate or changed stable keys, structurally invalid revisions,
+  routes to unpublished locations, disconnected world subgraphs (unless
+  `isolated: true`), unresolved recipe/reward/drop/quest/collection references,
+  invalid reward/drop weights and quantity ranges, impossible shop restock pools,
+  guaranteed sellback-above-markup arbitrage loops, non-collectible collection
+  entries, unknown quest objective types, and missing graphical asset keys.
+- **Lifecycle service**: export, validate, import-draft, atomic conditional
+  publish (`DRAFT → PUBLISHED`, 409 on a non-draft), retire
+  (`PUBLISHED → RETIRED`, definitions never destroyed), list releases, get
+  release bundle, and an idempotent `ensureRelease1` that snapshots the current
+  seeded content as a published Release 1.
+- **CLI + CI gate**: `content:export`, `content:validate`, `content:release1`,
+  `content:import`; CI runs `content:validate` against the seeded content on
+  every build, so content that cannot legally publish fails the pipeline.
+
+### Endpoints (additive)
+
+None. Phase 19 is CLI- and platform-only; no HTTP surface is added, so the
+OpenAPI baseline is unchanged. The Content Studio UI is Phase 20.
+
+### Commands
+
+| Command                    | Purpose                                                      |
+| -------------------------- | ------------------------------------------------------------ |
+| `npm run content:export`   | Deterministic JSON bundle of the live content (stdout/file)  |
+| `npm run content:validate` | Validate the live content against all publication rules      |
+| `npm run content:release1` | Idempotently snapshot current content as published Release 1 |
+| `npm run content:import`   | Import a bundle file as a validated `DRAFT` release          |
+
+### Tests
+
+29 new (2 files): canonicalization determinism and BigInt handling; dependency
+graph edges, "where used", and undirected connectivity; every validation
+rejection rule; export determinism (checksum stability) and self-validation;
+the Release 1 acceptance test (published, full definition count, gameplay tables
+unchanged, checksum round-trip); idempotent bootstrap; draft→publish→retire
+transitions with monotonic versions and 409 guards; and database-level
+published-immutability (UPDATE/DELETE blocked, drafts editable).
+
+### Architectural rule honored
+
+Production definition tables were **not** turned into unrestricted admin CRUD.
+Published content is immutable and versioned; administrators create drafts and
+publish new revisions. Retirement replaces deletion, so historical records
+(inventories, transactions, combats, marketplace, quests) never dangle. See
+ADR 0012.
+
 ## Phase 18 — Production Hardening, Release Validation, and Operations (2026-07-18)
 
 **Status: complete.** Infrastructure only — no new gameplay, economy, social,

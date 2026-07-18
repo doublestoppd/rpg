@@ -13,6 +13,7 @@ export * from './auth.js';
 export * from './character.js';
 export * from './chat.js';
 export * from './combat.js';
+export * from './content.js';
 export * from './crafting.js';
 export * from './currency.js';
 export * from './errors.js';

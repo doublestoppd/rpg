@@ -54,3 +54,9 @@ jobs:
         run: npm run sbom > sbom.cyclonedx.json || true
       - name: Production build
         run: npm run build
+      - name: Content validation (versioned-content publication rules)
+        run: npm run content:validate
+        env:
+          # The test step above seeds rpg_test (content tables are seed config,
+          # not truncated between tests), so the live content is present here.
+          DATABASE_URL: postgresql://rpg:rpg@localhost:5432/rpg_test

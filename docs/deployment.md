@@ -28,6 +28,16 @@ npx prisma migrate deploy --schema prisma/schema.prisma
 Seeds are idempotent and safe to re-run; they never reset live balances, stock,
 roles, chat, reports, or configuration.
 
+Snapshot the seeded content as the initial content release (idempotent; a no-op
+once Release 1 exists). This does not change gameplay — the engine reads the
+live tables — it records a versioned, checksummed baseline for the content
+platform (Phase 19):
+
+```bash
+npm run content:release1     # needs DATABASE_URL
+npm run content:validate     # optional: re-check content against publication rules
+```
+
 ## Reverse proxy, TLS, and WebSockets
 
 - Terminate TLS at the proxy and set `ENABLE_HSTS=true` so HSTS is only sent

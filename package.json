@@ -34,7 +34,11 @@
     "dev:web": "npm run dev --workspace apps/web",
     "start:api": "npm run start --workspace apps/api",
     "start:worker": "npm run start:worker --workspace apps/api",
-    "admin:promote": "npm run admin:promote --workspace apps/api --"
+    "admin:promote": "npm run admin:promote --workspace apps/api --",
+    "content:export": "npm run content:export --workspace apps/api --",
+    "content:validate": "npm run content:validate --workspace apps/api --",
+    "content:release1": "npm run content:release1 --workspace apps/api --",
+    "content:import": "npm run content:import --workspace apps/api --"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

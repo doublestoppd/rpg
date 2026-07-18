@@ -1684,3 +1684,82 @@ model ChatModerationAction {
   @@index([subjectCharacterId, createdAt])
   @@index([action, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Phase 19 — versioned game content and publishing lifecycle
+// ---------------------------------------------------------------------------
+
+enum ContentReleaseStatus {
+  DRAFT
+  VALIDATING
+  PUBLISHED
+  RETIRED
+}
+
+/// A versioned bundle of game-content definitions moving through a publishing
+/// lifecycle. The live gameplay tables remain the runtime source of truth; this
+/// platform records immutable published revisions, enables validation, export/
+/// import, and safe evolution WITHOUT changing gameplay. Release 1 is a
+/// snapshot of the originally seeded content.
+model ContentRelease {
+  id      String               @id @default(uuid())
+  /// Monotonic release number; unique across the platform.
+  version Int                  @unique
+  status  ContentReleaseStatus @default(DRAFT)
+
+  /// Human label + mandatory reason recorded at publish/retire time.
+  title  String
+  notes  String?
+
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  retiredAt   DateTime?
+
+  definitions ContentDefinition[]
+
+  @@index([status, version])
+}
+
+enum ContentType {
+  ITEM
+  LOCATION
+  TRAVEL_ROUTE
+  LOCATION_FEATURE
+  REGIONAL_PRICE_MODIFIER
+  NPC_SHOP
+  GATHERING_ACTION
+  CRAFTING_RECIPE
+  ENEMY
+  ENCOUNTER
+  QUEST
+  COLLECTION
+  CHARACTER_CLASS
+  LEVEL_PROGRESSION
+}
+
+/// One content definition within a release: a stable key, a revision number,
+/// a canonical JSON payload (references expressed by stable key, never DB id),
+/// and a checksum. Rows belonging to a PUBLISHED release are immutable —
+/// enforced by a database trigger so a published revision can never change.
+model ContentDefinition {
+  id String @id @default(uuid())
+
+  releaseId String
+  release   ContentRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  contentType ContentType
+  /// Stable key, unique per (release, type). Never a database id.
+  stableKey   String
+  /// Revision number for this key across the platform (informational).
+  revision    Int         @default(1)
+
+  /// Canonical, deterministic payload. References use stable keys.
+  payload  Json
+  /// SHA-256 of the canonical payload, for integrity + change detection.
+  checksum String
+
+  createdAt DateTime @default(now())
+
+  @@unique([releaseId, contentType, stableKey])
+  @@index([contentType, stableKey])
+}
