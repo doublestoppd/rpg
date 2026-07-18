@@ -3,6 +3,99 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 17 — Administration, Moderation, and Auditable Economy Operations (2026-07-18)
+
+**Status: complete.**
+
+### Delivered
+
+- **No default administrator** (ADR 0010): `npm run admin:promote -- <email-or-name>`
+  elevates an existing account, revokes its sessions, records a SYSTEM
+  bootstrap audit row, is idempotent, refuses ambiguous (case-insensitive)
+  targets, and in production requires `ADMIN_BOOTSTRAP_ENABLED=true`. No admin
+  credential exists in source, seed, images, or startup.
+- **Recent-auth, not a second token**: `POST /admin/reauth` verifies the
+  current password (rate-limited, generic failure) and stamps
+  `Session.adminReauthenticatedAt` on the current session only. A configurable
+  window (default 10 min) gates every admin mutation and every high-sensitivity
+  player-detail read; a password/role change clears it. Authorization is
+  enforced by the API on every request; the frontend guard and hidden nav are
+  convenience only.
+- **Append-only audit** (ADR 0010): `AdminAuditLog` is a distinct authoritative
+  business-audit domain — never a replacement for the technical mutation log or
+  the currency/transfer/destruction/sale/report ledgers. Every successful admin
+  mutation writes one row in the **same transaction** as the domain change,
+  unique per `(actor, actionNamespace, idempotencyKey)` (which doubles as the
+  idempotency guard). A PostgreSQL trigger rejects UPDATE/DELETE; a database
+  test proves it. before/after JSON is a secret-free allowlist.
+- **Bounded investigation reads**: cursor-paginated character search (masked
+  emails) and per-character overview, inventory, ledger, item transfers,
+  marketplace activity, and progress — paginated and date-bounded, with detail
+  reads gated by recent-auth.
+- **Safe economy operations**, all domain-service-backed, idempotent, and
+  audited: signed Gold adjustments through the immutable ledger (debits cannot
+  go negative); item grants (capacity-aware) and removals (rejecting every
+  locked state — equipped, listed, in-transit, destroyed — with no force path,
+  recording an ItemDestruction); `configVersion` optimistic-concurrency PATCH
+  of allowlisted item-definition and shop fields (structural fields never
+  mutable; stale writes 409); and an immediate restock request that runs
+  through the normal locked, secure-RNG restock service (ADR 0011).
+- **Database-derived economy metrics**: current total Gold, ledger
+  sources/sinks, marketplace gross/tax/shipping/volume, NPC spending, items
+  generated/destroyed, active listings, and a documented median unit price —
+  exact BigInt arithmetic, bounded ≤90-day UTC windows, clearly separated from
+  resettable process telemetry. Defined in `docs/economy-metrics.md`.
+- **Chat moderation** (ADR 0011): report triage (reporter identity never
+  exposed, even to admins), redaction to a fixed tombstone (row/author/channel/
+  ordering and report evidence preserved; never a hard delete), immediate
+  restrictions and revocation through the Phase 16 send path, and report
+  resolution — each writing both an AdminAuditLog row and a
+  `ChatModerationAction` record. Runbook in `docs/moderation-runbook.md`.
+- **Frontend**: an Admin nav entry and workspace (ADMIN only) with a recent-auth
+  panel, player lookup/inspection, Gold and item actions, database-derived
+  economy metrics separated from telemetry, and a moderation queue rendering
+  evidence strictly as text with redact/restrict/resolve actions.
+
+### Database
+
+Migration `admin_moderation_audit`: `AdminAuditLog` (append-only trigger,
+unique actor+namespace+key, actor/target/action/time indexes),
+`ChatModerationAction`, `Session.adminReauthenticatedAt`, `configVersion` on
+`ItemDefinition` and `NpcShop`, redaction columns on `ChatMessage`, resolution
+columns and expanded status enum on `ChatReport`.
+
+### Endpoints (all under `/api/v1/admin`, additive)
+
+`GET session`; `POST reauth`; `GET characters`, `.../overview`, `/inventory`,
+`/currency-transactions`, `/item-transfers`, `/marketplace-activity`,
+`/progress`; `POST .../gold-adjustments`, `/item-grants`, `/item-removals`;
+`PATCH item-definitions/:slug`, `npc-shops/:id/config`; `POST npc-shops/:id/restock`;
+`GET metrics/economy`; `GET chat/reports`, `POST chat/reports/:id/resolve`,
+`chat/messages/:id/redact`, `chat/restrictions`, `chat/restrictions/:id/revoke`.
+CLI: `npm run admin:promote`.
+
+### Tests
+
+28 new: bootstrap/promotion (no default creds, ambiguity, prod allow-flag,
+session revocation, idempotency, SYSTEM audit without secrets); authz + reauth
+(non-admin rejection, reauth-gated reads/mutations, generic failure, rate
+limit, password-change invalidation); gold (one ledger + one audit entry,
+negative-balance rejection, replay, concurrent duplicate-key race →
+exactly-once); items (grant/replay, safe removal + destruction, locked-instance
+rejection); config (allowlist patch, stale-version 409, concurrent single
+winner, shop next-restock adoption); metrics (exact ledger-derived figures,
+window bound); audit append-only DB enforcement + secret-free JSON; moderation
+(report privacy, resolve-once, redaction tombstone + evidence preservation,
+immediate restriction enforcement + revoke); six admin EXPLAIN plans. Playwright:
+promote → reauth → inspect a player → credit Gold → non-admin cannot access.
+
+### Known limitations
+
+- Item-definition edits are limited to name/description/base value and shop
+  edits to name/description/markup by design; deeper economic tuning surfaces
+  are deferred. Production hardening, release validation, and operations are
+  Phase 18.
+
 ## Phase 16 — Player Chat, Safety, and Real-Time Delivery (2026-07-17)
 
 **Status: complete.**

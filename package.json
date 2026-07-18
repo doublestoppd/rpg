@@ -27,7 +27,8 @@
     "dev:worker": "npm run build --workspace packages/shared && npm run dev:worker --workspace apps/api",
     "dev:web": "npm run dev --workspace apps/web",
     "start:api": "npm run start --workspace apps/api",
-    "start:worker": "npm run start:worker --workspace apps/api"
+    "start:worker": "npm run start:worker --workspace apps/api",
+    "admin:promote": "npm run admin:promote --workspace apps/api --"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

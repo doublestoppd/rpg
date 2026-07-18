@@ -8,14 +8,20 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 16 complete** — persistent player
-chat with a global channel and one per location, plain-text bounded messages,
-idempotent sends, cursor pagination, unread/read state, unilateral blocking,
-snapshotted reporting, and enforceable chat restrictions. PostgreSQL rows are
-authoritative; the shared authenticated WebSocket delivers best-effort
-`chat.message.created` invalidations (fanned out across API instances via
-PostgreSQL `LISTEN/NOTIFY`) with polling as the complete fallback.
-Administration and moderation tools arrive in Phase 17.
+for what exists today. **Currently: Phase 17 complete** — a role-protected
+administrator workspace: bootstrap-free promotion, recent-auth-gated player
+investigation, safe Gold and item operations, optimistic-concurrency
+configuration edits, database-derived economy metrics, and chat moderation
+(report triage, tombstone redaction, restrictions). Every admin mutation is
+domain-service-backed, idempotent, and paired with an append-only
+same-transaction audit row. Production hardening and release validation arrive
+in Phase 18.
+
+Earlier: **Phase 16** — persistent player chat (global + per-location), plain-text
+bounded messages, idempotent sends, cursor pagination, blocking, snapshotted
+reporting, and enforceable restrictions, delivered over the shared WebSocket
+(cross-instance via PostgreSQL `LISTEN/NOTIFY`) with polling as the complete
+fallback.
 
 ## Stack (fixed)
 
@@ -97,6 +103,21 @@ npm run start:worker       # pg-boss job worker (always a separate process)
 `apps/web/dist` is served as static files by any web server or CDN; the Vite
 dev server is never used in production. API docs (documentation only) are at
 `/api/v1/docs`.
+
+### Administration
+
+There is no default administrator account. Promote an existing account
+out-of-band (idempotent; in production requires `ADMIN_BOOTSTRAP_ENABLED=true`):
+
+```bash
+npm run admin:promote -- someone@example.com
+```
+
+Administrator mutations require ADMIN role, valid CSRF + Origin, and recent
+password re-authentication (`POST /api/v1/admin/reauth`, default 10-minute
+window). Every successful mutation writes an append-only, same-transaction
+`AdminAuditLog` row. See [`docs/moderation-runbook.md`](docs/moderation-runbook.md),
+[`docs/economy-metrics.md`](docs/economy-metrics.md), and ADRs 0010–0011.
 
 ## Conventions that never change
 

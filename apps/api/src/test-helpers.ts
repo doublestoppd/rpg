@@ -20,6 +20,9 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
     CHAT_RATE_LIMIT_PER_MINUTE: '600',
     CHAT_RATE_LIMIT_IP_BURST: '200',
     CHAT_RATE_LIMIT_IP_PER_MINUTE: '1200',
+    // Wide reauth limit so admin tests can reauthenticate freely; the
+    // dedicated reauth rate-limit test overrides it with a tiny max.
+    ADMIN_REAUTH_RATE_LIMIT_MAX: '10000',
     ...overrides,
   });
 }
@@ -32,7 +35,10 @@ export async function truncateAll(prisma: PrismaClient): Promise<void> {
   // Gameplay/account state only — seeded configuration tables
   // (CharacterClassDefinition, LevelProgression) are left intact.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "ChatReport", "ChatMessage", "ChatChannelReadState", "ChatBlock", ' +
+    // TRUNCATE bypasses the AdminAuditLog append-only row trigger (which only
+    // guards UPDATE/DELETE), so test isolation stays clean.
+    'TRUNCATE TABLE "AdminAuditLog", "ChatModerationAction", ' +
+      '"ChatReport", "ChatMessage", "ChatChannelReadState", "ChatBlock", ' +
       '"ChatRestriction", ' +
       '"Notification", "ItemDestruction", "CharacterCollectionDonation", ' +
       '"QuestProgress", "CharacterQuest", ' +

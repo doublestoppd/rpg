@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth } from './features/auth/RequireAuth';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
+import { AdminPage } from './pages/AdminPage';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
 import { CharacterPage } from './pages/CharacterPage';
 import { ChatPage } from './pages/ChatPage';
@@ -127,6 +128,14 @@ export function App() {
           element={
             <RequireAuth>
               <AccountSettingsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="admin"
+          element={
+            <RequireAuth>
+              <AdminPage />
             </RequireAuth>
           }
         />

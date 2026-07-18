@@ -110,6 +110,24 @@ of buffering without bound. Across API instances, chat commits fan out via
 PostgreSQL `LISTEN/NOTIFY` (identifier-only payloads, listener reconnects with
 backoff); missed notifications are repaired by polling. No Redis, no broker.
 
+## Administration and audit (Phase 17)
+
+The administration module extends existing domain services (currency,
+inventory, npc-shops, chat) rather than duplicating mutation logic; admin
+route handlers stay thin and never import Prisma. There is no default
+administrator — `npm run admin:promote` elevates an existing account
+out-of-band (ADR 0010). Every admin mutation requires ADMIN role, CSRF +
+Origin, and recent password re-authentication (a server-side session marker,
+not a second token), and writes exactly one append-only `AdminAuditLog` row in
+the same transaction as the domain change. A PostgreSQL trigger makes that
+table immutable (no UPDATE/DELETE). Configuration edits use optimistic
+`configVersion` compare-and-set; structural fields are never mutable
+(ADR 0011). Economy metrics are computed only from authoritative database
+records (ledger, transfers, destructions, sales) — never from the resettable
+process counters — and are documented in `docs/economy-metrics.md`. Chat
+moderation redacts to a tombstone (never hard-deletes), preserves report
+evidence, and never reveals the reporter.
+
 ## Observability
 
 - Every state-changing request logs one structured `authoritative

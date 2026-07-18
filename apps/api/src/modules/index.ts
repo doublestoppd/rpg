@@ -1,4 +1,5 @@
 import { accountModule } from './account.js';
+import { adminModule } from './admin.js';
 import { authModule } from './auth.js';
 import { charactersModule } from './characters.js';
 import { chatModule } from './chat.js';
@@ -40,4 +41,5 @@ export const GAME_MODULES: readonly GameModule[] = [
   combatModule,
   museumModule,
   chatModule,
+  adminModule,
 ];

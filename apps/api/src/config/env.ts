@@ -30,6 +30,15 @@ const envSchema = z.object({
    * work; reported messages and all audit records are never deleted by it.
    */
   CHAT_RETENTION_DAYS: z.coerce.number().int().min(7).max(365).default(90),
+  /** Recent-auth window (minutes) gating administrator mutations. */
+  ADMIN_REAUTH_WINDOW_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+  /** Reauth attempts per minute per IP (a password check; rate-limited). */
+  ADMIN_REAUTH_RATE_LIMIT_MAX: z.coerce.number().int().min(1).max(100_000).default(10),
+  /**
+   * Must be explicitly "true" for the admin bootstrap/promote CLI to run in
+   * production. Disabled by default so no privilege change happens implicitly.
+   */
+  ADMIN_BOOTSTRAP_ENABLED: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

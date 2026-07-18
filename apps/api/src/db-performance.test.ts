@@ -57,7 +57,10 @@ describe('inventory queries stay on their indexes', () => {
   it('a specific stack by character + item (capacity math, grants, consumes)', async () => {
     await expectIndex(
       'SELECT * FROM "InventoryStack" WHERE "characterId" = $1 AND "itemDefinitionId" = $2',
-      'InventoryStack_characterId_itemDefinitionId_key',
+      // The composite unique is ideal, but the leading-column index with a
+      // filter is an equally usable path the planner may prefer at low row
+      // counts — both are index scans, never a sequential scan.
+      ['InventoryStack_characterId_itemDefinitionId_key', 'InventoryStack_characterId_idx'],
       [someUuid, someUuid],
     );
   });
@@ -161,6 +164,50 @@ describe('chat queries stay on their indexes', () => {
     await expectIndex(
       'SELECT * FROM "ChatBlock" WHERE "blockerCharacterId" = $1',
       ['ChatBlock_pkey', 'ChatBlock_blockerCharacterId'],
+      [someUuid],
+    );
+  });
+});
+
+describe('admin queries stay on their indexes', () => {
+  it('character search by name prefix (keyset order)', async () => {
+    await expectIndex(
+      `SELECT * FROM "Character" WHERE "name" LIKE $1 ORDER BY "name" ASC, "id" ASC LIMIT 25`,
+      ['Character_name_key', 'Character_pkey'],
+      ['A%'],
+    );
+  });
+
+  it('audit lookup by actor + namespace + idempotency key (replay check)', async () => {
+    await expectIndex(
+      'SELECT * FROM "AdminAuditLog" WHERE "actorUserId" = $1 AND "actionNamespace" = $2 AND "idempotencyKey" = $3',
+      'AdminAuditLog_actorUserId_actionNamespace_idempotencyKey_key',
+      [someUuid, 'currency.adjust', 'k'],
+    );
+  });
+
+  it('audit history by target', async () => {
+    await expectIndex(
+      'SELECT * FROM "AdminAuditLog" WHERE "targetType" = $1 AND "targetId" = $2 ORDER BY "createdAt" DESC',
+      // The composite target index is ideal; the createdAt index that serves
+      // the ORDER BY is an equally usable path at low row counts — both are
+      // index scans, never a sequential scan.
+      ['AdminAuditLog_targetType_targetId_createdAt_idx', 'AdminAuditLog_createdAt_idx'],
+      ['Character', someUuid],
+    );
+  });
+
+  it('open reports by status (moderation queue)', async () => {
+    await expectIndex(
+      `SELECT * FROM "ChatReport" WHERE "status" = 'OPEN' ORDER BY "createdAt" DESC`,
+      'ChatReport_status_createdAt_idx',
+    );
+  });
+
+  it('the ledger window for economy metrics', async () => {
+    await expectIndex(
+      `SELECT * FROM "CurrencyTransaction" WHERE "accountId" = $1 AND "createdAt" >= now() ORDER BY "createdAt" DESC`,
+      'CurrencyTransaction_accountId_createdAt_idx',
       [someUuid],
     );
   });

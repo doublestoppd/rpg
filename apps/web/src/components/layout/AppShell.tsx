@@ -52,6 +52,11 @@ export function AppShell() {
             Chat
           </NavLink>
           <NotificationsNavLink linkClass={linkClass} />
+          {session.user.role === 'ADMIN' && (
+            <NavLink to="/admin" className={linkClass}>
+              Admin
+            </NavLink>
+          )}
           <NavLink to="/settings" className={linkClass}>
             Settings
           </NavLink>

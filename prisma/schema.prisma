@@ -36,6 +36,9 @@ model User {
   sessions  Session[]
   settings  UserSettings?
   character Character?
+
+  adminAuditLogs        AdminAuditLog[]
+  chatModerationActions ChatModerationAction[]
 }
 
 model Session {
@@ -56,6 +59,12 @@ model Session {
   expiresAt  DateTime
   lastUsedAt DateTime  @default(now())
   revokedAt  DateTime?
+
+  /// Server-side recent-auth marker for administrator mutations (Phase 17):
+  /// set by POST /admin/reauth on this session only, cleared by role/password
+  /// changes. A short configurable window gates every admin mutation. No
+  /// second long-lived bearer token is ever issued.
+  adminReauthenticatedAt DateTime?
 
   @@index([userId])
 }
@@ -280,6 +289,10 @@ model NpcShop {
 
   restockIntervalSeconds Int
   restockJitterSeconds   Int
+
+  /// Optimistic concurrency for admin configuration edits (Phase 17): a PATCH
+  /// must present the expected version; a stale write loses with HTTP 409.
+  configVersion Int @default(0)
 
   /// Timestamp authority for lazy restocking; exact values never leave the API.
   nextRestockAt    DateTime  @default(now())
@@ -1227,6 +1240,11 @@ model ItemDefinition {
   /// Reference value in Gold for NPC pricing (BIGINT).
   baseValue BigInt @default(0)
 
+  /// Optimistic concurrency for admin edits of safe presentation/economic
+  /// fields (Phase 17). Structural fields (slug, stackability, slot, effect
+  /// schema) are never mutable and would reinterpret existing assets.
+  configVersion Int @default(0)
+
   stacks    InventoryStack[]
   instances ItemInstance[]
   transfers ItemTransfer[]
@@ -1460,6 +1478,14 @@ model ChatMessage {
 
   createdAt DateTime @default(now())
 
+  /// Administrative redaction (Phase 17): a redacted row keeps its id, author,
+  /// channel, and ordering as a tombstone; only the player-visible body is
+  /// replaced. Report snapshots and audit evidence are preserved. There is no
+  /// hard-delete path for a message that has been redacted or reported.
+  redactedAt      DateTime?
+  redactedByUserId String?
+  redactionReason String?
+
   reports ChatReport[]
 
   @@unique([authorCharacterId, idempotencyKey])
@@ -1512,6 +1538,8 @@ enum ChatReportReason {
 
 enum ChatReportStatus {
   OPEN
+  RESOLVED
+  DISMISSED
 }
 
 /// One report per reporter and message, with an immutable evidence snapshot
@@ -1538,6 +1566,12 @@ model ChatReport {
 
   status    ChatReportStatus @default(OPEN)
   createdAt DateTime         @default(now())
+
+  /// Administrative resolution (Phase 17). The immutable evidence snapshot
+  /// above is preserved regardless of resolution.
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  resolutionReason String?
 
   @@unique([reporterCharacterId, messageId])
   @@index([status, createdAt])
@@ -1569,4 +1603,84 @@ model ChatRestriction {
   revokedAt DateTime?
 
   @@index([characterId, status, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 17 — administration, moderation, auditable economy operations
+// ---------------------------------------------------------------------------
+
+/// Append-only authoritative business audit for administrator mutations. This
+/// is a distinct domain from the technical `authoritative mutation` log and
+/// from CurrencyTransaction/ItemTransfer/ItemDestruction/MarketplaceSale/
+/// ChatReport — it never replaces them. A database trigger rejects UPDATE and
+/// DELETE so rows are immutable. Every successful admin mutation writes one row
+/// in the SAME transaction as the domain change. before/after JSON is a
+/// secret-free allowlist, never a full Prisma record.
+model AdminAuditLog {
+  id String @id @default(uuid())
+
+  actorUserId String
+  actor       User   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  /// Snapshot of the acting session id at write time (the session may later be
+  /// revoked; the audit reference remains).
+  actorSessionId String
+
+  /// Dotted action namespace, e.g. "currency.adjust", "chat.redact".
+  actionNamespace String
+  targetType      String
+  targetId        String
+
+  /// Mandatory bounded human reason for the action.
+  reason String
+
+  requestId      String
+  idempotencyKey String
+
+  /// Outcome marker (SUCCESS for committed mutations).
+  outcome String
+
+  /// Allowlisted, secret-free before/after snapshots.
+  beforeJson Json?
+  afterJson  Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([actorUserId, actionNamespace, idempotencyKey])
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@index([actionNamespace, createdAt])
+  @@index([createdAt])
+}
+
+enum ChatModerationActionType {
+  REDACT_MESSAGE
+  APPLY_RESTRICTION
+  REVOKE_RESTRICTION
+  RESOLVE_REPORT
+}
+
+/// Explicit moderation-action record linking a redaction/restriction/
+/// revocation/report-resolution to its actor, subject, reason, and related
+/// message/report/restriction. Deliberately a first-class domain record rather
+/// than only a generic audit line.
+model ChatModerationAction {
+  id String @id @default(uuid())
+
+  actorUserId String
+  actor       User   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  action ChatModerationActionType
+
+  subjectCharacterId String?
+  messageId          String?
+  reportId           String?
+  restrictionId      String?
+
+  reason String
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectCharacterId, createdAt])
+  @@index([action, createdAt])
 }
