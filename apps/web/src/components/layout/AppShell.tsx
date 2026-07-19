@@ -48,6 +48,9 @@ export function AppShell() {
           <NavLink to="/quests" className={linkClass}>
             Quests
           </NavLink>
+          <NavLink to="/activities" className={linkClass}>
+            Bounties
+          </NavLink>
           <NavLink to="/collection" className={linkClass}>
             Collection
           </NavLink>

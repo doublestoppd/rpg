@@ -49,6 +49,7 @@ describe('application composition', () => {
       'crafting',
       'combat',
       'museum',
+      'activities',
       'chat',
       'admin',
     ]);
@@ -74,6 +75,7 @@ describe('application composition', () => {
       ['crafting', 'GET', '/api/v1/crafting/recipes'],
       ['combat', 'GET', '/api/v1/combat/encounters'],
       ['museum', 'GET', '/api/v1/collections'],
+      ['activities', 'GET', '/api/v1/bounties'],
       ['notifications', 'GET', '/api/v1/notifications'],
       ['chat', 'GET', '/api/v1/chat/channels'],
       ['admin', 'GET', '/api/v1/admin/session'],

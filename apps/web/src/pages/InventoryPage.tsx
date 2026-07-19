@@ -16,6 +16,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { TextField } from '../components/ui/TextField';
 import { useToast } from '../components/ui/Toast';
+import { useSalvage } from '../features/activities/useActivities';
 import { useCharacter } from '../features/character/useCharacter';
 import { useEquip, useInventory } from '../features/inventory/useInventory';
 import { useCreateListing, useMyShop } from '../features/marketplace/useMarketplace';
@@ -57,6 +58,7 @@ export function InventoryPage() {
   const { data: character, isPending: characterPending } = useCharacter();
   const inventory = useInventory(Boolean(character));
   const equipMutation = useEquip();
+  const salvageMutation = useSalvage();
   const createListing = useCreateListing();
   const myShop = useMyShop(Boolean(character));
   const { showToast } = useToast();
@@ -132,6 +134,21 @@ export function InventoryPage() {
           ),
       },
     );
+  };
+
+  const onSalvage = (instance: InventoryInstanceInfo) => {
+    salvageMutation.mutate(instance.id, {
+      onSuccess: (result) => {
+        setSelected(null);
+        const yielded = result.materials.map((m) => `${m.quantity} × ${m.name}`).join(', ');
+        showToast(`Salvaged ${result.salvagedItemName} into ${yielded}.`, 'success');
+      },
+      onError: (err) =>
+        showToast(
+          err instanceof ApiRequestError ? err.message : 'Could not salvage that item.',
+          'error',
+        ),
+    });
   };
 
   return (
@@ -271,12 +288,21 @@ export function InventoryPage() {
               selected.instance.item.category === 'EQUIPMENT' &&
               !selected.instance.equippedSlot &&
               selected.instance.lockState === 'NONE' && (
-                <Button
-                  onClick={() => onEquip(selected.instance)}
-                  disabled={equipMutation.isPending}
-                >
-                  Equip
-                </Button>
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => onSalvage(selected.instance)}
+                    disabled={salvageMutation.isPending}
+                  >
+                    Salvage
+                  </Button>
+                  <Button
+                    onClick={() => onEquip(selected.instance)}
+                    disabled={equipMutation.isPending}
+                  >
+                    Equip
+                  </Button>
+                </>
               )}
           </>
         }

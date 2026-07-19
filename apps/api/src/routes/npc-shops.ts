@@ -3,6 +3,8 @@ import {
   npcShopListResponseSchema,
   npcShopPurchaseRequestSchema,
   npcShopPurchaseResponseSchema,
+  sellbackRequestSchema,
+  sellbackResponseSchema,
 } from '@rpg/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -62,5 +64,21 @@ export async function npcShopRoutes(
     },
     async (request) =>
       npcShopService.purchase(request.currentUser!.id, request.params.id, request.body),
+  );
+
+  typed.post(
+    '/npc-shops/:id/sales',
+    {
+      preHandler: app.requireAuth,
+      schema: {
+        tags: ['npc-shops'],
+        summary: 'Sell stackable items to the shop at its sellback rate (idempotent)',
+        params: z.object({ id: z.uuid() }),
+        body: sellbackRequestSchema,
+        response: { 200: sellbackResponseSchema },
+      },
+    },
+    async (request) =>
+      npcShopService.sell(request.currentUser!.id, request.params.id, request.body),
   );
 }

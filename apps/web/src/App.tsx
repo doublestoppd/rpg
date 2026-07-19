@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth } from './features/auth/RequireAuth';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
+import { ActivitiesPage } from './pages/ActivitiesPage';
 import { AdminPage } from './pages/AdminPage';
 import { BuildsPage } from './pages/BuildsPage';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
@@ -113,6 +114,14 @@ export function App() {
           element={
             <RequireAuth>
               <QuestsPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="activities"
+          element={
+            <RequireAuth>
+              <ActivitiesPage />
             </RequireAuth>
           }
         />

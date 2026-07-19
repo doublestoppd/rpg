@@ -3,6 +3,64 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 24 — Repeatable Activities and Economy Loop Expansion (2026-07-19)
+
+**Status: acceptance-core complete.** Adds a rotating bounty board with regional
+reputation, equipment salvage, and NPC sellback. All four acceptance properties
+are met and tested. The broader repeatable suite (regional contracts, rotating
+elites, profession commissions, refinements, collection-completion rewards, an
+activity calendar) is deferred within Phase 24's ambit (see ADR 0017).
+
+### Delivered
+
+- **Rotating bounty board**: a fixed pool of daily and weekly turn-in bounties.
+  Which bounties are on the board, and the cycle they belong to, are a **pure
+  function of the current timestamp** — a deterministic hash selection keyed by
+  UTC day (`YYYY-MM-DD`) or ISO week (`YYYY-Www`). No rotation state is stored,
+  so eligibility and the board are correct even with the worker stopped.
+- **Once per character and cycle**: claiming consumes the turn-in stack (an item
+  sink recording an `ItemTransfer`), credits the reward through the currency
+  ledger, and writes a `BountyClaim`. A `@@unique(characterId, cycleId,
+  bountySlug)` plus a deterministic credit key (`cycleId:bountySlug`) make a
+  re-claim an idempotent no-op — never a second consume or second payout. A
+  stale claim from a past cycle never blocks the current cycle.
+- **Regional reputation**: bounties award bounded reputation (`min(cap, …)`),
+  upserted per region; it never exceeds `REPUTATION_CAP`.
+- **Equipment salvage**: destroys an unequipped, unlisted equipment instance
+  (setting `destroyedAt`, an append-only `ItemDestruction`) and grants a fixed
+  material yield (an `ItemTransfer`). Both economic trails survive; ownership is
+  retained so a replayed salvage resolves to `ALREADY_SALVAGED` (409) rather
+  than looking like a foreign item. A net item sink.
+- **NPC sellback**: sells stackable goods to a shop at
+  `base × regional modifier × sellbackBps`. Because `sellbackBps` is validated
+  strictly below `markupBps`, the sell price is always below the buy price — a
+  guaranteed buy-then-sell arbitrage is impossible. Credit-first / remove-only-
+  when-applied makes a replay neither double-pay nor double-remove.
+- **UI**: a Bounties page (board + reputation, turn-in when the requirement is
+  met); a Salvage action in the inventory item dialog; a Sell-to-shop section on
+  the NPC shop page.
+
+### Endpoints (additive)
+
+`GET /api/v1/bounties`, `POST /api/v1/bounties/:slug/claims`,
+`POST /api/v1/inventory/salvage`, `POST /api/v1/npc-shops/:id/sales`. OpenAPI
+baseline regenerated (additive).
+
+### Tests
+
+7 new (1 file), covering every acceptance property: a bounty is claimable
+exactly once per cycle (second claim consumes nothing and pays nothing), a
+past-cycle claim does not block the current cycle, requirement-unmet is rejected;
+a real buy-then-sell round trip loses Gold and arbitrage is impossible, sellback
+replay is idempotent; salvage preserves both the destruction and transfer
+records, and salvaging the same instance twice is rejected.
+
+### Scope note
+
+This is the acceptance-core. Deferred within Phase 24: regional contract chains,
+rotating world elites, profession commissions, material refinement, collection-
+completion rewards, and a player-facing activity calendar. See ADR 0017.
+
 ## Phase 23 — Character Builds, Progression, and Combat Depth (2026-07-19)
 
 **Status: acceptance-core complete.** Raises the cap to 30 and adds ability
