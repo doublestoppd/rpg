@@ -1823,3 +1823,64 @@ model ContentDefinition {
   @@unique([releaseId, contentType, stableKey])
   @@index([contentType, stableKey])
 }
+
+// ---------------------------------------------------------------------------
+// Phase 26 — living world (increment 1: world clock and regional atmosphere)
+// ---------------------------------------------------------------------------
+
+/// Versioned world-time configuration. The highest revision is the active
+/// clock. Publishing a new revision never rewrites stored history: the current
+/// cycle and segment are DERIVED from server time against the active config,
+/// not stored per row, so a config change only affects time from that point on.
+model WorldTimeConfig {
+  /// Monotonic configuration revision; the highest revision is active.
+  revision Int @id
+
+  /// Whole seconds for one full DAWN -> NIGHT cycle.
+  cycleLengthSeconds Int
+  /// Ordered segment boundaries as basis points of the cycle:
+  /// [{ segment, startBps }], sorted ascending, first startBps must be 0.
+  segments Json
+
+  createdAt DateTime @default(now())
+}
+
+/// A single persisted server secret used to derive deterministic, yet
+/// externally unpredictable, regional atmosphere. Server-generated random
+/// bytes, created lazily on first finalization and never exposed to clients.
+model WorldSecret {
+  id      String @id
+  seedHex String
+
+  createdAt DateTime @default(now())
+}
+
+/// The finalized atmosphere for one region during one world cycle. Fully
+/// determined by (secret seed, region, cycleId): repeated finalization for the
+/// same region and cycle yields the same stored row (unique + insert-once), so
+/// the worker and the lazy API path can never disagree.
+model RegionAtmosphereState {
+  id String @id @default(uuid())
+
+  region  String
+  cycleId String
+
+  weather        String
+  intensity      String
+  visibility     String
+  temperature    String
+  wind           String
+  crowdLevel     String
+  /// Optional authored descriptive text key (presentation only).
+  descriptionKey String?
+
+  startsAt  DateTime
+  expiresAt DateTime
+  /// World-time configuration revision this atmosphere was generated against.
+  configRevision Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([region, cycleId])
+  @@index([region, expiresAt])
+}

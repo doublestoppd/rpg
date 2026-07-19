@@ -33,3 +33,4 @@ export * from './npc-shops.js';
 export * from './quests.js';
 export * from './settings.js';
 export * from './travel.js';
+export * from './world-sim.js';

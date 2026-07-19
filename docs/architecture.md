@@ -76,6 +76,18 @@ location-dependent request runs all of them first. The pg-boss worker only
 sweeps stragglers — it is never the sole authority. Finalizers must be
 idempotent and exactly-once in effect.
 
+## Living world (Phase 26)
+
+World time is derived from server time against the active `WorldTimeConfig`
+(highest revision): the cycle id and segment are computed, never stored per
+tick, and never depend on a worker. Regional atmosphere is a pure function of a
+persisted server secret plus region and cycle, finalized lazily on read and
+stored once per `(region, cycleId)` — so the worker and the API path always
+agree. Later increments add NPCs, authored versioned dialogue with a typed
+condition/effect registry, world events, and a privacy-safe activity feed; all
+living-world definitions are versioned content, and NPC interactions snapshot
+the exact content revisions they used. See `docs/living-world.md`.
+
 ## Idempotency conventions
 
 - Client-initiated starts (travel, gathering, crafting, combat, purchases,

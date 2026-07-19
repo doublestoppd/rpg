@@ -12,6 +12,7 @@ import { currencyModule } from './currency.js';
 import { economyCoreModule } from './economy-core.js';
 import { gatheringModule } from './gathering.js';
 import { inventoryModule } from './inventory.js';
+import { livingWorldModule } from './living-world.js';
 import { marketplaceModule } from './marketplace.js';
 import { museumModule } from './museum.js';
 import { notificationsModule } from './notifications.js';
@@ -46,6 +47,7 @@ export const GAME_MODULES: readonly GameModule[] = [
   combatModule,
   museumModule,
   activitiesModule,
+  livingWorldModule,
   chatModule,
   adminModule,
 ];
