@@ -212,3 +212,30 @@ describe('admin queries stay on their indexes', () => {
     );
   });
 });
+
+describe('living-world queries stay on their indexes', () => {
+  it('NPC placements by location + status (current-scene NPC lookup)', async () => {
+    await expectIndex(
+      `SELECT * FROM "NpcPlacement" WHERE "locationSlug" = $1 AND "status" = 'PUBLISHED'`,
+      'NpcPlacement_locationSlug_status_idx',
+      ['crownfall-city'],
+    );
+  });
+
+  it('an NPC by stable key (detail + placement join)', async () => {
+    await expectIndex('SELECT * FROM "NpcDefinition" WHERE "key" = $1', 'NpcDefinition_key_key', [
+      'brannic-hearthkeeper',
+    ]);
+  });
+
+  it('current atmosphere by region + cycle', async () => {
+    await expectIndex(
+      'SELECT * FROM "RegionAtmosphereState" WHERE "region" = $1 AND "cycleId" = $2',
+      // The composite unique is ideal; the leading-column (region, expiresAt)
+      // index with a cycleId filter is an equally usable index path the planner
+      // may prefer at low row counts — both are index scans, never a seq scan.
+      ['RegionAtmosphereState_region_cycleId_key', 'RegionAtmosphereState_region_expiresAt_idx'],
+      ['crownfall', 'C1'],
+    );
+  });
+});

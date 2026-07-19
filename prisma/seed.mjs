@@ -17,6 +17,8 @@ import {
   LEVEL_PROGRESSION,
   LOCATION_FEATURES,
   LOCATIONS,
+  NPC_DEFINITIONS,
+  NPC_PLACEMENTS,
   NPC_SHOPS,
   REGIONAL_PRICE_MODIFIERS,
   TRAVEL_ROUTES,
@@ -416,6 +418,27 @@ async function main() {
     update: {},
   });
 
+  // Phase 26: named NPCs and their placement schedules (living world).
+  for (const npc of NPC_DEFINITIONS) {
+    await prisma.npcDefinition.upsert({
+      where: { key: npc.key },
+      create: { ...npc, status: 'PUBLISHED' },
+      update: { ...npc, status: 'PUBLISHED' },
+    });
+  }
+  for (const placement of NPC_PLACEMENTS) {
+    await prisma.npcPlacement.upsert({
+      where: {
+        npcKey_locationSlug: {
+          npcKey: placement.npcKey,
+          locationSlug: placement.locationSlug,
+        },
+      },
+      create: { ...placement, status: 'PUBLISHED' },
+      update: { ...placement, status: 'PUBLISHED' },
+    });
+  }
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +
@@ -424,6 +447,7 @@ async function main() {
       `${GATHERING_ACTIONS.length} gathering actions, ${CRAFTING_RECIPES.length} recipes, ` +
       `${ENEMY_DEFINITIONS.length} enemies, ${ENCOUNTER_DEFINITIONS.length} encounters, ` +
       `${QUEST_DEFINITIONS.length} quests, ${COLLECTION_DEFINITIONS.length} collections, ` +
+      `${NPC_DEFINITIONS.length} NPCs, ${NPC_PLACEMENTS.length} placements, ` +
       `${1 + LOCATIONS.length} chat channels ensured`,
   );
 }

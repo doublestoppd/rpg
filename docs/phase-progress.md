@@ -51,6 +51,45 @@ secret-dependence; and API tests that `GET /world/time` is authoritative and
 authenticated and `GET /world/atmosphere` finalizes idempotently (exactly one
 stored row per region+cycle) with no worker.
 
+### Increment 2 — named NPCs and placement schedules (delivered)
+
+- **NPCs are versioned content.** New content types `NPC` and `NPC_PLACEMENT`
+  publish through the Phase 19 platform (payload schemas, dependency edges,
+  apply-on-publish appliers, export round-trip) and materialize into the
+  `NpcDefinition` / `NpcPlacement` projection tables, exactly like items and
+  shops. An NPC carries a stable key, revision, name, pronouns, descriptions,
+  descriptive roles (no capability by themselves), portrait/scene asset keys,
+  home region, tags, and a typed service association; placements carry the
+  location, the world-time segments the NPC is present, priority, and visibility.
+- **Server-authoritative availability.** `GET /api/v1/locations/current/npcs`
+  returns the NPCs whose published placement covers the character's current
+  location and the current world segment (highest priority first); a traveling
+  character has no location and is rejected. `GET /api/v1/npcs/:npcKey` returns an
+  NPC with its availability (`PRESENT` / `OFF_SCHEDULE` / `ELSEWHERE`) and
+  schedule. A retired NPC is excluded from listings and rejects the detail lookup
+  (404) without deletion. Relocation is supported (an NPC with placements at
+  several locations across segments).
+- **Service-availability validation.** Publication rejects a schedule that
+  strands an essential service (`INN`/`SHOP`): the union of segments across the
+  NPCs providing it must cover every world segment.
+- **Seed.** Eight original named NPCs across Crownfall, Northmarch, and Deepvale
+  with nine placements, including a scheduled relocation and off-schedule
+  workers. (The full ≥20-NPC roster with dialogue is a later increment.)
+
+### Endpoints (additive, increment 2)
+
+`GET /api/v1/locations/current/npcs`, `GET /api/v1/npcs/:npcKey`. Content types
+`NPC`, `NPC_PLACEMENT`. OpenAPI baseline regenerated (additive).
+
+### Tests (increment 2)
+
+13 new: content validation (essential-service coverage passes with full coverage
+or a per-segment replacement; strands are rejected; missing portrait rejected;
+dangling references rejected) and NPC availability (segment-scoped listing,
+relocation, availability states, retired-NPC exclusion, traveling-character
+rejection, endpoint auth/shape) plus EXPLAIN index-path checks for placement,
+NPC-by-key, and atmosphere lookups.
+
 ### Remaining increments (this phase's ambit)
 
 NPC content model + placement/schedule availability; authored versioned dialogue

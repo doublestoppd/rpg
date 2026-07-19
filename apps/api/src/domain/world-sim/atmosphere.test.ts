@@ -20,13 +20,13 @@ const SECRET = 'a'.repeat(64);
 
 describe('deterministic atmosphere derivation', () => {
   it('yields the identical result for the same region and cycle', () => {
-    const a = deriveAtmosphere(SECRET, 'Crownfall', 'C100', 'DAY');
-    const b = deriveAtmosphere(SECRET, 'Crownfall', 'C100', 'DAY');
+    const a = deriveAtmosphere(SECRET, 'crownfall', 'C100', 'DAY');
+    const b = deriveAtmosphere(SECRET, 'crownfall', 'C100', 'DAY');
     expect(a).toEqual(b);
   });
 
   it('produces only valid enum members across many cycles and regions', () => {
-    for (const region of ['Crownfall', 'Northmarch', 'Unlisted']) {
+    for (const region of ['crownfall', 'northmarch', 'Unlisted']) {
       for (let cycle = 0; cycle < 40; cycle++) {
         const fields = deriveAtmosphere(SECRET, region, `C${cycle}`, 'DUSK');
         expect(WEATHER_TYPES).toContain(fields.weather);
@@ -49,11 +49,11 @@ describe('deterministic atmosphere derivation', () => {
   it('varies with the secret, so atmosphere is unpredictable without it', () => {
     const withA = Array.from(
       { length: 20 },
-      (_, i) => deriveAtmosphere('a'.repeat(64), 'Crownfall', `C${i}`, 'DAY').weather,
+      (_, i) => deriveAtmosphere('a'.repeat(64), 'crownfall', `C${i}`, 'DAY').weather,
     );
     const withB = Array.from(
       { length: 20 },
-      (_, i) => deriveAtmosphere('b'.repeat(64), 'Crownfall', `C${i}`, 'DAY').weather,
+      (_, i) => deriveAtmosphere('b'.repeat(64), 'crownfall', `C${i}`, 'DAY').weather,
     );
     expect(withA).not.toEqual(withB);
   });

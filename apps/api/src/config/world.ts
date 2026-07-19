@@ -91,11 +91,11 @@ export interface RegionAtmosphereProfile {
 }
 
 export const REGION_ATMOSPHERE_PROFILES: Record<string, RegionAtmosphereProfile> = {
-  Crownfall: {
+  crownfall: {
     weather: DEFAULT_WEATHER_WEIGHTS,
-    temperatureBaseline: 'MILD',
+    temperatureBaseline: 'WARM',
   },
-  Northmarch: {
+  northmarch: {
     weather: [
       { value: 'CLEAR', weight: 22 },
       { value: 'CLOUDY', weight: 30 },
@@ -105,6 +105,17 @@ export const REGION_ATMOSPHERE_PROFILES: Record<string, RegionAtmosphereProfile>
       { value: 'SNOW', weight: 22 },
     ],
     temperatureBaseline: 'COLD',
+  },
+  deepvale: {
+    weather: [
+      { value: 'CLEAR', weight: 26 },
+      { value: 'CLOUDY', weight: 30 },
+      { value: 'RAIN', weight: 18 },
+      { value: 'FOG', weight: 18 },
+      { value: 'STORM', weight: 5 },
+      { value: 'SNOW', weight: 3 },
+    ],
+    temperatureBaseline: 'MILD',
   },
 };
 

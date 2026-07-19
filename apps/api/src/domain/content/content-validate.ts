@@ -174,6 +174,47 @@ export function validateBundle(bundle: ContentBundle): ContentValidationResult {
     }
   }
 
+  // NPCs must name a portrait asset (the asset framework guarantees a role
+  // fallback, but the reference itself must be present and non-empty).
+  for (const [key, payload] of byType.get('NPC') ?? []) {
+    const portrait = payload['portraitAssetKey'];
+    if (typeof portrait !== 'string' || !portrait.trim()) {
+      err('MISSING_ASSET', 'NPC', key, `NPC "${key}" has no portrait asset key.`);
+    }
+  }
+
+  // NPC placements: the referenced NPC and location resolve via the dependency
+  // check above. Here we enforce that a required service is never stranded — for
+  // each essential service an NPC provides, the union of the segments across all
+  // placements of NPCs providing it must cover every world segment (a
+  // replacement NPC per segment, or one always-available NPC).
+  const ESSENTIAL_SERVICES = new Set(['INN', 'SHOP']);
+  const ALL_SEGMENTS = ['DAWN', 'DAY', 'DUSK', 'NIGHT'];
+  const npcs = byType.get('NPC');
+  const serviceCoverage = new Map<string, Set<string>>();
+  for (const [pkey, payload] of byType.get('NPC_PLACEMENT') ?? []) {
+    const npc = npcs?.get(String(payload['npcKey']));
+    if (!npc) continue; // unresolved reference already reported above
+    const service = typeof npc['serviceType'] === 'string' ? npc['serviceType'] : 'NONE';
+    if (!ESSENTIAL_SERVICES.has(service)) continue;
+    const covered = serviceCoverage.get(service) ?? new Set<string>();
+    for (const seg of asArray(payload['segments'])) covered.add(String(seg));
+    serviceCoverage.set(service, covered);
+    void pkey;
+  }
+  for (const [service, covered] of serviceCoverage) {
+    const missing = ALL_SEGMENTS.filter((s) => !covered.has(s));
+    if (missing.length > 0) {
+      err(
+        'STRANDED_SERVICE',
+        'NPC_PLACEMENT',
+        null,
+        `Essential service ${service} is unavailable during segment(s) ${missing.join(', ')}: ` +
+          `provide a replacement NPC for each segment or an always-available one.`,
+      );
+    }
+  }
+
   // Collections must reference COLLECTIBLE items.
   const items = byType.get('ITEM');
   for (const [key, payload] of byType.get('COLLECTION') ?? []) {

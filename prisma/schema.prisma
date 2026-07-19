@@ -1795,6 +1795,8 @@ enum ContentType {
   COLLECTION
   CHARACTER_CLASS
   LEVEL_PROGRESSION
+  NPC
+  NPC_PLACEMENT
 }
 
 /// One content definition within a release: a stable key, a revision number,
@@ -1883,4 +1885,77 @@ model RegionAtmosphereState {
 
   @@unique([region, cycleId])
   @@index([region, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 26 — living world (increment 2: named NPCs and placement schedules)
+// ---------------------------------------------------------------------------
+
+/// A named NPC. Authored and versioned through the content platform (content
+/// type NPC) and materialized here as the runtime projection, exactly like
+/// items/shops/quests. Roles are descriptive; a real service is linked through
+/// the typed `serviceType` + `serviceRef` and resolved by existing services.
+model NpcDefinition {
+  id  String @id @default(uuid())
+  /// Stable content key (== the content stableKey); never a database id.
+  key String @unique
+  /// Immutable revision of the published content this row was applied from.
+  revision Int @default(1)
+
+  name             String
+  /// Neutral grammatical metadata for authored text (e.g. "they/them").
+  pronouns         String @default("they/them")
+  shortDescription String
+  longDescription  String
+
+  /// Descriptive roles (INNKEEPER, MERCHANT, …). No capability by themselves.
+  roles String[]
+  /// Free-form authoring tags.
+  tags  String[]
+
+  portraitAssetKey String
+  sceneAssetKey    String?
+  homeRegion       String
+
+  /// Typed service association: NONE, SHOP, INN, CRAFTING, MUSEUM, TRAINING.
+  serviceType String  @default("NONE")
+  /// Optional reference the service resolves (e.g. an NpcShop slug).
+  serviceRef  String?
+  /// Optional dialogue entry-point key (wired in a later increment).
+  dialogueKey String?
+
+  /// PUBLISHED or RETIRED. Retirement blocks new interactions but never
+  /// invalidates historical records.
+  status String @default("PUBLISHED")
+
+  placements NpcPlacement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([homeRegion])
+}
+
+/// Where and when an NPC appears. Availability is computed server-side from the
+/// current world-time segment; an NPC may have several placements (relocation).
+model NpcPlacement {
+  id String @id @default(uuid())
+
+  npcKey String
+  npc    NpcDefinition @relation(fields: [npcKey], references: [key], onDelete: Cascade)
+
+  locationSlug String
+  /// World-time segments during which the NPC is present at this location.
+  segments     String[]
+  /// Higher priority sorts first when multiple NPCs share a location.
+  priority     Int    @default(0)
+  /// PUBLIC or a private visibility rule key (private rules land later).
+  visibility   String @default("PUBLIC")
+  status       String @default("PUBLISHED")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([npcKey, locationSlug])
+  @@index([locationSlug, status])
 }

@@ -16,6 +16,8 @@ export const contentTypeSchema = z.enum([
   'COLLECTION',
   'CHARACTER_CLASS',
   'LEVEL_PROGRESSION',
+  'NPC',
+  'NPC_PLACEMENT',
 ]);
 export type ContentType = z.infer<typeof contentTypeSchema>;
 

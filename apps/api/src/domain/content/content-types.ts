@@ -219,6 +219,49 @@ const progressionPayload = z.object({
   ),
 });
 
+const NPC_ROLES = [
+  'INNKEEPER',
+  'MERCHANT',
+  'CRAFTSPERSON',
+  'TRAINER',
+  'QUEST_GIVER',
+  'CURATOR',
+  'GUARD',
+  'TRAVELER',
+  'WORKER',
+  'SCHOLAR',
+  'AMBIENT',
+] as const;
+
+const NPC_SERVICE_TYPES = ['NONE', 'SHOP', 'INN', 'CRAFTING', 'MUSEUM', 'TRAINING'] as const;
+
+const npcPayload = z.object({
+  key: z.string().min(1),
+  name: z.string().min(1),
+  pronouns: z.string().min(1),
+  shortDescription: z.string(),
+  longDescription: z.string(),
+  roles: z.array(z.enum(NPC_ROLES)).min(1),
+  tags: z.array(z.string()),
+  portraitAssetKey: z.string().min(1),
+  sceneAssetKey: z.string().nullable(),
+  homeRegion: z.string().min(1),
+  serviceType: z.enum(NPC_SERVICE_TYPES),
+  serviceRef: z.string().nullable(),
+  dialogueKey: z.string().nullable(),
+});
+
+const WORLD_SEGMENTS = ['DAWN', 'DAY', 'DUSK', 'NIGHT'] as const;
+
+const npcPlacementPayload = z.object({
+  key: z.string().min(1),
+  npcKey: z.string().min(1),
+  locationSlug: z.string().min(1),
+  segments: z.array(z.enum(WORLD_SEGMENTS)).min(1),
+  priority: z.number().int(),
+  visibility: z.string().min(1),
+});
+
 // --- the registry ----------------------------------------------------------
 
 export const CONTENT_TYPE_SPECS: ContentTypeSpec[] = [
@@ -631,6 +674,59 @@ export const CONTENT_TYPE_SPECS: ContentTypeSpec[] = [
       ];
     },
     dependencies: () => [],
+  },
+  {
+    type: 'NPC',
+    payloadSchema: npcPayload,
+    async exportAll(prisma) {
+      const rows = await prisma.npcDefinition.findMany({ orderBy: { key: 'asc' } });
+      return rows.map((r) => ({
+        key: r.key,
+        payload: {
+          key: r.key,
+          name: r.name,
+          pronouns: r.pronouns,
+          shortDescription: r.shortDescription,
+          longDescription: r.longDescription,
+          roles: r.roles,
+          tags: r.tags,
+          portraitAssetKey: r.portraitAssetKey,
+          sceneAssetKey: r.sceneAssetKey,
+          homeRegion: r.homeRegion,
+          serviceType: r.serviceType,
+          serviceRef: r.serviceRef,
+          dialogueKey: r.dialogueKey,
+        },
+      }));
+    },
+    dependencies: () => [],
+  },
+  {
+    type: 'NPC_PLACEMENT',
+    payloadSchema: npcPlacementPayload,
+    async exportAll(prisma) {
+      const rows = await prisma.npcPlacement.findMany();
+      return rows
+        .map((r) => ({
+          key: `${r.npcKey}@${r.locationSlug}`,
+          payload: {
+            key: `${r.npcKey}@${r.locationSlug}`,
+            npcKey: r.npcKey,
+            locationSlug: r.locationSlug,
+            segments: r.segments,
+            priority: r.priority,
+            visibility: r.visibility,
+          },
+        }))
+        // Stable-key order so a re-export byte-matches the stored release
+        // (getReleaseBundle orders by stableKey); the key is computed, so we
+        // cannot ORDER BY it in the query.
+        .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    },
+    dependencies: (p) => [
+      { type: 'NPC', key: String(p['npcKey']) },
+      { type: 'LOCATION', key: String(p['locationSlug']) },
+    ],
   },
 ];
 

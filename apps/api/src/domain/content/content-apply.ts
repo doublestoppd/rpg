@@ -369,6 +369,52 @@ const APPLIERS: Record<ContentType, Applier> = {
       }
     }
   },
+
+  NPC: async (tx, payloads) => {
+    for (const p of payloads) {
+      const data = {
+        name: str(p['name']),
+        pronouns: str(p['pronouns']),
+        shortDescription: str(p['shortDescription']),
+        longDescription: str(p['longDescription']),
+        roles: asArray(p['roles']).map(str),
+        tags: asArray(p['tags']).map(str),
+        portraitAssetKey: str(p['portraitAssetKey']),
+        sceneAssetKey: p['sceneAssetKey'] == null ? null : str(p['sceneAssetKey']),
+        homeRegion: str(p['homeRegion']),
+        serviceType: str(p['serviceType']),
+        serviceRef: p['serviceRef'] == null ? null : str(p['serviceRef']),
+        dialogueKey: p['dialogueKey'] == null ? null : str(p['dialogueKey']),
+        // Publishing an NPC (re)activates it; retirement is a separate action.
+        status: 'PUBLISHED',
+      };
+      await tx.npcDefinition.upsert({
+        where: { key: str(p['key']) },
+        create: { key: str(p['key']), ...data },
+        update: data,
+      });
+    }
+  },
+
+  NPC_PLACEMENT: async (tx, payloads) => {
+    for (const p of payloads) {
+      // Location existence is guaranteed by dependency-ordered application.
+      await locationId(tx, str(p['locationSlug']));
+      const data = {
+        segments: asArray(p['segments']).map(str),
+        priority: int(p['priority']),
+        visibility: str(p['visibility']),
+        status: 'PUBLISHED',
+      };
+      await tx.npcPlacement.upsert({
+        where: {
+          npcKey_locationSlug: { npcKey: str(p['npcKey']), locationSlug: str(p['locationSlug']) },
+        },
+        create: { npcKey: str(p['npcKey']), locationSlug: str(p['locationSlug']), ...data },
+        update: data,
+      });
+    }
+  },
 };
 
 /**

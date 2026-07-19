@@ -62,6 +62,38 @@ character's region:
 A worker may pre-create upcoming rows, but it is never the sole authority — the
 lazy API path creates any missing current row on its own.
 
+## Named NPCs and schedules
+
+NPCs are versioned content (content types `NPC` and `NPC_PLACEMENT`) materialized
+into the `NpcDefinition` / `NpcPlacement` projection tables, exactly like items
+and shops. Availability is computed server-side.
+
+- **NPC definition** — stable key, revision, display name, pronouns, short/long
+  descriptions, descriptive roles (e.g. `INNKEEPER`, `MERCHANT`; roles grant no
+  capability), portrait/scene asset keys, home region, tags, and a typed service
+  association (`serviceType` + `serviceRef`) resolved by the existing domain
+  services. Status is `PUBLISHED` or `RETIRED`.
+- **Placement** — where and when an NPC appears: a location, the world-time
+  segments it is present, a priority, and a visibility rule. An NPC may have
+  several placements (relocation): e.g. a traveler who wakes in one village and
+  walks a road by day.
+- **Availability** — `GET /api/v1/locations/current/npcs` returns the NPCs whose
+  published placement covers the character's current location and the current
+  world segment, highest priority first. A traveling character has no current
+  location, so the endpoint rejects. `GET /api/v1/npcs/:npcKey` returns one NPC
+  with its availability for the caller (`PRESENT`, `OFF_SCHEDULE`, `ELSEWHERE`)
+  and its schedule segments. A `RETIRED` NPC is never offered for a new
+  interaction (404) but its row and any historical records remain.
+
+### Service-availability validation
+
+Publication rejects a schedule that strands an essential service. For each
+essential `serviceType` (currently `INN` and `SHOP`) that any NPC provides, the
+union of segments across all placements of NPCs providing it must cover every
+world segment — an always-available NPC, or a replacement per segment. Existing
+non-NPC location features (shops, the inn) remain the ultimate fallback, so a
+service never becomes unreachable because one NPC is off schedule.
+
 ## Runbook — atmosphere finalization
 
 Symptoms are visible through the `atmosphere_lazy_finalization` and

@@ -30,6 +30,7 @@ export * from './marketplace.js';
 export * from './museum.js';
 export * from './notifications.js';
 export * from './npc-shops.js';
+export * from './npcs-world.js';
 export * from './quests.js';
 export * from './settings.js';
 export * from './travel.js';

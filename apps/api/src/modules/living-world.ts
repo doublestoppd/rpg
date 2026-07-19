@@ -1,5 +1,7 @@
+import { createNpcService } from '../domain/living-world/npc-service.js';
 import { createAtmosphereService } from '../domain/world-sim/atmosphere-service.js';
 import { createWorldClockService } from '../domain/world-sim/world-clock.js';
+import { npcRoutes } from '../routes/npcs.js';
 import { worldSimRoutes } from '../routes/world-sim.js';
 import { type GameModule, requireService } from './types.js';
 
@@ -17,9 +19,11 @@ export const livingWorldModule: GameModule = {
 
     const worldClock = createWorldClockService(ctx.prisma);
     const atmosphereService = createAtmosphereService(ctx.prisma, worldClock);
+    const npcService = createNpcService(ctx.prisma, locationService, worldClock);
 
     ctx.services.worldClockService = worldClock;
     ctx.services.atmosphereService = atmosphereService;
+    ctx.services.npcService = npcService;
 
     await ctx.app.register(worldSimRoutes, {
       prefix: '/api/v1',
@@ -27,5 +31,6 @@ export const livingWorldModule: GameModule = {
       atmosphereService,
       locationService,
     });
+    await ctx.app.register(npcRoutes, { prefix: '/api/v1', npcService });
   },
 };

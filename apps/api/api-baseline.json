@@ -9806,6 +9806,225 @@
         }
       }
     },
+    "/api/v1/locations/current/npcs": {
+      "get": {
+        "summary": "NPCs present at the current location during the current world segment",
+        "tags": ["world"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locationSlug": {
+                      "type": "string"
+                    },
+                    "segment": {
+                      "type": "string",
+                      "enum": ["DAWN", "DAY", "DUSK", "NIGHT"]
+                    },
+                    "npcs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "pronouns": {
+                            "type": "string"
+                          },
+                          "roles": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "INNKEEPER",
+                                "MERCHANT",
+                                "CRAFTSPERSON",
+                                "TRAINER",
+                                "QUEST_GIVER",
+                                "CURATOR",
+                                "GUARD",
+                                "TRAVELER",
+                                "WORKER",
+                                "SCHOLAR",
+                                "AMBIENT"
+                              ]
+                            }
+                          },
+                          "shortDescription": {
+                            "type": "string"
+                          },
+                          "homeRegion": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "portraitAssetKey": {
+                            "type": "string"
+                          },
+                          "sceneAssetKey": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "serviceType": {
+                            "type": "string",
+                            "enum": ["NONE", "SHOP", "INN", "CRAFTING", "MUSEUM", "TRAINING"]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": ["PRESENT", "OFF_SCHEDULE", "ELSEWHERE"]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "pronouns",
+                          "roles",
+                          "shortDescription",
+                          "homeRegion",
+                          "tags",
+                          "portraitAssetKey",
+                          "sceneAssetKey",
+                          "serviceType",
+                          "availability"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["locationSlug", "segment", "npcs"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/npcs/{npcKey}": {
+      "get": {
+        "summary": "A named NPC, with its availability for the requesting character",
+        "tags": ["world"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "path",
+            "name": "npcKey",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "pronouns": {
+                      "type": "string"
+                    },
+                    "roles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "INNKEEPER",
+                          "MERCHANT",
+                          "CRAFTSPERSON",
+                          "TRAINER",
+                          "QUEST_GIVER",
+                          "CURATOR",
+                          "GUARD",
+                          "TRAVELER",
+                          "WORKER",
+                          "SCHOLAR",
+                          "AMBIENT"
+                        ]
+                      }
+                    },
+                    "shortDescription": {
+                      "type": "string"
+                    },
+                    "homeRegion": {
+                      "type": "string"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "portraitAssetKey": {
+                      "type": "string"
+                    },
+                    "sceneAssetKey": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "serviceType": {
+                      "type": "string",
+                      "enum": ["NONE", "SHOP", "INN", "CRAFTING", "MUSEUM", "TRAINING"]
+                    },
+                    "availability": {
+                      "type": "string",
+                      "enum": ["PRESENT", "OFF_SCHEDULE", "ELSEWHERE"]
+                    },
+                    "longDescription": {
+                      "type": "string"
+                    },
+                    "scheduleSegments": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["DAWN", "DAY", "DUSK", "NIGHT"]
+                      }
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name",
+                    "pronouns",
+                    "roles",
+                    "shortDescription",
+                    "homeRegion",
+                    "tags",
+                    "portraitAssetKey",
+                    "sceneAssetKey",
+                    "serviceType",
+                    "availability",
+                    "longDescription",
+                    "scheduleSegments"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/channels": {
       "get": {
         "summary": "Channels this character may currently access, with unread counts",
@@ -12573,7 +12792,9 @@
                               "QUEST",
                               "COLLECTION",
                               "CHARACTER_CLASS",
-                              "LEVEL_PROGRESSION"
+                              "LEVEL_PROGRESSION",
+                              "NPC",
+                              "NPC_PLACEMENT"
                             ]
                           },
                           "key": {
@@ -12666,7 +12887,9 @@
                                   "QUEST",
                                   "COLLECTION",
                                   "CHARACTER_CLASS",
-                                  "LEVEL_PROGRESSION"
+                                  "LEVEL_PROGRESSION",
+                                  "NPC",
+                                  "NPC_PLACEMENT"
                                 ]
                               },
                               "key": {
@@ -12706,7 +12929,9 @@
                               "QUEST",
                               "COLLECTION",
                               "CHARACTER_CLASS",
-                              "LEVEL_PROGRESSION"
+                              "LEVEL_PROGRESSION",
+                              "NPC",
+                              "NPC_PLACEMENT"
                             ]
                           },
                           "fromKey": {
@@ -12728,7 +12953,9 @@
                               "QUEST",
                               "COLLECTION",
                               "CHARACTER_CLASS",
-                              "LEVEL_PROGRESSION"
+                              "LEVEL_PROGRESSION",
+                              "NPC",
+                              "NPC_PLACEMENT"
                             ]
                           },
                           "toKey": {
@@ -12800,7 +13027,9 @@
                               "QUEST",
                               "COLLECTION",
                               "CHARACTER_CLASS",
-                              "LEVEL_PROGRESSION"
+                              "LEVEL_PROGRESSION",
+                              "NPC",
+                              "NPC_PLACEMENT"
                             ]
                           },
                           "key": {
@@ -12859,7 +13088,9 @@
                 "QUEST",
                 "COLLECTION",
                 "CHARACTER_CLASS",
-                "LEVEL_PROGRESSION"
+                "LEVEL_PROGRESSION",
+                "NPC",
+                "NPC_PLACEMENT"
               ]
             },
             "in": "path",
@@ -12901,7 +13132,9 @@
                         "QUEST",
                         "COLLECTION",
                         "CHARACTER_CLASS",
-                        "LEVEL_PROGRESSION"
+                        "LEVEL_PROGRESSION",
+                        "NPC",
+                        "NPC_PLACEMENT"
                       ]
                     },
                     "key": {
@@ -12978,7 +13211,9 @@
                 "QUEST",
                 "COLLECTION",
                 "CHARACTER_CLASS",
-                "LEVEL_PROGRESSION"
+                "LEVEL_PROGRESSION",
+                "NPC",
+                "NPC_PLACEMENT"
               ]
             },
             "in": "path",
@@ -13020,7 +13255,9 @@
                         "QUEST",
                         "COLLECTION",
                         "CHARACTER_CLASS",
-                        "LEVEL_PROGRESSION"
+                        "LEVEL_PROGRESSION",
+                        "NPC",
+                        "NPC_PLACEMENT"
                       ]
                     },
                     "key": {
@@ -13080,7 +13317,9 @@
                 "QUEST",
                 "COLLECTION",
                 "CHARACTER_CLASS",
-                "LEVEL_PROGRESSION"
+                "LEVEL_PROGRESSION",
+                "NPC",
+                "NPC_PLACEMENT"
               ]
             },
             "in": "path",
@@ -13151,7 +13390,9 @@
                 "QUEST",
                 "COLLECTION",
                 "CHARACTER_CLASS",
-                "LEVEL_PROGRESSION"
+                "LEVEL_PROGRESSION",
+                "NPC",
+                "NPC_PLACEMENT"
               ]
             },
             "in": "path",
@@ -13193,7 +13434,9 @@
                         "QUEST",
                         "COLLECTION",
                         "CHARACTER_CLASS",
-                        "LEVEL_PROGRESSION"
+                        "LEVEL_PROGRESSION",
+                        "NPC",
+                        "NPC_PLACEMENT"
                       ]
                     },
                     "key": {
@@ -13222,7 +13465,9 @@
                               "QUEST",
                               "COLLECTION",
                               "CHARACTER_CLASS",
-                              "LEVEL_PROGRESSION"
+                              "LEVEL_PROGRESSION",
+                              "NPC",
+                              "NPC_PLACEMENT"
                             ]
                           },
                           "key": {
@@ -13277,7 +13522,9 @@
                 "QUEST",
                 "COLLECTION",
                 "CHARACTER_CLASS",
-                "LEVEL_PROGRESSION"
+                "LEVEL_PROGRESSION",
+                "NPC",
+                "NPC_PLACEMENT"
               ]
             },
             "in": "path",
@@ -13319,7 +13566,9 @@
                         "QUEST",
                         "COLLECTION",
                         "CHARACTER_CLASS",
-                        "LEVEL_PROGRESSION"
+                        "LEVEL_PROGRESSION",
+                        "NPC",
+                        "NPC_PLACEMENT"
                       ]
                     },
                     "key": {
@@ -13352,7 +13601,9 @@
                               "QUEST",
                               "COLLECTION",
                               "CHARACTER_CLASS",
-                              "LEVEL_PROGRESSION"
+                              "LEVEL_PROGRESSION",
+                              "NPC",
+                              "NPC_PLACEMENT"
                             ]
                           },
                           "key": {

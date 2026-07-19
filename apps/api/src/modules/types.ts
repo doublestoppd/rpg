@@ -14,6 +14,7 @@ import type { GatheringService } from '../domain/gathering/gathering-service.js'
 import type { InnService } from '../domain/inn/inn-service.js';
 import type { EquipmentService } from '../domain/inventory/equipment-service.js';
 import type { InventoryService } from '../domain/inventory/inventory-service.js';
+import type { NpcService } from '../domain/living-world/npc-service.js';
 import type { LocationService } from '../domain/location/location-service.js';
 import type { MarketplaceService } from '../domain/marketplace/marketplace-service.js';
 import type { MuseumService } from '../domain/museum/museum-service.js';
@@ -56,6 +57,7 @@ export interface ServiceRegistry {
   chatService?: ChatService;
   worldClockService?: WorldClockService;
   atmosphereService?: AtmosphereService;
+  npcService?: NpcService;
 }
 
 /** Everything a feature module may use to construct and register itself. */
