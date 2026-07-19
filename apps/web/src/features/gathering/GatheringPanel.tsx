@@ -1,4 +1,4 @@
-import type { GatheringResult, GatheringRun } from '@rpg/shared';
+import { type GatheringResult, type GatheringRun, SKILL_LABELS } from '@rpg/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
@@ -140,7 +140,7 @@ export function GatheringPanel() {
   return (
     <div className="mt-3 space-y-3">
       <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
-        Mining level {skill.level}
+        {SKILL_LABELS[skill.skill]} level {skill.level}
         {skill.xpForNextLevel !== null
           ? ` — ${skill.xp} / ${skill.xpForNextLevel} XP`
           : ' (mastered)'}
@@ -169,7 +169,8 @@ export function GatheringPanel() {
       {!active && !held && lastCompleted && revealedId === lastCompleted.id && (
         <div className="rounded-md border border-green-300 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
           <p className="text-sm font-medium text-green-900 dark:text-green-200">
-            {lastCompleted.actionName} complete! You gained {lastCompleted.xpAwarded} Mining XP.
+            {lastCompleted.actionName} complete! You gained {lastCompleted.xpAwarded}{' '}
+            {SKILL_LABELS[skill.skill]} XP.
           </p>
           <RewardList result={lastCompleted} />
         </div>
@@ -203,7 +204,7 @@ export function GatheringPanel() {
                 </Button>
               ) : (
                 <p className="mt-2 text-xs font-medium text-stone-500 dark:text-stone-400">
-                  Requires Mining level {action.levelRequirement}
+                  Requires {SKILL_LABELS[action.skill]} level {action.levelRequirement}
                 </p>
               )}
             </li>

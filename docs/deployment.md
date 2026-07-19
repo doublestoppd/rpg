@@ -38,6 +38,14 @@ npm run content:release1     # needs DATABASE_URL
 npm run content:validate     # optional: re-check content against publication rules
 ```
 
+Content expansions (e.g. Northmarch, Phase 22) ship the same way: an idempotent
+command validates the full bundle and applies it to the live tables (no seed
+edit, no schema change to gameplay tables):
+
+```bash
+npm run content:expansion northmarch     # needs DATABASE_URL
+```
+
 ## Reverse proxy, TLS, and WebSockets
 
 - Terminate TLS at the proxy and set `ENABLE_HSTS=true` so HSTS is only sent

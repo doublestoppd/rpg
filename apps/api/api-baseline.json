@@ -4271,7 +4271,7 @@
                       "properties": {
                         "skill": {
                           "type": "string",
-                          "enum": ["MINING"]
+                          "enum": ["MINING", "HERBALISM"]
                         },
                         "level": {
                           "type": "integer",
@@ -4309,7 +4309,7 @@
                           },
                           "skill": {
                             "type": "string",
-                            "enum": ["MINING"]
+                            "enum": ["MINING", "HERBALISM"]
                           },
                           "levelRequirement": {
                             "type": "integer",
@@ -4459,7 +4459,7 @@
                       "properties": {
                         "skill": {
                           "type": "string",
-                          "enum": ["MINING"]
+                          "enum": ["MINING", "HERBALISM"]
                         },
                         "level": {
                           "type": "integer",
@@ -5150,7 +5150,7 @@
                       "properties": {
                         "skill": {
                           "type": "string",
-                          "enum": ["MINING"]
+                          "enum": ["MINING", "HERBALISM"]
                         },
                         "level": {
                           "type": "integer",
@@ -5199,7 +5199,7 @@
                       "properties": {
                         "profession": {
                           "type": "string",
-                          "enum": ["BLACKSMITHING"]
+                          "enum": ["BLACKSMITHING", "ALCHEMY"]
                         },
                         "level": {
                           "type": "integer",
@@ -5237,7 +5237,7 @@
                           },
                           "profession": {
                             "type": "string",
-                            "enum": ["BLACKSMITHING"]
+                            "enum": ["BLACKSMITHING", "ALCHEMY"]
                           },
                           "levelRequirement": {
                             "type": "integer",
@@ -5695,7 +5695,7 @@
                       "properties": {
                         "profession": {
                           "type": "string",
-                          "enum": ["BLACKSMITHING"]
+                          "enum": ["BLACKSMITHING", "ALCHEMY"]
                         },
                         "level": {
                           "type": "integer",
@@ -6386,7 +6386,7 @@
                       "properties": {
                         "profession": {
                           "type": "string",
-                          "enum": ["BLACKSMITHING"]
+                          "enum": ["BLACKSMITHING", "ALCHEMY"]
                         },
                         "level": {
                           "type": "integer",

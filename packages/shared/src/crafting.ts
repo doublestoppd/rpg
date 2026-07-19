@@ -40,8 +40,21 @@ export function blacksmithingXpForNextLevel(level: number): number | null {
   return next ? next.cumulativeXp : null;
 }
 
-export const professionTypeSchema = z.enum(['BLACKSMITHING']);
+export const professionTypeSchema = z.enum(['BLACKSMITHING', 'ALCHEMY']);
 export type ProfessionTypeValue = z.infer<typeof professionTypeSchema>;
+
+/** Human-readable crafting profession names (for messages and UI labels). */
+export const PROFESSION_LABELS: Record<ProfessionTypeValue, string> = {
+  BLACKSMITHING: 'Blacksmithing',
+  ALCHEMY: 'Alchemy',
+};
+
+/**
+ * Crafting professions share one XP curve (Phase 22). Aliases read clearly for
+ * any profession; the blacksmithing-named helpers remain for compatibility.
+ */
+export const craftingLevelForXp = blacksmithingLevelForXp;
+export const craftingXpForNextLevel = blacksmithingXpForNextLevel;
 
 export const professionProgressSchema = z.object({
   profession: professionTypeSchema,

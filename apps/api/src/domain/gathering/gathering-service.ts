@@ -8,12 +8,13 @@ import type {
 import {
   type ClaimGatheringResponse,
   type GatheringActionsResponse,
+  gatheringLevelForXp,
   type GatheringResult,
   type GatheringRun,
   type GatheringStatusResponse,
-  miningLevelForXp,
+  gatheringXpForNextLevel,
   type MiningSkillInfo,
-  miningXpForNextLevel,
+  SKILL_LABELS,
 } from '@rpg/shared';
 import { z } from 'zod';
 
@@ -103,8 +104,9 @@ export function createGatheringService(
       where: { characterId_skill: { characterId, skill } },
     });
     const xp = row?.xp ?? 0;
-    const level = miningLevelForXp(xp);
-    return { skill, level, xp, xpForNextLevel: miningXpForNextLevel(level) };
+    // All gathering skills share one XP curve (Phase 22).
+    const level = gatheringLevelForXp(xp);
+    return { skill, level, xp, xpForNextLevel: gatheringXpForNextLevel(level) };
   }
 
   function toRun(row: GatheringRunRow, action: GatheringActionDefinition, now: Date): GatheringRun {
@@ -151,9 +153,10 @@ export function createGatheringService(
   async function grantOutcome(
     tx: Tx,
     characterId: string,
-    actionSlug: string,
+    action: Pick<GatheringActionDefinition, 'slug' | 'skill'>,
     outcome: Outcome,
   ): Promise<void> {
+    const actionSlug = action.slug;
     for (const reward of outcome.rewards) {
       await inventoryService.addToStack(tx, {
         characterId,
@@ -163,9 +166,11 @@ export function createGatheringService(
       });
     }
     if (outcome.xp > 0) {
+      // XP accrues to the action's own skill track (Phase 22): Mining and
+      // Herbalism progress independently.
       await tx.characterSkill.upsert({
-        where: { characterId_skill: { characterId, skill: 'MINING' } },
-        create: { characterId, skill: 'MINING', xp: outcome.xp },
+        where: { characterId_skill: { characterId, skill: action.skill } },
+        create: { characterId, skill: action.skill, xp: outcome.xp },
         update: { xp: { increment: outcome.xp } },
       });
     }
@@ -194,12 +199,12 @@ export function createGatheringService(
           data: { status: 'COMPLETED', completedAt: now, claimedAt: now },
         });
         if (updated.count !== 1) return; // another request finalized it
-        await grantOutcome(tx, run.characterId, run.action.slug, outcomeSchema.parse(run.outcome));
+        await grantOutcome(tx, run.characterId, run.action, outcomeSchema.parse(run.outcome));
         await notifications.create(tx, {
           characterId: run.characterId,
           type: 'GATHERING_COMPLETED',
           dedupeKey: `gathering:${run.id}`,
-          title: 'Mining complete',
+          title: `${SKILL_LABELS[run.action.skill]} complete`,
           body: `${run.action.name} is finished — your haul is in your pack.`,
         });
       });
@@ -239,13 +244,12 @@ export function createGatheringService(
     async getActions(userId) {
       const character = await characterService.requireCharacter(userId);
       const locationId = await locationService.requireCurrentLocationId(userId);
-      const [skill, actions] = await Promise.all([
-        skillInfo(prisma, character.id),
-        prisma.gatheringActionDefinition.findMany({
-          where: { locationId },
-          orderBy: { sortOrder: 'asc' },
-        }),
-      ]);
+      const actions = await prisma.gatheringActionDefinition.findMany({
+        where: { locationId },
+        orderBy: { sortOrder: 'asc' },
+      });
+      // Show progress for the skill this location's actions use (Phase 22).
+      const skill = await skillInfo(prisma, character.id, actions[0]?.skill ?? 'MINING');
       return {
         skill,
         actions: actions.map((action) => ({
@@ -290,12 +294,12 @@ export function createGatheringService(
         throw conflict('NOT_HERE', 'You cannot work that claim from here.');
       }
 
-      const skill = await skillInfo(prisma, character.id);
+      const skill = await skillInfo(prisma, character.id, action.skill);
       if (skill.level < action.levelRequirement) {
         throw new DomainError(
           400,
           'SKILL_TOO_LOW',
-          `That work needs Mining level ${action.levelRequirement}.`,
+          `That work needs ${SKILL_LABELS[action.skill]} level ${action.levelRequirement}.`,
         );
       }
 
@@ -379,8 +383,7 @@ export function createGatheringService(
       const character = await characterService.requireCharacter(userId);
       await finalizer.finalizeExpired(character.id, now);
 
-      const [skill, active, held, lastCompleted] = await Promise.all([
-        skillInfo(prisma, character.id),
+      const [active, held, lastCompleted] = await Promise.all([
         prisma.gatheringRun.findFirst({
           where: { characterId: character.id, status: 'IN_PROGRESS' },
           include: { action: true },
@@ -395,6 +398,10 @@ export function createGatheringService(
           include: { action: true },
         }),
       ]);
+      // Progress for the skill of whatever run is in view (Phase 22).
+      const contextSkill =
+        active?.action.skill ?? held?.action.skill ?? lastCompleted?.action.skill ?? 'MINING';
+      const skill = await skillInfo(prisma, character.id, contextSkill);
 
       return {
         skill,
@@ -428,12 +435,12 @@ export function createGatheringService(
         if (updated.count !== 1) {
           throw conflict('NOTHING_TO_CLAIM', 'You have no held rewards to claim.');
         }
-        await grantOutcome(tx, character.id, held.action.slug, outcomeSchema.parse(held.outcome));
+        await grantOutcome(tx, character.id, held.action, outcomeSchema.parse(held.outcome));
         await notifications.create(tx, {
           characterId: character.id,
           type: 'GATHERING_COMPLETED',
           dedupeKey: `gathering:${held.id}`,
-          title: 'Mining complete',
+          title: `${SKILL_LABELS[held.action.skill]} complete`,
           body: `${held.action.name} is finished — your haul is in your pack.`,
         });
       });
@@ -444,7 +451,7 @@ export function createGatheringService(
       });
       return {
         result: await toResult(claimed, claimed.action),
-        skill: await skillInfo(prisma, character.id),
+        skill: await skillInfo(prisma, character.id, claimed.action.skill),
       };
     },
   };

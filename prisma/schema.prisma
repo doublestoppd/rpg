@@ -519,6 +519,7 @@ model DeliveryLine {
 
 enum SkillType {
   MINING
+  HERBALISM
 }
 
 /// Per-character gathering skill progress. Level is derived from xp by the
@@ -617,6 +618,7 @@ model GatheringRun {
 
 enum ProfessionType {
   BLACKSMITHING
+  ALCHEMY
 }
 
 /// Per-character crafting profession progress. Level is derived from xp by

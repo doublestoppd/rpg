@@ -15,6 +15,7 @@
     "content:validate": "node dist/content-cli.js validate",
     "content:release1": "node dist/content-cli.js release1",
     "content:import": "node dist/content-cli.js import",
+    "content:expansion": "node dist/content-cli.js expansion",
     "db:generate": "prisma generate --schema ../../prisma/schema.prisma"
   },
   "dependencies": {

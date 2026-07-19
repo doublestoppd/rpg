@@ -40,7 +40,8 @@
     "content:export": "npm run content:export --workspace apps/api --",
     "content:validate": "npm run content:validate --workspace apps/api --",
     "content:release1": "npm run content:release1 --workspace apps/api --",
-    "content:import": "npm run content:import --workspace apps/api --"
+    "content:import": "npm run content:import --workspace apps/api --",
+    "content:expansion": "npm run content:expansion --workspace apps/api --"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

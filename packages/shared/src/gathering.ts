@@ -36,8 +36,22 @@ export function miningXpForNextLevel(level: number): number | null {
   return next ? next.cumulativeXp : null;
 }
 
-export const skillTypeSchema = z.enum(['MINING']);
+export const skillTypeSchema = z.enum(['MINING', 'HERBALISM']);
 export type SkillTypeValue = z.infer<typeof skillTypeSchema>;
+
+/** Human-readable gathering skill names (for messages and UI labels). */
+export const SKILL_LABELS: Record<SkillTypeValue, string> = {
+  MINING: 'Mining',
+  HERBALISM: 'Herbalism',
+};
+
+/**
+ * Gathering skills share one XP curve (Phase 22). The historical
+ * mining-specific helpers remain for compatibility; these aliases read clearly
+ * for any skill.
+ */
+export const gatheringLevelForXp = miningLevelForXp;
+export const gatheringXpForNextLevel = miningXpForNextLevel;
 
 export const miningSkillSchema = z.object({
   skill: skillTypeSchema,

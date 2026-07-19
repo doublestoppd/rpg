@@ -3,6 +3,60 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 22 — World Expansion: Northmarch, Herbalism, and Alchemy (2026-07-19)
+
+**Status: complete.** The first large gameplay expansion, delivered as _content_
+through the platform, with code limited to genuinely new mechanics and reusable
+presentation. Acceptance test met: the Northmarch region and all its ordinary
+definitions are created through the content workflow (validate → publish →
+apply-on-publish); the only code changes are the Herbalism/Alchemy professions
+and profession-agnostic UI labels.
+
+### Delivered
+
+- **Northmarch region as content** (`domain/content/expansions/northmarch.ts`):
+  ~82 versioned definitions — 4 new locations (Hold, Fen, Thicket, Barrow) hung
+  off the existing North Road, routes, inn/marketplace/shop/craft/quest/museum
+  features, 16 items, 4 Herbalism gathering actions, 8 Alchemy recipes, 6
+  enemies, 5 encounters (2 elite + 1 gated boss), 10 quests, a relic collection,
+  2 NPC shops, and region-specific price modifiers. Published via
+  `npm run content:expansion northmarch` (idempotent), which validates the full
+  bundle and applies it to the live tables. The seed is untouched.
+- **Herbalism + Alchemy mechanics**: `SkillType += HERBALISM`,
+  `ProfessionType += ALCHEMY` (migration + shared schemas). Gathering and
+  crafting are now multi-track — XP accrues to the action's skill / recipe's
+  profession, and each surface shows progress for the profession its location
+  offers. Stored-outcome, capacity-hold, lazy-finalization, idempotency, and
+  worker-offline behavior are inherited unchanged from Mining/Blacksmithing.
+- **Region economy**: marketplace remote delivery recognizes `northmarch`
+  automatically (regions are derived from shop rows); recipe fees, reagent
+  consumption, and shop markups provide Gold and material sinks. Level cap
+  stays at 20.
+- **Reusable presentation**: the gathering and crafting panels render the
+  skill/profession name from the response (`SKILL_LABELS`, `PROFESSION_LABELS`)
+  instead of hardcoding "Mining"/"Blacksmithing".
+
+### Commands
+
+| Command                                | Purpose                                                    |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `npm run content:expansion northmarch` | Idempotently validate and publish the Northmarch expansion |
+
+### Tests
+
+4 new (1 file): the acceptance test (the expansion publishes as a release and
+materializes the whole region into the live tables, including the gated boss),
+idempotent re-publish, Herbalism end-to-end (gathers herbs, awards Herbalism XP
+not Mining, idempotent replay), and Alchemy end-to-end (brews an elixir, awards
+Alchemy XP not Blacksmithing, consumes reagents). The suite publishes into and
+cleans the shared content out afterward, so file isolation holds.
+
+### Scope note
+
+Content counts sit at the lower end of the suggested ranges (a complete, valid,
+low-level region) to keep the authored data correct and reviewable; the same
+builders extend it. See ADR 0015.
+
 ## Phase 21 — Visual Asset Framework and player-UI refresh (2026-07-18)
 
 **Status: framework complete; UI refresh foundational.** Establishes a stable

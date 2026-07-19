@@ -6,13 +6,14 @@ import type {
   ProfessionType,
 } from '@prisma/client';
 import {
-  blacksmithingLevelForXp,
-  blacksmithingXpForNextLevel,
   type ClaimCraftingResponse,
+  craftingLevelForXp,
   type CraftingRecipesResponse,
   type CraftingResult,
   type CraftingRun,
   type CraftingStatusResponse,
+  craftingXpForNextLevel,
+  PROFESSION_LABELS,
   type ProfessionProgressInfo,
 } from '@rpg/shared';
 import { z } from 'zod';
@@ -103,8 +104,9 @@ export function createCraftingService(
       where: { characterId_profession: { characterId, profession } },
     });
     const xp = row?.xp ?? 0;
-    const level = blacksmithingLevelForXp(xp);
-    return { profession, level, xp, xpForNextLevel: blacksmithingXpForNextLevel(level) };
+    // All crafting professions share one XP curve (Phase 22).
+    const level = craftingLevelForXp(xp);
+    return { profession, level, xp, xpForNextLevel: craftingXpForNextLevel(level) };
   }
 
   function toRun(row: CraftingRunRow, recipe: CraftingRecipe, now: Date): CraftingRun {
@@ -147,9 +149,10 @@ export function createCraftingService(
   async function grantOutput(
     tx: Tx,
     characterId: string,
-    recipeSlug: string,
+    recipe: Pick<CraftingRecipe, 'slug' | 'profession'>,
     snapshot: OutputSnapshot,
   ): Promise<void> {
+    const recipeSlug = recipe.slug;
     for (const output of snapshot.outputs) {
       if (output.stackable) {
         await inventoryService.addToStack(tx, {
@@ -169,9 +172,11 @@ export function createCraftingService(
       }
     }
     if (snapshot.xp > 0) {
+      // XP accrues to the recipe's own profession track (Phase 22):
+      // Blacksmithing and Alchemy progress independently.
       await tx.craftingProfessionProgress.upsert({
-        where: { characterId_profession: { characterId, profession: 'BLACKSMITHING' } },
-        create: { characterId, profession: 'BLACKSMITHING', xp: snapshot.xp },
+        where: { characterId_profession: { characterId, profession: recipe.profession } },
+        create: { characterId, profession: recipe.profession, xp: snapshot.xp },
         update: { xp: { increment: snapshot.xp } },
       });
     }
@@ -196,17 +201,12 @@ export function createCraftingService(
           data: { status: 'COMPLETED', completedAt: now, claimedAt: now },
         });
         if (updated.count !== 1) return; // another request finalized it
-        await grantOutput(
-          tx,
-          run.characterId,
-          run.recipe.slug,
-          outputSnapshotSchema.parse(run.output),
-        );
+        await grantOutput(tx, run.characterId, run.recipe, outputSnapshotSchema.parse(run.output));
         await notifications.create(tx, {
           characterId: run.characterId,
           type: 'CRAFTING_COMPLETED',
           dedupeKey: `crafting:${run.id}`,
-          title: 'Forge work complete',
+          title: `${PROFESSION_LABELS[run.recipe.profession]} complete`,
           body: `${run.recipe.name} is finished — the result is in your pack.`,
         });
       });
@@ -269,10 +269,16 @@ export function createCraftingService(
     async getRecipes(userId) {
       const character = await characterService.requireCharacter(userId);
       const locationId = await locationService.requireCurrentLocationId(userId);
-      const [profession, recipes] = await Promise.all([
-        professionInfo(prisma, character.id),
-        prisma.craftingRecipe.findMany({ where: { locationId }, orderBy: { sortOrder: 'asc' } }),
-      ]);
+      const recipes = await prisma.craftingRecipe.findMany({
+        where: { locationId },
+        orderBy: { sortOrder: 'asc' },
+      });
+      // Show progress for the profession this location's recipes use (Phase 22).
+      const profession = await professionInfo(
+        prisma,
+        character.id,
+        recipes[0]?.profession ?? 'BLACKSMITHING',
+      );
       return {
         profession,
         recipes: await Promise.all(recipes.map((r) => toRecipeInfo(r, profession.level))),
@@ -310,12 +316,12 @@ export function createCraftingService(
         throw conflict('NOT_HERE', 'This recipe needs the forge — you are not there.');
       }
 
-      const profession = await professionInfo(prisma, character.id);
+      const profession = await professionInfo(prisma, character.id, recipe.profession);
       if (profession.level < recipe.levelRequirement) {
         throw new DomainError(
           400,
           'SKILL_TOO_LOW',
-          `That work needs Blacksmithing level ${recipe.levelRequirement}.`,
+          `That work needs ${PROFESSION_LABELS[recipe.profession]} level ${recipe.levelRequirement}.`,
         );
       }
 
@@ -422,8 +428,7 @@ export function createCraftingService(
       const character = await characterService.requireCharacter(userId);
       await finalizer.finalizeExpired(character.id, now);
 
-      const [profession, active, held, lastCompleted] = await Promise.all([
-        professionInfo(prisma, character.id),
+      const [active, held, lastCompleted] = await Promise.all([
         prisma.craftingRun.findFirst({
           where: { characterId: character.id, status: 'IN_PROGRESS' },
           include: { recipe: true },
@@ -438,6 +443,13 @@ export function createCraftingService(
           include: { recipe: true },
         }),
       ]);
+      // Progress for the profession of whatever run is in view (Phase 22).
+      const contextProfession =
+        active?.recipe.profession ??
+        held?.recipe.profession ??
+        lastCompleted?.recipe.profession ??
+        'BLACKSMITHING';
+      const profession = await professionInfo(prisma, character.id, contextProfession);
 
       return {
         profession,
@@ -471,17 +483,12 @@ export function createCraftingService(
         if (updated.count !== 1) {
           throw conflict('NOTHING_TO_CLAIM', 'You have no finished work to collect.');
         }
-        await grantOutput(
-          tx,
-          character.id,
-          held.recipe.slug,
-          outputSnapshotSchema.parse(held.output),
-        );
+        await grantOutput(tx, character.id, held.recipe, outputSnapshotSchema.parse(held.output));
         await notifications.create(tx, {
           characterId: character.id,
           type: 'CRAFTING_COMPLETED',
           dedupeKey: `crafting:${held.id}`,
-          title: 'Forge work complete',
+          title: `${PROFESSION_LABELS[held.recipe.profession]} complete`,
           body: `${held.recipe.name} is finished — the result is in your pack.`,
         });
       });
@@ -492,7 +499,7 @@ export function createCraftingService(
       });
       return {
         result: await toResult(claimed, claimed.recipe),
-        profession: await professionInfo(prisma, character.id),
+        profession: await professionInfo(prisma, character.id, claimed.recipe.profession),
       };
     },
   };

@@ -15,6 +15,7 @@ import { contentBundleSchema } from '@rpg/shared';
 import { loadEnv } from './config/env.js';
 import { stableStringify } from './domain/content/canonical.js';
 import { createContentService } from './domain/content/content-service.js';
+import { ensureNorthmarchPublished } from './domain/content/expansions/publish-expansion.js';
 import { createPrismaClient } from './lib/prisma.js';
 
 function print(obj: unknown): void {
@@ -60,6 +61,17 @@ async function main(): Promise<void> {
         const result = await service.ensureRelease1();
         console.error(
           result.created ? 'Release 1 created (PUBLISHED)' : 'Release 1 already exists',
+        );
+        break;
+      }
+      case 'expansion': {
+        const name = process.argv[3];
+        if (name !== 'northmarch') throw new Error('usage: content:expansion northmarch');
+        const result = await ensureNorthmarchPublished(prisma);
+        console.error(
+          result.created
+            ? `Northmarch expansion published (release v${result.version})`
+            : `Northmarch expansion already published (release v${result.version})`,
         );
         break;
       }
