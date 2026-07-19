@@ -36,6 +36,9 @@ export function AppShell() {
           <NavLink to="/character" className={linkClass}>
             Character
           </NavLink>
+          <NavLink to="/character/build" className={linkClass}>
+            Build
+          </NavLink>
           <NavLink to="/inventory" className={linkClass}>
             Inventory
           </NavLink>
@@ -45,10 +48,21 @@ export function AppShell() {
           <NavLink to="/quests" className={linkClass}>
             Quests
           </NavLink>
+          <NavLink to="/activities" className={linkClass}>
+            Bounties
+          </NavLink>
           <NavLink to="/collection" className={linkClass}>
             Collection
           </NavLink>
+          <NavLink to="/chat" className={linkClass}>
+            Chat
+          </NavLink>
           <NotificationsNavLink linkClass={linkClass} />
+          {session.user.role === 'ADMIN' && (
+            <NavLink to="/admin" className={linkClass}>
+              Admin
+            </NavLink>
+          )}
           <NavLink to="/settings" className={linkClass}>
             Settings
           </NavLink>

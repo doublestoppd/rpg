@@ -126,6 +126,10 @@ describe('restocking', () => {
       pool: Array<{ itemSlug: string; minQuantity: number; maxQuantity: number }>;
     };
     for (const entry of await prisma.npcShopStockEntry.findMany({
+      // Scope to the shop under test: other suites may restock other shops
+      // concurrently against the shared database, and their prices use a
+      // different location modifier than this shop's Market District 10500.
+      where: { restock: { shopId: shop.id } },
       include: { itemDefinition: true },
     })) {
       const poolEntry = config.pool.find((p) => p.itemSlug === entry.itemDefinition.slug);

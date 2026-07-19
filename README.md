@@ -8,11 +8,21 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 15 complete** — persistent
-notifications for six gameplay events, created inside the same transactions
-as the events themselves and deduplicated by domain-event key; REST +
-polling are the source of truth and an authenticated WebSocket adds
-best-effort live nudges. Administration arrives in Phase 16.
+for what exists today. **Currently: Phase 18 complete** — production hardening
+and release validation: security headers, explicit proxy trust + bounded body
+size, liveness/readiness split + worker health probe, graceful shutdown, a
+token-guarded OpenMetrics export, allowlisted data-lifecycle cleanup,
+clean-DB migration + seed-idempotency tests, database integrity checks, a
+backup/restore round-trip smoke test, a dependency-audit + SBOM gate, and an
+API-baseline freeze check. See [`docs/RELEASE.md`](docs/RELEASE.md) for the
+go/no-go, [`docs/deployment.md`](docs/deployment.md),
+[`docs/threat-model.md`](docs/threat-model.md), and the runbooks under `docs/`.
+
+Earlier: **Phase 17** — a role-protected administrator workspace (bootstrap-free
+promotion, recent-auth-gated investigation, safe Gold/item ops, config edits,
+database-derived metrics, chat moderation) with append-only same-transaction
+auditing. **Phase 16** — persistent player chat over the shared WebSocket
+(cross-instance via PostgreSQL `LISTEN/NOTIFY`) with polling fallback.
 
 ## Stack (fixed)
 
@@ -94,6 +104,21 @@ npm run start:worker       # pg-boss job worker (always a separate process)
 `apps/web/dist` is served as static files by any web server or CDN; the Vite
 dev server is never used in production. API docs (documentation only) are at
 `/api/v1/docs`.
+
+### Administration
+
+There is no default administrator account. Promote an existing account
+out-of-band (idempotent; in production requires `ADMIN_BOOTSTRAP_ENABLED=true`):
+
+```bash
+npm run admin:promote -- someone@example.com
+```
+
+Administrator mutations require ADMIN role, valid CSRF + Origin, and recent
+password re-authentication (`POST /api/v1/admin/reauth`, default 10-minute
+window). Every successful mutation writes an append-only, same-transaction
+`AdminAuditLog` row. See [`docs/moderation-runbook.md`](docs/moderation-runbook.md),
+[`docs/economy-metrics.md`](docs/economy-metrics.md), and ADRs 0010–0011.
 
 ## Conventions that never change
 

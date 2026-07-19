@@ -94,6 +94,60 @@ verified action — quest progress commits or rolls back atomically with
 the action. Synchronous, typed, in-process; deliberately not an event
 bus. New event types extend the `QuestDomainEvent` union.
 
+## Real-time delivery (Phase 15–16)
+
+PostgreSQL rows are authoritative; the WebSocket is a best-effort enhancement
+(ADR 0004, 0009). One authenticated socket — `/api/v1/notifications/ws`,
+owned by the notifications module and shared by chat — carries a small
+discriminated-union of envelope events (`sync` nudges,
+`chat.message.created` invalidations). Events carry identifiers only; clients
+fetch data over REST, and 10–15s polling is the complete fallback.
+
+The socket upgrade validates the cookie session and Origin; inbound frames are
+size-capped, a periodic sweep heartbeats connections and closes sockets whose
+session was revoked or expired, and the hub disconnects slow consumers instead
+of buffering without bound. Across API instances, chat commits fan out via
+PostgreSQL `LISTEN/NOTIFY` (identifier-only payloads, listener reconnects with
+backoff); missed notifications are repaired by polling. No Redis, no broker.
+
+## Administration and audit (Phase 17)
+
+The administration module extends existing domain services (currency,
+inventory, npc-shops, chat) rather than duplicating mutation logic; admin
+route handlers stay thin and never import Prisma. There is no default
+administrator — `npm run admin:promote` elevates an existing account
+out-of-band (ADR 0010). Every admin mutation requires ADMIN role, CSRF +
+Origin, and recent password re-authentication (a server-side session marker,
+not a second token), and writes exactly one append-only `AdminAuditLog` row in
+the same transaction as the domain change. A PostgreSQL trigger makes that
+table immutable (no UPDATE/DELETE). Configuration edits use optimistic
+`configVersion` compare-and-set; structural fields are never mutable
+(ADR 0011). Economy metrics are computed only from authoritative database
+records (ledger, transfers, destructions, sales) — never from the resettable
+process counters — and are documented in `docs/economy-metrics.md`. Chat
+moderation redacts to a tombstone (never hard-deletes), preserves report
+evidence, and never reveals the reporter.
+
+## Production hardening (Phase 18)
+
+Infrastructure-only, no new gameplay. Security headers (CSP `default-src
+'none'`, nosniff, `X-Frame-Options: DENY`, Referrer-Policy, HSTS behind TLS) via
+a Fastify plugin; explicit `trustProxy` from `TRUST_PROXY`; a 256 KB body limit;
+production error redaction (unchanged contract). Health splits into liveness
+(`/health/live`, no DB dependency) and readiness (`/health/ready`, DB +
+migration state), keeping the legacy `/health`; the worker exposes an optional
+non-public health probe (`WORKER_HEALTH_PORT`). Both processes shut down
+gracefully with a bounded deadline (the API closes live sockets and the chat
+listener via onClose hooks). Process counters export as token-guarded
+OpenMetrics at `/metrics` (no user labels); economy truth stays in the admin
+database-derived endpoints. Data-lifecycle cleanup (`lib/cleanup.ts`) is batched,
+idempotent, and restricted to an allowlist (`Session`, `Notification`,
+`ChatMessage`); audit and economic evidence are retained. Operational scripts
+(`scripts/integrity-check.mjs`, `backup.mjs`, `restore.mjs`,
+`check-api-baseline.mjs`) back the migration, integrity, backup/restore, and
+baseline-freeze tests and CI gates. Deployment, environment, threat model,
+retention, monitoring, backup/restore, and go/no-go docs live under `docs/`.
+
 ## Observability
 
 - Every state-changing request logs one structured `authoritative
@@ -102,8 +156,10 @@ mutation` entry (request id, account, route-pattern operation,
   redaction covers tokens and passwords elsewhere.
 - `lib/metrics.ts` keeps process-local operational counters (idempotency
   replays, concurrency conflicts, combat/marketplace/quest conflicts,
-  worker failures, lazy finalizer runs). Fixed name set, no
-  high-cardinality labels, never player-visible.
+  worker failures, lazy finalizer runs, and chat counters: accepted
+  messages, idempotent replays, rate-limit and authorization rejections,
+  reports, socket disconnects, listener reconnects, polling recoveries).
+  Fixed name set, no high-cardinality labels, never player-visible.
 
 ## Quality gates
 

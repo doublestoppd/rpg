@@ -16,8 +16,16 @@ const idlePrisma = new PrismaClient({
   datasources: { db: { url: 'postgresql://test:test@localhost:5999/unused' } },
 });
 
-function deps(pingDatabase: AppDependencies['pingDatabase']): AppDependencies {
-  return { env: loadEnv(testEnvSource), prisma: idlePrisma, pingDatabase };
+function deps(
+  pingDatabase: AppDependencies['pingDatabase'],
+  overrides: Record<string, string> = {},
+): AppDependencies {
+  return {
+    env: loadEnv({ ...testEnvSource, ...overrides }),
+    prisma: idlePrisma,
+    pingDatabase,
+    checkMigrations: async () => 'ok',
+  };
 }
 
 describe('GET /api/v1/health', () => {
@@ -64,6 +72,101 @@ describe('GET /api/v1/health', () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({ error: { code: 'NOT_FOUND' } });
+    await app.close();
+  });
+});
+
+describe('security headers (Phase 18)', () => {
+  it('sets conservative security headers on every response', async () => {
+    const app = await buildApp(deps(async () => undefined));
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health' });
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['x-frame-options']).toBe('DENY');
+    expect(response.headers['referrer-policy']).toBe('no-referrer');
+    expect(String(response.headers['content-security-policy'])).toContain("default-src 'none'");
+    // HSTS is absent unless explicitly enabled (no TLS assumption).
+    expect(response.headers['strict-transport-security']).toBeUndefined();
+    await app.close();
+  });
+
+  it('sends HSTS only when ENABLE_HSTS=true', async () => {
+    const app = await buildApp(deps(async () => undefined, { ENABLE_HSTS: 'true' }));
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health' });
+    expect(String(response.headers['strict-transport-security'])).toContain('max-age=');
+    await app.close();
+  });
+});
+
+describe('liveness and readiness (Phase 18)', () => {
+  it('liveness is 200 without touching the database', async () => {
+    const app = await buildApp(
+      deps(async () => {
+        throw new Error('db down');
+      }),
+    );
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health/live' });
+    // Liveness ignores the database entirely.
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'alive' });
+    await app.close();
+  });
+
+  it('readiness is 200 when database and migrations are ok', async () => {
+    const app = await buildApp(deps(async () => undefined));
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'ready', database: 'ok', migrations: 'ok' });
+    await app.close();
+  });
+
+  it('readiness is 503 when the database is unreachable', async () => {
+    const app = await buildApp(
+      deps(async () => {
+        throw new Error('db down');
+      }),
+    );
+    const response = await app.inject({ method: 'GET', url: '/api/v1/health/ready' });
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ status: 'not_ready', database: 'unreachable' });
+    await app.close();
+  });
+});
+
+describe('body limit (Phase 18)', () => {
+  it('rejects an oversized request body', async () => {
+    const app = await buildApp(deps(async () => undefined));
+    const huge = 'x'.repeat(300 * 1024);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      headers: { origin: 'http://localhost:5173', 'content-type': 'application/json' },
+      payload: JSON.stringify({ email: 'a@b.c', password: huge }),
+    });
+    expect(response.statusCode).toBe(413);
+    await app.close();
+  });
+});
+
+describe('metrics endpoint (Phase 18)', () => {
+  it('is disabled (404) when no token is configured', async () => {
+    const app = await buildApp(deps(async () => undefined));
+    const response = await app.inject({ method: 'GET', url: '/api/v1/metrics' });
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it('requires the bearer token and emits OpenMetrics text with no user labels', async () => {
+    const app = await buildApp(deps(async () => undefined, { METRICS_TOKEN: 'scrape-secret' }));
+    expect((await app.inject({ method: 'GET', url: '/api/v1/metrics' })).statusCode).toBe(401);
+    const ok = await app.inject({
+      method: 'GET',
+      url: '/api/v1/metrics',
+      headers: { authorization: 'Bearer scrape-secret' },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(String(ok.headers['content-type'])).toContain('text/plain');
+    expect(ok.body).toContain('rpg_idempotency_replay_total');
+    expect(ok.body).toContain('# TYPE');
     await app.close();
   });
 });

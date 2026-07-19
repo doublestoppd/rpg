@@ -5,6 +5,10 @@ on:
     branches: ['**']
   pull_request:
 
+# Least privilege: CI only reads the repository (Phase 18).
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -36,9 +40,25 @@ jobs:
         run: npm run typecheck
       - name: Repository structure
         run: npm run verify:structure
+      - name: Visual assets are bundled, checksummed, and have valid fallbacks
+        run: npm run assets:verify
+      - name: API baseline is frozen (unreviewed contract changes fail)
+        run: npm run verify:baseline
+        env:
+          TEST_DATABASE_URL: postgresql://rpg:rpg@localhost:5432/rpg_test
       - name: Unit, API, integration, and compatibility tests
         run: npm test
         env:
           TEST_DATABASE_URL: postgresql://rpg:rpg@localhost:5432/rpg_test
+      - name: Production dependency audit (high/critical fails)
+        run: npm run audit:prod
+      - name: Generate SBOM (CycloneDX)
+        run: npm run sbom > sbom.cyclonedx.json || true
       - name: Production build
         run: npm run build
+      - name: Content validation (versioned-content publication rules)
+        run: npm run content:validate
+        env:
+          # The test step above seeds rpg_test (content tables are seed config,
+          # not truncated between tests), so the live content is present here.
+          DATABASE_URL: postgresql://rpg:rpg@localhost:5432/rpg_test

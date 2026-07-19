@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 
 import { buildApp } from './app.js';
 import { type Env, loadEnv } from './config/env.js';
+import { checkMigrationsApplied } from './lib/prisma.js';
 
 export const TEST_DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgresql://rpg:rpg@localhost:5432/rpg_test';
@@ -13,6 +14,16 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   return loadEnv({
     NODE_ENV: 'test',
     DATABASE_URL: TEST_DATABASE_URL,
+    // Wide chat limits so unrelated tests never trip the process-local
+    // limiter (its per-IP bucket is shared across a file's requests); the
+    // dedicated rate-limit test overrides these with a tiny bucket.
+    CHAT_RATE_LIMIT_BURST: '100',
+    CHAT_RATE_LIMIT_PER_MINUTE: '600',
+    CHAT_RATE_LIMIT_IP_BURST: '200',
+    CHAT_RATE_LIMIT_IP_PER_MINUTE: '1200',
+    // Wide reauth limit so admin tests can reauthenticate freely; the
+    // dedicated reauth rate-limit test overrides it with a tiny max.
+    ADMIN_REAUTH_RATE_LIMIT_MAX: '10000',
     ...overrides,
   });
 }
@@ -25,7 +36,12 @@ export async function truncateAll(prisma: PrismaClient): Promise<void> {
   // Gameplay/account state only — seeded configuration tables
   // (CharacterClassDefinition, LevelProgression) are left intact.
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Notification", "ItemDestruction", "CharacterCollectionDonation", ' +
+    // TRUNCATE bypasses the AdminAuditLog append-only row trigger (which only
+    // guards UPDATE/DELETE), so test isolation stays clean.
+    'TRUNCATE TABLE "AdminAuditLog", "ChatModerationAction", ' +
+      '"ChatReport", "ChatMessage", "ChatChannelReadState", "ChatBlock", ' +
+      '"ChatRestriction", ' +
+      '"Notification", "ItemDestruction", "CharacterCollectionDonation", ' +
       '"QuestProgress", "CharacterQuest", ' +
       '"CombatRewardGrant", "CombatStatusEffect", "CombatantState", "Combat", ' +
       '"CraftingRun", "CraftingProfessionProgress", ' +
@@ -70,14 +86,18 @@ export async function registerTestUser(
 
 export async function buildTestApp(
   prisma: PrismaClient,
-  options: { authRateLimit?: { max: number; timeWindowMs: number } } = {},
+  options: {
+    authRateLimit?: { max: number; timeWindowMs: number };
+    envOverrides?: Record<string, string>;
+  } = {},
 ): Promise<FastifyInstance> {
   return buildApp({
-    env: testEnv(),
+    env: testEnv(options.envOverrides),
     prisma,
     pingDatabase: async () => {
       await prisma.$queryRawUnsafe('SELECT 1');
     },
+    checkMigrations: () => checkMigrationsApplied(prisma),
     // High default so unrelated tests never trip the limiter; the dedicated
     // rate-limit test builds its own app with a small max.
     authRateLimit: options.authRateLimit ?? { max: 10_000, timeWindowMs: 60_000 },

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="Placeholder quest icon">
+  <defs>
+    <linearGradient id="g-quest-icon-default" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#fcd34d"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="70" height="70" rx="6" fill="url(#g-quest-icon-default)" stroke="#78350f" stroke-opacity="0.25"/>
+  <circle cx="36" cy="30.24" r="11.52" fill="#78350f" fill-opacity="0.18"/>
+  <text x="36" y="57.6" font-family="system-ui, sans-serif" font-size="9" fill="#78350f" fill-opacity="0.85" text-anchor="middle">quest icon</text>
+</svg>

@@ -3,6 +3,7 @@ import type {
   NpcShopDetailResponse,
   NpcShopListResponse,
   NpcShopPurchaseResponse,
+  SellbackResponse,
   StockLevel,
 } from '@rpg/shared';
 import { z } from 'zod';
@@ -49,6 +50,12 @@ export interface NpcShopService {
     shopId: string,
     input: { stockEntryId: string; quantity: number; idempotencyKey: string },
   ): Promise<NpcShopPurchaseResponse>;
+  /** Sells stackable items to the shop at its sellback rate (Phase 24). */
+  sell(
+    userId: string,
+    shopId: string,
+    input: { itemSlug: string; quantity: number; idempotencyKey: string },
+  ): Promise<SellbackResponse>;
   /** Lazily restocks if due (timestamp authority; at most one catch-up). */
   ensureRestocked(shopId: string, now?: Date): Promise<void>;
 }
@@ -77,6 +84,26 @@ export function createNpcShopService(
     const regional = applyBasisPoints(item.baseValue, modifierBps);
     const withMarkup = applyBasisPoints(regional, shop.markupBps);
     return withMarkup > 0n ? withMarkup : 1n;
+  }
+
+  /**
+   * The sellback unit price: base × location modifier × sellback rate. Because
+   * `sellbackBps` is validated strictly below `markupBps`, the sell price is
+   * always below the buy price — a guaranteed buy-then-sell arbitrage is
+   * impossible (Phase 24). Rounds down; may be zero for near-worthless goods.
+   */
+  async function sellbackPriceFor(
+    shop: NpcShop,
+    item: { baseValue: bigint; category: string },
+  ): Promise<bigint> {
+    const modifier = await prisma.regionalPriceModifier.findUnique({
+      where: {
+        locationId_category: { locationId: shop.locationId, category: item.category as never },
+      },
+    });
+    const modifierBps = modifier?.modifierBps ?? 10_000;
+    const regional = applyBasisPoints(item.baseValue, modifierBps);
+    return applyBasisPoints(regional, shop.sellbackBps);
   }
 
   async function ensureRestocked(shopId: string, now = new Date()): Promise<void> {
@@ -328,6 +355,67 @@ export function createNpcShopService(
           gold: account.balance.toString(),
         };
       });
+    },
+
+    async sell(userId, shopId, input) {
+      const character = await characterService.requireCharacter(userId);
+      await locationService.requireCurrentLocationId(userId); // must be somewhere valid
+      const shop = await prisma.npcShop.findUnique({ where: { id: shopId } });
+      if (!shop) throw new DomainError(404, 'UNKNOWN_SHOP', 'No such shop.');
+      const item = await prisma.itemDefinition.findUnique({ where: { slug: input.itemSlug } });
+      if (!item) throw new DomainError(404, 'UNKNOWN_ITEM', 'No such item.');
+      if (!item.stackable) {
+        throw new DomainError(400, 'NOT_SELLABLE', 'That item cannot be sold to a shop here.');
+      }
+
+      const unitPrice = await sellbackPriceFor(shop, item);
+      const total = unitPrice * BigInt(input.quantity);
+
+      const balance = await prisma.$transaction(async (tx) => {
+        await inventoryService.lockCharacter(tx, character.id);
+        // Credit first (idempotent by key); only remove goods when it actually
+        // applied, so a replay never double-removes or double-pays.
+        const credited = await currencyService.credit(tx, {
+          characterId: character.id,
+          amount: total > 0n ? total : 1n,
+          type: CURRENCY_TYPES.NPC_SELLBACK,
+          operationNamespace: 'npc-sellback',
+          idempotencyKey: input.idempotencyKey,
+          relatedType: 'NpcShop',
+          relatedId: shopId,
+        });
+        if (credited.applied) {
+          const stack = await tx.inventoryStack.findUnique({
+            where: {
+              characterId_itemDefinitionId: {
+                characterId: character.id,
+                itemDefinitionId: item.id,
+              },
+            },
+          });
+          if (!stack || stack.quantity < input.quantity) {
+            throw new DomainError(409, 'INSUFFICIENT_ITEMS', 'You do not have that many to sell.');
+          }
+          await inventoryService.removeFromStack(tx, {
+            characterId: character.id,
+            itemDefinitionId: item.id,
+            quantity: input.quantity,
+            reason: 'NPC_SELLBACK',
+          });
+        }
+        const account = await tx.currencyAccount.findUniqueOrThrow({
+          where: { characterId: character.id },
+        });
+        return account.balance;
+      });
+
+      return {
+        itemSlug: item.slug,
+        quantity: input.quantity,
+        unitPrice: unitPrice.toString(),
+        goldReceived: total.toString(),
+        balance: balance.toString(),
+      };
     },
   };
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="Placeholder ability icon">
+  <defs>
+    <linearGradient id="g-ability-icon-default" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#60c5f2"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="70" height="70" rx="6" fill="url(#g-ability-icon-default)" stroke="#075985" stroke-opacity="0.25"/>
+  <circle cx="36" cy="30.24" r="11.52" fill="#075985" fill-opacity="0.18"/>
+  <text x="36" y="57.6" font-family="system-ui, sans-serif" font-size="9" fill="#075985" fill-opacity="0.85" text-anchor="middle">ability icon</text>
+</svg>

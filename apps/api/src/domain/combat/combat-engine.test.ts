@@ -380,9 +380,13 @@ describe('abilities', () => {
     expect(self.gauge).toBe(GAUGE_MAX);
   });
 
-  it('every seeded class has exactly its three starting techniques', () => {
+  it('every class has a full roster with staggered unlocks (Phase 23)', () => {
     for (const classSlug of ['vanguard', 'wayfarer', 'arcanist']) {
-      expect(CLASS_ABILITIES.filter((a) => a.classSlug === classSlug)).toHaveLength(3);
+      const roster = CLASS_ABILITIES.filter((a) => a.classSlug === classSlug);
+      // Six abilities per class, more than the loadout capacity, so builds
+      // diverge; and more unlock past the starting tier.
+      expect(roster).toHaveLength(6);
+      expect(roster.filter((a) => a.unlockLevel > 1).length).toBeGreaterThanOrEqual(3);
     }
   });
 });

@@ -10,6 +10,12 @@
     "dev:worker": "tsx watch src/worker.ts",
     "start": "node dist/index.js",
     "start:worker": "node dist/worker.js",
+    "admin:promote": "node dist/admin-promote.js",
+    "content:export": "node dist/content-cli.js export",
+    "content:validate": "node dist/content-cli.js validate",
+    "content:release1": "node dist/content-cli.js release1",
+    "content:import": "node dist/content-cli.js import",
+    "content:expansion": "node dist/content-cli.js expansion",
     "db:generate": "prisma generate --schema ../../prisma/schema.prisma"
   },
   "dependencies": {
@@ -24,6 +30,7 @@
     "fastify": "^5.10.0",
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^7.0.0",
+    "pg": "^8.22.0",
     "pg-boss": "^12.26.0",
     "zod": "^4.4.3"
   },

@@ -300,6 +300,7 @@ describe('live socket and fallback', () => {
     const port = typeof address === 'object' && address ? address.port : 0;
 
     const socket = new WebSocket(`ws://127.0.0.1:${port}/api/v1/notifications/ws`, {
+      origin: TEST_ORIGIN,
       headers: { cookie: `${SESSION_COOKIE}=${auth.cookie}` },
     });
     await new Promise<void>((resolve, reject) => {

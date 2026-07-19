@@ -13,24 +13,31 @@ import {
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
 
-import type { Env } from './config/env.js';
-import { DomainError } from './lib/http-errors.js';
+import { type Env, parseTrustProxy } from './config/env.js';
+import { DomainError, RateLimitError } from './lib/http-errors.js';
 import { buildLoggerOptions } from './lib/logger.js';
 import { metrics } from './lib/metrics.js';
 import { registerMutationAudit } from './lib/observability.js';
 import { createTimedStateRunner, type TimedStateFinalizer } from './lib/timed-state.js';
 import { GAME_MODULES } from './modules/index.js';
 import type { ModuleContext, ServiceRegistry } from './modules/types.js';
+import { securityHeadersPlugin } from './plugins/security-headers.js';
 import { healthRoutes } from './routes/health.js';
+import { metricsRoutes } from './routes/metrics.js';
 
 export interface AppDependencies {
   env: Env;
   prisma: PrismaClient;
   /** Resolves when the database is reachable; rejects otherwise. */
   pingDatabase: () => Promise<void>;
+  /** Readiness migration-state check. */
+  checkMigrations?: () => Promise<'ok' | 'pending' | 'unknown'>;
   /** Login/register rate limit; overridable in tests. */
   authRateLimit?: { max: number; timeWindowMs: number };
 }
+
+/** Maximum request body accepted by the API (Phase 18 hardening). */
+const BODY_LIMIT_BYTES = 256 * 1024;
 
 /**
  * Application bootstrap: infrastructure concerns only (server, error shape,
@@ -44,6 +51,10 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
   const app = Fastify({
     logger: buildLoggerOptions(env),
     genReqId: () => randomUUID(),
+    // Explicit proxy trust so request.ip and secure-cookie detection are
+    // correct behind a reverse proxy; bounded body size (Phase 18).
+    trustProxy: parseTrustProxy(env.TRUST_PROXY),
+    bodyLimit: BODY_LIMIT_BYTES,
   }).withTypeProvider<ZodTypeProvider>();
 
   app.setValidatorCompiler(validatorCompiler);
@@ -51,6 +62,19 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
 
   // Generic errors in production: internal details are logged, never returned.
   app.setErrorHandler((error: FastifyError | DomainError, request, reply) => {
+    if (error instanceof RateLimitError) {
+      return reply
+        .status(429)
+        .header('Retry-After', String(error.retryAfterSeconds))
+        .send({
+          error: {
+            code: error.code,
+            message: error.message,
+            requestId: request.id,
+            retryAfterSeconds: error.retryAfterSeconds,
+          },
+        });
+    }
     if (error instanceof DomainError) {
       return reply.status(error.statusCode).send({
         error: { code: error.code, message: error.message, requestId: request.id },
@@ -86,6 +110,7 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     });
   });
 
+  await app.register(securityHeadersPlugin, { env });
   await app.register(fastifyCookie);
   await app.register(fastifyRateLimit, { global: false });
   registerMutationAudit(app);
@@ -102,7 +127,13 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     transform: jsonSchemaTransform,
   });
   await app.register(fastifySwaggerUi, { routePrefix: '/api/v1/docs' });
-  await app.register(healthRoutes, { prefix: '/api/v1', pingDatabase: deps.pingDatabase });
+  await app.register(healthRoutes, {
+    prefix: '/api/v1',
+    pingDatabase: deps.pingDatabase,
+    ...(deps.checkMigrations ? { checkMigrations: deps.checkMigrations } : {}),
+    version: env.BUILD_VERSION ?? 'dev',
+  });
+  await app.register(metricsRoutes, { prefix: '/api/v1', metricsToken: env.METRICS_TOKEN });
 
   // Feature modules register themselves in a fixed, explicit order.
   const timedStateFinalizers: TimedStateFinalizer[] = [];

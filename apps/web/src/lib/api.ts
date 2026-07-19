@@ -4,6 +4,8 @@ export class ApiRequestError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    /** Present on 429 responses: seconds to wait before retrying. */
+    public readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = 'ApiRequestError';
@@ -22,12 +24,13 @@ export function setCsrfToken(token: string | null): void {
 
 async function parseError(response: Response): Promise<ApiRequestError> {
   const data = (await response.json().catch(() => null)) as {
-    error?: { code?: string; message?: string };
+    error?: { code?: string; message?: string; retryAfterSeconds?: number };
   } | null;
   return new ApiRequestError(
     response.status,
     data?.error?.code ?? 'UNKNOWN',
     data?.error?.message ?? `Request failed with status ${response.status}`,
+    data?.error?.retryAfterSeconds,
   );
 }
 
@@ -41,7 +44,7 @@ export async function apiGet<T>(path: string, parse: (data: unknown) => T): Prom
 }
 
 export async function apiSend<T>(
-  method: 'POST' | 'PATCH' | 'DELETE',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body: unknown,
   parse: (data: unknown) => T,

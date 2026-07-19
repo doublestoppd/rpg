@@ -1,6 +1,11 @@
 import { accountModule } from './account.js';
+import { activitiesModule } from './activities.js';
+import { adminModule } from './admin.js';
+import { assetsModule } from './assets.js';
 import { authModule } from './auth.js';
+import { buildsModule } from './builds.js';
 import { charactersModule } from './characters.js';
+import { chatModule } from './chat.js';
 import { combatModule } from './combat.js';
 import { craftingModule } from './crafting.js';
 import { currencyModule } from './currency.js';
@@ -24,6 +29,7 @@ import { worldModule } from './world.js';
 export const GAME_MODULES: readonly GameModule[] = [
   authModule,
   accountModule,
+  assetsModule,
   economyCoreModule,
   charactersModule,
   notificationsModule,
@@ -32,10 +38,14 @@ export const GAME_MODULES: readonly GameModule[] = [
   worldModule,
   inventoryModule,
   currencyModule,
+  buildsModule,
   npcShopsModule,
   marketplaceModule,
   gatheringModule,
   craftingModule,
   combatModule,
   museumModule,
+  activitiesModule,
+  chatModule,
+  adminModule,
 ];

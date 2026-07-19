@@ -1,4 +1,4 @@
-import type { CraftingResult, CraftingRun } from '@rpg/shared';
+import { type CraftingResult, type CraftingRun, PROFESSION_LABELS } from '@rpg/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
@@ -144,7 +144,7 @@ export function CraftingPanel() {
   return (
     <div className="mt-3 space-y-3">
       <p className="text-xs font-medium text-stone-600 dark:text-stone-400">
-        Blacksmithing level {profession.level}
+        {PROFESSION_LABELS[profession.profession]} level {profession.level}
         {profession.xpForNextLevel !== null
           ? ` — ${profession.xp} / ${profession.xpForNextLevel} XP`
           : ' (mastered)'}
@@ -174,8 +174,8 @@ export function CraftingPanel() {
       {!active && !held && lastCompleted && revealedId === lastCompleted.id && (
         <div className="rounded-md border border-green-300 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
           <p className="text-sm font-medium text-green-900 dark:text-green-200">
-            {lastCompleted.recipeName} complete! You gained {lastCompleted.xpAwarded} Blacksmithing
-            XP.
+            {lastCompleted.recipeName} complete! You gained {lastCompleted.xpAwarded}{' '}
+            {PROFESSION_LABELS[profession.profession]} XP.
           </p>
           <OutputList result={lastCompleted} />
         </div>
@@ -221,7 +221,7 @@ export function CraftingPanel() {
                 </Button>
               ) : (
                 <p className="mt-2 text-xs font-medium text-stone-500 dark:text-stone-400">
-                  Requires Blacksmithing level {recipe.levelRequirement}
+                  Requires {PROFESSION_LABELS[recipe.profession]} level {recipe.levelRequirement}
                 </p>
               )}
             </li>

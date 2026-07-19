@@ -3,6 +3,630 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 24 — Repeatable Activities and Economy Loop Expansion (2026-07-19)
+
+**Status: acceptance-core complete.** Adds a rotating bounty board with regional
+reputation, equipment salvage, and NPC sellback. All four acceptance properties
+are met and tested. The broader repeatable suite (regional contracts, rotating
+elites, profession commissions, refinements, collection-completion rewards, an
+activity calendar) is deferred within Phase 24's ambit (see ADR 0017).
+
+### Delivered
+
+- **Rotating bounty board**: a fixed pool of daily and weekly turn-in bounties.
+  Which bounties are on the board, and the cycle they belong to, are a **pure
+  function of the current timestamp** — a deterministic hash selection keyed by
+  UTC day (`YYYY-MM-DD`) or ISO week (`YYYY-Www`). No rotation state is stored,
+  so eligibility and the board are correct even with the worker stopped.
+- **Once per character and cycle**: claiming consumes the turn-in stack (an item
+  sink recording an `ItemTransfer`), credits the reward through the currency
+  ledger, and writes a `BountyClaim`. A `@@unique(characterId, cycleId,
+  bountySlug)` plus a deterministic credit key (`cycleId:bountySlug`) make a
+  re-claim an idempotent no-op — never a second consume or second payout. A
+  stale claim from a past cycle never blocks the current cycle.
+- **Regional reputation**: bounties award bounded reputation (`min(cap, …)`),
+  upserted per region; it never exceeds `REPUTATION_CAP`.
+- **Equipment salvage**: destroys an unequipped, unlisted equipment instance
+  (setting `destroyedAt`, an append-only `ItemDestruction`) and grants a fixed
+  material yield (an `ItemTransfer`). Both economic trails survive; ownership is
+  retained so a replayed salvage resolves to `ALREADY_SALVAGED` (409) rather
+  than looking like a foreign item. A net item sink.
+- **NPC sellback**: sells stackable goods to a shop at
+  `base × regional modifier × sellbackBps`. Because `sellbackBps` is validated
+  strictly below `markupBps`, the sell price is always below the buy price — a
+  guaranteed buy-then-sell arbitrage is impossible. Credit-first / remove-only-
+  when-applied makes a replay neither double-pay nor double-remove.
+- **UI**: a Bounties page (board + reputation, turn-in when the requirement is
+  met); a Salvage action in the inventory item dialog; a Sell-to-shop section on
+  the NPC shop page.
+
+### Endpoints (additive)
+
+`GET /api/v1/bounties`, `POST /api/v1/bounties/:slug/claims`,
+`POST /api/v1/inventory/salvage`, `POST /api/v1/npc-shops/:id/sales`. OpenAPI
+baseline regenerated (additive).
+
+### Tests
+
+7 new (1 file), covering every acceptance property: a bounty is claimable
+exactly once per cycle (second claim consumes nothing and pays nothing), a
+past-cycle claim does not block the current cycle, requirement-unmet is rejected;
+a real buy-then-sell round trip loses Gold and arbitrage is impossible, sellback
+replay is idempotent; salvage preserves both the destruction and transfer
+records, and salvaging the same instance twice is rejected.
+
+### Scope note
+
+This is the acceptance-core. Deferred within Phase 24: regional contract chains,
+rotating world elites, profession commissions, material refinement, collection-
+completion rewards, and a player-facing activity calendar. See ADR 0017.
+
+## Phase 23 — Character Builds, Progression, and Combat Depth (2026-07-19)
+
+**Status: acceptance-core complete.** Raises the cap to 30 and adds ability
+loadouts, talents, trainer respec, and a start-of-battle build snapshot with
+ability cooldowns. All four acceptance properties are met and tested. Equipment
+set bonuses, the broader encounter-mechanics suite, and a new gated boss are
+deferred within Phase 23's ambit (see ADR 0016).
+
+### Delivered
+
+- **Level cap 20 → 30**: the seeded `LevelProgression` table extends to level 30
+  (strictly increasing cumulative XP); the cap is the highest seeded level.
+- **Builds**: each class now has six abilities with staggered unlock levels; a
+  bounded loadout equips up to four unlocked ones; three talent tiers (levels
+  10/20/30) each offer two mutually exclusive stat modifiers. Six-in-four plus
+  talent choices give at least two viable level-30 builds per class. A
+  `CharacterBuild` row holds the loadout and talents.
+- **Trainer respec**: resets the loadout to class defaults and clears talents
+  for a level-scaled Gold fee debited through the currency ledger. The immutable
+  `RESPEC_FEE` ledger entry is the audit trail; the idempotency key makes a
+  replay a no-op. Level and XP are untouched.
+- **Combat build snapshot + cooldowns**: at battle start the equipped loadout,
+  chosen talents (baked into player stats), and empty cooldowns are frozen into
+  `Combat.buildSnapshot`. The ability command validates against the snapshot
+  (not the live build) and enforces per-ability cooldown turns. Because combat
+  already reads a `CombatantState` snapshot, a later content publish or a
+  mid-fight respec never alters an in-progress battle.
+
+### Endpoints (additive)
+
+`GET /api/v1/builds/me`, `PUT /api/v1/builds/me/loadout`,
+`PUT /api/v1/builds/me/talents`, `POST /api/v1/builds/me/respec`. Combat ability
+views gain `cooldownTurns`/`cooldownRemaining`. OpenAPI baseline regenerated
+(additive).
+
+### Tests
+
+8 new (1 file), one per acceptance property and more: ≥2 viable level-30 builds
+per class (roster/talent config + saving two distinct loadouts), unlock
+enforcement, respec exact + ledger-audited + idempotent, an active combat's
+snapshot unchanged when the enemy definition changes, an ability rejected on
+cooldown, a stale-version command rejected, and the level cap at 30. The engine
+roster test was updated for the six-ability classes.
+
+### Scope note
+
+This is the acceptance-core. Deferred within Phase 23: equipment tiers with set
+bonuses / deterministic affix groups; multiple waves, telegraphing,
+reinforcements, conditional phases, status resistance, dispel/cleanse; and a new
+gated boss to exercise them. See ADR 0016.
+
+## Phase 22 — World Expansion: Northmarch, Herbalism, and Alchemy (2026-07-19)
+
+**Status: complete.** The first large gameplay expansion, delivered as _content_
+through the platform, with code limited to genuinely new mechanics and reusable
+presentation. Acceptance test met: the Northmarch region and all its ordinary
+definitions are created through the content workflow (validate → publish →
+apply-on-publish); the only code changes are the Herbalism/Alchemy professions
+and profession-agnostic UI labels.
+
+### Delivered
+
+- **Northmarch region as content** (`domain/content/expansions/northmarch.ts`):
+  ~82 versioned definitions — 4 new locations (Hold, Fen, Thicket, Barrow) hung
+  off the existing North Road, routes, inn/marketplace/shop/craft/quest/museum
+  features, 16 items, 4 Herbalism gathering actions, 8 Alchemy recipes, 6
+  enemies, 5 encounters (2 elite + 1 gated boss), 10 quests, a relic collection,
+  2 NPC shops, and region-specific price modifiers. Published via
+  `npm run content:expansion northmarch` (idempotent), which validates the full
+  bundle and applies it to the live tables. The seed is untouched.
+- **Herbalism + Alchemy mechanics**: `SkillType += HERBALISM`,
+  `ProfessionType += ALCHEMY` (migration + shared schemas). Gathering and
+  crafting are now multi-track — XP accrues to the action's skill / recipe's
+  profession, and each surface shows progress for the profession its location
+  offers. Stored-outcome, capacity-hold, lazy-finalization, idempotency, and
+  worker-offline behavior are inherited unchanged from Mining/Blacksmithing.
+- **Region economy**: marketplace remote delivery recognizes `northmarch`
+  automatically (regions are derived from shop rows); recipe fees, reagent
+  consumption, and shop markups provide Gold and material sinks. Level cap
+  stays at 20.
+- **Reusable presentation**: the gathering and crafting panels render the
+  skill/profession name from the response (`SKILL_LABELS`, `PROFESSION_LABELS`)
+  instead of hardcoding "Mining"/"Blacksmithing".
+
+### Commands
+
+| Command                                | Purpose                                                    |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `npm run content:expansion northmarch` | Idempotently validate and publish the Northmarch expansion |
+
+### Tests
+
+4 new (1 file): the acceptance test (the expansion publishes as a release and
+materializes the whole region into the live tables, including the gated boss),
+idempotent re-publish, Herbalism end-to-end (gathers herbs, awards Herbalism XP
+not Mining, idempotent replay), and Alchemy end-to-end (brews an elixir, awards
+Alchemy XP not Blacksmithing, consumes reagents). The suite publishes into and
+cleans the shared content out afterward, so file isolation holds.
+
+### Scope note
+
+Content counts sit at the lower end of the suggested ranges (a complete, valid,
+low-level region) to keep the authored data correct and reviewable; the same
+builders extend it. See ADR 0015.
+
+## Phase 21 — Visual Asset Framework and player-UI refresh (2026-07-18)
+
+**Status: framework complete; UI refresh foundational.** Establishes a stable
+asset contract before any art: presentation is data referenced by key, not paths
+baked into components. Acceptance test met — (1) every visual content reference
+has a valid fallback, and (2) replacing an asset changes the presentation with
+no React component change (both proven in tests).
+
+### Delivered
+
+- **Asset contract** (`packages/shared/assets.ts`): 13 asset roles; an asset
+  definition schema (stable key, role, bundled path, aspect ratio, dimensions,
+  focal point, alt text, fallback key, light/dark/regional variant, SHA-256
+  checksum); a manifest with a default per role; and `AssetResolver` — a pure
+  resolver that returns the keyed asset or follows the fallback chain to the
+  role default, guaranteeing a valid asset for every reference (cycles broken).
+- **Bundled placeholders + generator**: `scripts/generate-assets.mjs` writes a
+  consistent placeholder SVG per catalog entry into `apps/web/public/assets/
+game`, computes checksums, and emits the manifest. No database blobs, no
+  remote URLs.
+- **Build-time validation**: `scripts/verify-assets.mjs` (a CI gate and a test)
+  checks every file exists, every checksum matches, every fallback chain
+  terminates, and every role has a default.
+- **Assets API**: `GET /api/v1/assets` serves the compiled-in manifest
+  (public, cacheable) for the client and the admin asset picker.
+- **Data-driven UI**: an `<Asset>` component that renders from the resolver
+  (never a hardcoded path), with skeleton loading and reduced-motion handling;
+  applied to illustrated location banners and inventory item icons; plus an
+  admin asset gallery previewing every asset in its real render path.
+
+### Endpoints (additive)
+
+`GET /api/v1/assets`. OpenAPI baseline regenerated (additive).
+
+### Commands
+
+| Command                   | Purpose                                                 |
+| ------------------------- | ------------------------------------------------------- |
+| `npm run assets:generate` | Regenerate the bundled SVGs and the asset manifest      |
+| `npm run assets:verify`   | Validate files, checksums, fallbacks, and role defaults |
+
+### Tests
+
+11 new: resolver unit tests (specific hit, unknown-key fallback for every role,
+fallback-chain cycle breaking, wrong-role isolation), the two acceptance tests
+(every reference resolves to a file-backed asset; swapping an asset changes the
+resolved output with no consumer change), a manifest-integrity test that runs
+the verifier, and the public `GET /assets` API test.
+
+### Scope note (foundational, not yet full breadth)
+
+The framework, validation, resolver, and API are complete. The player-UI refresh
+applies `<Asset>` to location banners, item icons, and the admin gallery this
+phase; the world graph, combat/enemy portraits, and the remaining panels adopt
+the same component in later work with no framework change. See ADR 0014.
+
+## Phase 20 — Admin Content Studio and apply-on-publish (2026-07-18)
+
+**Status: core complete.** Builds the administrator Content Studio on the Phase
+19 platform and the mechanism that makes a published release take effect —
+**apply-on-publish** — without changing the gameplay read path. Acceptance test
+met: _an administrator creates a new item, location, route, shop, encounter, and
+quest in a draft release; previews them; publishes the release atomically; and
+all content becomes available with no code deployment._
+
+### Delivered
+
+- **apply-on-publish engine** (`domain/content/content-apply.ts`): an idempotent
+  applier per content type upserts definitions into the live gameplay tables by
+  stable key, resolving references in dependency order. Upsert-only — never
+  deletes a live row, so historical records keep resolving.
+- **Content authoring service** (`domain/admin/admin-content.ts`): create a
+  draft (cloned from live content or a prior release), read/edit/remove draft
+  definitions with domain-specific structural validation, validate, diff against
+  the published baseline, "where used", and preview a definition with its
+  references resolved.
+- **Atomic publication**: one transaction re-validates the whole bundle, applies
+  it to the live tables, flips `DRAFT → PUBLISHED` (conditional compare-and-set),
+  and writes an append-only audit row — all committing together. A publish
+  carries a mandatory reason, expected version (optimistic), idempotency key, and
+  requires recent re-authentication. Retirement (`PUBLISHED → RETIRED`, audited,
+  definitions preserved) and roll-forward rollback are also provided.
+- **Content Studio UI** (admin): releases list with status/version, "new draft
+  from live", a per-release workspace with a searchable definition catalog,
+  a definition editor (domain-validated on save), a validation panel
+  (errors/warnings), a diff view (added/changed/removed), and the
+  publish/retire workflow with mandatory reason.
+
+### Endpoints (additive)
+
+`/admin/content/releases` (GET list, POST create draft); per release: `GET :id`,
+`GET :id/validate`, `GET :id/diff`; per definition:
+`GET|PUT|DELETE :id/definitions/:type/:key`, `.../where-used`, `.../preview`;
+lifecycle (reauth): `POST :id/publish`, `POST :id/retire`,
+`POST /admin/content/rollback`. OpenAPI baseline regenerated (additive).
+
+### Tests
+
+10 new (1 file): the six-type acceptance test (author → validate → preview →
+diff → publish → assert live rows), plus publication safety (reauth required,
+stale-version 409, validation blocks publish and applies nothing, idempotent
+replay, retire preserves definitions, editing a published release is rejected)
+and authoring validation/authorization (invalid payload 422, slug/key mismatch
+422, non-admin 403).
+
+### Scope note (foundational, not yet full breadth)
+
+The definition editor is JSON with domain-specific server validation rather than
+bespoke per-type forms; a graphical world editor and preview-as-a-player at full
+fidelity are layered on the same API in later work. All safety-critical behavior
+(validation, atomic apply-on-publish, audit, immutability, reauth) is complete
+and tested. See ADR 0013.
+
+## Phase 19 — Versioned Game Content and Publishing Lifecycle (2026-07-18)
+
+**Status: complete.** A content platform only — **no gameplay or API behavior
+change**. The engine keeps reading the live definition tables; a versioned,
+checksummed content registry is added alongside them. Acceptance test met:
+_"import all current content as Release 1 with no observable gameplay or API
+behavior change."_
+
+### Delivered
+
+- **Content registry** (`prisma`): two additive tables — `ContentRelease`
+  (version, `DRAFT`/`VALIDATING`/`PUBLISHED`/`RETIRED` status, title, notes,
+  timestamps) and `ContentDefinition` (release, content type, stable key,
+  revision, canonical JSON payload, SHA-256 checksum), with a
+  `BEFORE UPDATE OR DELETE` trigger that rejects mutating a **published**
+  release's definitions. Gameplay tables are untouched.
+- **Deterministic export** (`domain/content`): a `ContentTypeSpec` registry for
+  all 14 content types (items, locations, routes, features, price modifiers,
+  shops, gathering, recipes, enemies, encounters, quests, collections, classes,
+  level progression). Each spec reads its live table into stable-key-addressed
+  payloads; a canonicalizer (sorted keys, ordered arrays, `BigInt`→string,
+  `undefined` dropped) makes two exports of unchanged content byte-identical.
+- **Dependency graph**: every stable-key reference a definition declares becomes
+  a graph edge (route endpoints, recipe inputs/output, shop pool, enemy drops,
+  quest objectives, collection entries), powering referential validation, world
+  connectivity, and "where used".
+- **Publication validation**: `validateBundle` rejects (as publication-blocking
+  errors) duplicate or changed stable keys, structurally invalid revisions,
+  routes to unpublished locations, disconnected world subgraphs (unless
+  `isolated: true`), unresolved recipe/reward/drop/quest/collection references,
+  invalid reward/drop weights and quantity ranges, impossible shop restock pools,
+  guaranteed sellback-above-markup arbitrage loops, non-collectible collection
+  entries, unknown quest objective types, and missing graphical asset keys.
+- **Lifecycle service**: export, validate, import-draft, atomic conditional
+  publish (`DRAFT → PUBLISHED`, 409 on a non-draft), retire
+  (`PUBLISHED → RETIRED`, definitions never destroyed), list releases, get
+  release bundle, and an idempotent `ensureRelease1` that snapshots the current
+  seeded content as a published Release 1.
+- **CLI + CI gate**: `content:export`, `content:validate`, `content:release1`,
+  `content:import`; CI runs `content:validate` against the seeded content on
+  every build, so content that cannot legally publish fails the pipeline.
+
+### Endpoints (additive)
+
+None. Phase 19 is CLI- and platform-only; no HTTP surface is added, so the
+OpenAPI baseline is unchanged. The Content Studio UI is Phase 20.
+
+### Commands
+
+| Command                    | Purpose                                                      |
+| -------------------------- | ------------------------------------------------------------ |
+| `npm run content:export`   | Deterministic JSON bundle of the live content (stdout/file)  |
+| `npm run content:validate` | Validate the live content against all publication rules      |
+| `npm run content:release1` | Idempotently snapshot current content as published Release 1 |
+| `npm run content:import`   | Import a bundle file as a validated `DRAFT` release          |
+
+### Tests
+
+29 new (2 files): canonicalization determinism and BigInt handling; dependency
+graph edges, "where used", and undirected connectivity; every validation
+rejection rule; export determinism (checksum stability) and self-validation;
+the Release 1 acceptance test (published, full definition count, gameplay tables
+unchanged, checksum round-trip); idempotent bootstrap; draft→publish→retire
+transitions with monotonic versions and 409 guards; and database-level
+published-immutability (UPDATE/DELETE blocked, drafts editable).
+
+### Architectural rule honored
+
+Production definition tables were **not** turned into unrestricted admin CRUD.
+Published content is immutable and versioned; administrators create drafts and
+publish new revisions. Retirement replaces deletion, so historical records
+(inventories, transactions, combats, marketplace, quests) never dangle. See
+ADR 0012.
+
+## Phase 18 — Production Hardening, Release Validation, and Operations (2026-07-18)
+
+**Status: complete.** Infrastructure only — no new gameplay, economy, social,
+or admin capability. Closes evidenced production gaps.
+
+### Delivered
+
+- **Security hardening**: a security-headers plugin (CSP `default-src 'none'`,
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`,
+  `Cross-Origin-Resource-Policy`, HSTS only when `ENABLE_HSTS=true`); explicit
+  Fastify `trustProxy` from `TRUST_PROXY` so `request.ip` (rate limiting) and
+  secure-cookie detection are correct behind a proxy; a 256 KB body limit;
+  production error redaction preserved.
+- **Health, readiness, shutdown**: liveness (`/api/v1/health/live`, never
+  touches the DB), readiness (`/api/v1/health/ready`, DB + migration state,
+  503 when not ready), and the legacy `/api/v1/health` kept backward-compatible;
+  `BUILD_VERSION` in diagnostics; an optional non-public worker health probe
+  (`WORKER_HEALTH_PORT`) reporting liveness + recent pg-boss polling; graceful
+  shutdown for API and worker with a 15s forced-exit deadline.
+- **Observability export**: a token-guarded (`METRICS_TOKEN`) OpenMetrics
+  endpoint (`GET /api/v1/metrics`) exposing the fixed-name process counters with
+  no user-supplied labels; disabled (404) when the token is unset. Economy truth
+  stays in the admin database-derived endpoints.
+- **Data-lifecycle cleanup** (`lib/cleanup.ts`): batched, idempotent removal of
+  expired/revoked sessions and old READ notifications, plus a new worker job;
+  a code-enforced deletable-table allowlist (`Session`, `Notification`,
+  `ChatMessage`) so audit/economic evidence is never touched.
+- **Migration, integrity, backup/restore**: a clean-database migration +
+  seed-idempotency test; a read-only integrity-check script (ledger chain,
+  non-negative balances/stock, single active travel/combat, sale↔listing
+  linkage, unique notification dedupe, chat report evidence, one account per
+  character) with a zero-violations test; `pg_dump`/`pg_restore` scripts with a
+  restore round-trip smoke test into a fresh database.
+- **Supply chain & CI**: `npm run audit:prod` (high/critical gate, 0
+  vulnerabilities), `npm run sbom` (CycloneDX), an API-baseline freeze check
+  (`verify:baseline`), and CI updated with least-privilege permissions plus the
+  new audit/SBOM/baseline steps.
+- **Operations docs**: deployment guide, environment reference, threat model +
+  security checklist, retention policy, monitoring/alerts + incident runbooks,
+  backup/restore + rollback runbook, and a go/no-go release report (`RELEASE.md`).
+
+### Endpoints (additive)
+
+`GET /api/v1/health/live`, `GET /api/v1/health/ready`, `GET /api/v1/metrics`
+(hidden from the contract, token-guarded). OpenAPI baseline regenerated
+(additive: the two health paths).
+
+### Tests
+
+19 new (34 files, 324 tests total): security headers + HSTS toggle, liveness
+vs readiness (incl. DB-down), body limit, metrics endpoint (disabled/401/200,
+no labels), `parseTrustProxy` + Phase 18 env defaults, data-lifecycle cleanup
+(allowlist, batched, unread-kept, idempotent), integrity checks zero-violations,
+clean-DB migration + double-seed idempotency, and backup→restore→integrity→seed
+round trip.
+
+### Known limitations
+
+Environment-dependent release conditions are documented in `docs/RELEASE.md` and
+NOT executed in this validation run: container image build + non-root runtime,
+a real two-node deployment behind a load balancer, and a production-volume load
+smoke. Per the release rule (unknown = NO-GO), the candidate is **NO-GO
+(conditional)** until those are executed and recorded; the code and all
+automated gates are green. GitHub Action SHA-pinning and production secret-store
+wiring are likewise operational follow-ups noted in the threat model.
+
+## Phase 17 — Administration, Moderation, and Auditable Economy Operations (2026-07-18)
+
+**Status: complete.**
+
+### Delivered
+
+- **No default administrator** (ADR 0010): `npm run admin:promote -- <email-or-name>`
+  elevates an existing account, revokes its sessions, records a SYSTEM
+  bootstrap audit row, is idempotent, refuses ambiguous (case-insensitive)
+  targets, and in production requires `ADMIN_BOOTSTRAP_ENABLED=true`. No admin
+  credential exists in source, seed, images, or startup.
+- **Recent-auth, not a second token**: `POST /admin/reauth` verifies the
+  current password (rate-limited, generic failure) and stamps
+  `Session.adminReauthenticatedAt` on the current session only. A configurable
+  window (default 10 min) gates every admin mutation and every high-sensitivity
+  player-detail read; a password/role change clears it. Authorization is
+  enforced by the API on every request; the frontend guard and hidden nav are
+  convenience only.
+- **Append-only audit** (ADR 0010): `AdminAuditLog` is a distinct authoritative
+  business-audit domain — never a replacement for the technical mutation log or
+  the currency/transfer/destruction/sale/report ledgers. Every successful admin
+  mutation writes one row in the **same transaction** as the domain change,
+  unique per `(actor, actionNamespace, idempotencyKey)` (which doubles as the
+  idempotency guard). A PostgreSQL trigger rejects UPDATE/DELETE; a database
+  test proves it. before/after JSON is a secret-free allowlist.
+- **Bounded investigation reads**: cursor-paginated character search (masked
+  emails) and per-character overview, inventory, ledger, item transfers,
+  marketplace activity, and progress — paginated and date-bounded, with detail
+  reads gated by recent-auth.
+- **Safe economy operations**, all domain-service-backed, idempotent, and
+  audited: signed Gold adjustments through the immutable ledger (debits cannot
+  go negative); item grants (capacity-aware) and removals (rejecting every
+  locked state — equipped, listed, in-transit, destroyed — with no force path,
+  recording an ItemDestruction); `configVersion` optimistic-concurrency PATCH
+  of allowlisted item-definition and shop fields (structural fields never
+  mutable; stale writes 409); and an immediate restock request that runs
+  through the normal locked, secure-RNG restock service (ADR 0011).
+- **Database-derived economy metrics**: current total Gold, ledger
+  sources/sinks, marketplace gross/tax/shipping/volume, NPC spending, items
+  generated/destroyed, active listings, and a documented median unit price —
+  exact BigInt arithmetic, bounded ≤90-day UTC windows, clearly separated from
+  resettable process telemetry. Defined in `docs/economy-metrics.md`.
+- **Chat moderation** (ADR 0011): report triage (reporter identity never
+  exposed, even to admins), redaction to a fixed tombstone (row/author/channel/
+  ordering and report evidence preserved; never a hard delete), immediate
+  restrictions and revocation through the Phase 16 send path, and report
+  resolution — each writing both an AdminAuditLog row and a
+  `ChatModerationAction` record. Runbook in `docs/moderation-runbook.md`.
+- **Frontend**: an Admin nav entry and workspace (ADMIN only) with a recent-auth
+  panel, player lookup/inspection, Gold and item actions, database-derived
+  economy metrics separated from telemetry, and a moderation queue rendering
+  evidence strictly as text with redact/restrict/resolve actions.
+
+### Database
+
+Migration `admin_moderation_audit`: `AdminAuditLog` (append-only trigger,
+unique actor+namespace+key, actor/target/action/time indexes),
+`ChatModerationAction`, `Session.adminReauthenticatedAt`, `configVersion` on
+`ItemDefinition` and `NpcShop`, redaction columns on `ChatMessage`, resolution
+columns and expanded status enum on `ChatReport`.
+
+### Endpoints (all under `/api/v1/admin`, additive)
+
+`GET session`; `POST reauth`; `GET characters`, `.../overview`, `/inventory`,
+`/currency-transactions`, `/item-transfers`, `/marketplace-activity`,
+`/progress`; `POST .../gold-adjustments`, `/item-grants`, `/item-removals`;
+`PATCH item-definitions/:slug`, `npc-shops/:id/config`; `POST npc-shops/:id/restock`;
+`GET metrics/economy`; `GET chat/reports`, `POST chat/reports/:id/resolve`,
+`chat/messages/:id/redact`, `chat/restrictions`, `chat/restrictions/:id/revoke`.
+CLI: `npm run admin:promote`.
+
+### Tests
+
+28 new: bootstrap/promotion (no default creds, ambiguity, prod allow-flag,
+session revocation, idempotency, SYSTEM audit without secrets); authz + reauth
+(non-admin rejection, reauth-gated reads/mutations, generic failure, rate
+limit, password-change invalidation); gold (one ledger + one audit entry,
+negative-balance rejection, replay, concurrent duplicate-key race →
+exactly-once); items (grant/replay, safe removal + destruction, locked-instance
+rejection); config (allowlist patch, stale-version 409, concurrent single
+winner, shop next-restock adoption); metrics (exact ledger-derived figures,
+window bound); audit append-only DB enforcement + secret-free JSON; moderation
+(report privacy, resolve-once, redaction tombstone + evidence preservation,
+immediate restriction enforcement + revoke); six admin EXPLAIN plans. Playwright:
+promote → reauth → inspect a player → credit Gold → non-admin cannot access.
+
+### Known limitations
+
+- Item-definition edits are limited to name/description/base value and shop
+  edits to name/description/markup by design; deeper economic tuning surfaces
+  are deferred. Production hardening, release validation, and operations are
+  Phase 18.
+
+## Phase 16 — Player Chat, Safety, and Real-Time Delivery (2026-07-17)
+
+**Status: complete.**
+
+### Delivered
+
+- **Persistent chat, two channel kinds**: one seeded GLOBAL channel and one
+  LOCATION channel per world location (nine total). A character always reads
+  and sends GLOBAL (unless restricted) and only the channel for its
+  authoritative current location; a traveling character has no location-chat
+  membership. Every location read/send/subscription first runs the
+  established lazy travel finalization, so starting travel revokes
+  location-chat access and arrival grants only the destination.
+- **PostgreSQL is authoritative; real-time is a hint** (ADR 0009). Messages
+  commit before anything is broadcast. The shared Phase 15 socket now carries
+  an additive `chat.message.created` invalidation (identifiers only, never
+  text); clients fetch bodies over REST and poll every 10s as the complete
+  fallback. Cross-instance fan-out uses PostgreSQL `LISTEN/NOTIFY` with an
+  identifier-only payload and a backoff-reconnecting listener — never storage,
+  never required for correctness.
+- **Server-derived identity and membership**: the client never submits an
+  author id, location id, timestamp, status, or read count. Bodies are
+  normalized (line endings, trimmed), Unicode plain text with NUL/control
+  characters rejected, bounded to 1–500 code points and 2000 UTF-8 bytes, and
+  stored verbatim. Clients render strictly as text (no
+  `dangerouslySetInnerHTML`, Markdown, or linkification).
+- **Idempotent, rate-limited sends**: idempotent per author + key (a replay,
+  including a concurrent same-key race, yields one row and one invalidation);
+  token-bucket limits per account and per IP return HTTP 429 with a bounded
+  `retryAfterSeconds` and `Retry-After` header. A rejected send never creates
+  a row.
+- **Cursor pagination**: opaque, stable `(createdAt, id)` cursors; backward
+  history (newest-first) and gap-free forward polling (oldest-first); hard
+  limit of 50, no offset pagination.
+- **Safety controls**: forward-only read state; unilateral blocking (blocked
+  authors vanish from the blocker's REST results and live invalidations,
+  invisible to the blocked player, self-block rejected at the DB); one report
+  per reporter + message with an immutable evidence snapshot that survives
+  retention and makes the message undeletable; and `ChatRestriction` enforced
+  lazily by the send service (active blocks sending but not reading/reporting;
+  expired and revoked treated as inactive without a worker). No public API
+  creates restrictions in this phase.
+- **Hardened socket**: cookie-session + Origin validation on upgrade, capped
+  inbound frames, a 15s heartbeat that terminates unresponsive sockets and
+  closes revoked/expired sessions, and slow-consumer disconnection instead of
+  unbounded buffering.
+- **Retention**: a best-effort daily worker job deletes unreported messages
+  older than `CHAT_RETENTION_DAYS` (default 90, range 7–365) in indexed
+  batches; reports, restrictions, read state, and all other audit domains are
+  never touched. Chat correctness never depends on the worker.
+- **Frontend**: a Chat page with Global / Current Location tabs, unread
+  badges, incrementally loaded history, a composer showing remaining length,
+  rate-limit retry time, restriction state and accessible errors, block/report
+  message actions, and a visible live-vs-polling status. The single app-wide
+  socket routes both notification and chat events.
+
+### Database
+
+Migration `player_chat`: `ChatChannel` (kind/location CHECK, one-global partial
+unique index, unique location), `ChatMessage` (unique author + idempotency key,
+`(channelId, createdAt, id)` index, RESTRICT to channel/author),
+`ChatChannelReadState` (composite id, copied ordering pair — no message FK),
+`ChatBlock` (composite id, self-block CHECK), `ChatReport` (unique reporter +
+message, immutable snapshot columns, RESTRICT to message), `ChatRestriction`
+(active-lookup index). Seed extends idempotently with the nine channels.
+
+### Endpoints
+
+- `GET /api/v1/chat/channels`
+- `GET /api/v1/chat/channels/:channelId/messages` (cursor, limit, direction)
+- `POST /api/v1/chat/channels/:channelId/messages`
+- `POST /api/v1/chat/channels/:channelId/read`
+- `GET /api/v1/chat/blocks`, `PUT`/`DELETE /api/v1/chat/blocks/:characterId`
+- `POST /api/v1/chat/messages/:messageId/reports`
+- WebSocket event added additively: `chat.message.created`
+  (eventId, channelId, messageId, occurredAt) on `/api/v1/notifications/ws`.
+
+### Environment
+
+`CHAT_RATE_LIMIT_BURST` (5), `CHAT_RATE_LIMIT_PER_MINUTE` (20),
+`CHAT_RATE_LIMIT_IP_BURST` (10), `CHAT_RATE_LIMIT_IP_PER_MINUTE` (60),
+`CHAT_RETENTION_DAYS` (90). All documented in `.env.example`.
+
+### Tests
+
+53 new across five files. Unit (no DB): body normalization/validation
+boundaries (Unicode, control chars, code-point vs byte limits), opaque cursor
+round-trip, and the account/IP token-bucket limiter on a deterministic clock.
+Live-hub: targeted delivery, slow-consumer disconnect, session-revocation
+close, and heartbeat termination. API (real PostgreSQL): seed + all four
+constraint classes, global/location send-read, wrong-location and traveling
+rejection with immediate membership change on travel, body validation and
+verbatim script/markup storage, deterministic cursor pagination over identical
+timestamps + gap-free forward polling + bounds, idempotent replay and a
+concurrent same-key race (one row), forward-only read state, blocking
+(hide/idempotent/self-block/foreign), reporting (snapshot, duplicate conflict,
+self-report, undeletable evidence), active/expired/revoked restrictions,
+retention cleanup (batched, idempotent, evidence-preserving), and chat metrics.
+Real-time: socket auth + Origin rejection, committed-then-delivered with post-
+disconnect REST recovery, blocked-author suppression over the socket, and two
+API instances against one database (instance-A commit invalidates an
+instance-B socket; polling recovers with NOTIFY unused). Rate-limit: burst then
+429 with retry-after, no bypass across channels, and no row on rejection.
+Database-plan: five chat EXPLAIN checks. Playwright: a two-player flow —
+global exchange (one player with WebSockets disabled, recovering purely by
+polling), shared local chat, travel revoking local access, block + report, and
+history surviving reload.
+
+### Known limitations
+
+- Direct messages, guild/party channels, presence, typing indicators, read
+  receipts, attachments, reactions, and automated moderation are deliberately
+  out of scope. Administrative report triage, message redaction, and
+  restriction management (creation/revocation) arrive with Phase 17.
+
 ## Phase 15 — Persistent Notifications and Worker Fallback (2026-07-17)
 
 **Status: complete.**

@@ -36,6 +36,9 @@ model User {
   sessions  Session[]
   settings  UserSettings?
   character Character?
+
+  adminAuditLogs        AdminAuditLog[]
+  chatModerationActions ChatModerationAction[]
 }
 
 model Session {
@@ -56,6 +59,12 @@ model Session {
   expiresAt  DateTime
   lastUsedAt DateTime  @default(now())
   revokedAt  DateTime?
+
+  /// Server-side recent-auth marker for administrator mutations (Phase 17):
+  /// set by POST /admin/reauth on this session only, cleared by role/password
+  /// changes. A short configurable window gates every admin mutation. No
+  /// second long-lived bearer token is ever issued.
+  adminReauthenticatedAt DateTime?
 
   @@index([userId])
 }
@@ -164,6 +173,9 @@ model Character {
   marketPurchases      MarketplaceSale[]              @relation("SaleBuyer")
   deliveries           Delivery[]                     @relation("DeliveryBuyer")
   skills               CharacterSkill[]
+  build                CharacterBuild?
+  bountyClaims         BountyClaim[]
+  reputations          CharacterReputation[]
   gatheringRuns        GatheringRun[]
   professions          CraftingProfessionProgress[]
   craftingRuns         CraftingRun[]
@@ -171,6 +183,12 @@ model Character {
   characterQuests      CharacterQuest[]
   collectionDonations  CharacterCollectionDonation[]
   notifications        Notification[]
+  chatMessages         ChatMessage[]                  @relation("ChatMessageAuthor")
+  chatReadStates       ChatChannelReadState[]
+  chatBlocksMade       ChatBlock[]                    @relation("ChatBlocksMade")
+  chatBlocksReceived   ChatBlock[]                    @relation("ChatBlocksReceived")
+  chatReportsMade      ChatReport[]                   @relation("ChatReportsMade")
+  chatRestrictions     ChatRestriction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -203,6 +221,7 @@ model Location {
   craftingRecipes  CraftingRecipe[]
   encounters       EncounterDefinition[]
   collections      CollectionDefinition[]
+  chatChannel      ChatChannel?
 }
 
 enum LocationFeatureType {
@@ -273,6 +292,10 @@ model NpcShop {
 
   restockIntervalSeconds Int
   restockJitterSeconds   Int
+
+  /// Optimistic concurrency for admin configuration edits (Phase 17): a PATCH
+  /// must present the expected version; a stale write loses with HTTP 409.
+  configVersion Int @default(0)
 
   /// Timestamp authority for lazy restocking; exact values never leave the API.
   nextRestockAt    DateTime  @default(now())
@@ -499,6 +522,57 @@ model DeliveryLine {
 
 enum SkillType {
   MINING
+  HERBALISM
+}
+
+/// A claimed repeatable bounty (Phase 24). The unique (character, cycle,
+/// bounty) makes every bounty reward exactly once per character and cycle; a
+/// rotation to a new cycle id opens a fresh, independent claim. `cycleId` is
+/// timestamp-authoritative (e.g. "DAILY:2026-07-19"), so eligibility and claims
+/// are correct with the worker stopped.
+model BountyClaim {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  cycleId    String
+  bountySlug String
+  rewardGold BigInt
+  claimedAt  DateTime @default(now())
+
+  @@unique([characterId, cycleId, bountySlug])
+  @@index([characterId])
+}
+
+/// Bounded regional reputation (Phase 24): earned from bounties, capped, and
+/// never spendable — it gates bounded unlocks, not another currency.
+model CharacterReputation {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  region String
+  points Int    @default(0)
+
+  @@unique([characterId, region])
+}
+
+/// Per-character ability loadout and talent choices (Phase 23). `loadout` is an
+/// ordered list of equipped ability slugs (bounded by LOADOUT_CAPACITY);
+/// `talents` is the chosen talent slug per unlocked tier. `configVersion` bumps
+/// on every change (a respec is just a reset). Level is never stored here.
+model CharacterBuild {
+  id String @id @default(uuid())
+
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  loadout       Json
+  talents       Json
+  configVersion Int      @default(0)
+  updatedAt     DateTime @updatedAt
 }
 
 /// Per-character gathering skill progress. Level is derived from xp by the
@@ -597,6 +671,7 @@ model GatheringRun {
 
 enum ProfessionType {
   BLACKSMITHING
+  ALCHEMY
 }
 
 /// Per-character crafting profession progress. Level is derived from xp by
@@ -790,6 +865,11 @@ model Combat {
 
   /// Append-only human-readable combat log.
   log Json
+
+  /// Build snapshot taken at combat start (Phase 23): the equipped ability
+  /// loadout, chosen talents, and per-ability cooldown counters. Read during
+  /// the battle so a later respec or content publish never alters it.
+  buildSnapshot Json?
 
   /// Failed flee attempts so far (feeds the retry bonus).
   fleeAttempts Int @default(0)
@@ -1220,6 +1300,11 @@ model ItemDefinition {
   /// Reference value in Gold for NPC pricing (BIGINT).
   baseValue BigInt @default(0)
 
+  /// Optimistic concurrency for admin edits of safe presentation/economic
+  /// fields (Phase 17). Structural fields (slug, stackability, slot, effect
+  /// schema) are never mutable and would reinterpret existing assets.
+  configVersion Int @default(0)
+
   stacks    InventoryStack[]
   instances ItemInstance[]
   transfers ItemTransfer[]
@@ -1396,4 +1481,345 @@ model TravelRoute {
 
   @@unique([fromLocationId, toLocationId])
   @@index([fromLocationId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 16 — player chat, safety, and real-time delivery
+// ---------------------------------------------------------------------------
+
+enum ChatChannelKind {
+  GLOBAL
+  LOCATION
+}
+
+/// Seeded chat channels: exactly one GLOBAL channel and one LOCATION channel
+/// per world location. A migration adds a CHECK constraint (GLOBAL has no
+/// location, LOCATION has exactly one) and a partial unique index enforcing
+/// the single global channel; unique locationId enforces one per location.
+model ChatChannel {
+  id   String          @id @default(uuid())
+  slug String          @unique
+  kind ChatChannelKind
+
+  locationId String?   @unique
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  messages   ChatMessage[]
+  readStates ChatChannelReadState[]
+}
+
+enum ChatMessageStatus {
+  VISIBLE
+}
+
+/// One immutable plain-text chat message. No edit or user-delete path exists;
+/// retention cleanup may remove old unreported rows, and later administrative
+/// redaction must preserve a tombstone (ordering and IDs survive).
+model ChatMessage {
+  id String @id @default(uuid())
+
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Restrict)
+
+  authorCharacterId String
+  author            Character @relation("ChatMessageAuthor", fields: [authorCharacterId], references: [id], onDelete: Restrict)
+
+  /// Validated, normalized plain text (1-500 code points, <= 2000 UTF-8
+  /// bytes, no disallowed control characters). Stored exactly as validated.
+  body String
+
+  status ChatMessageStatus @default(VISIBLE)
+
+  /// Client-supplied send idempotency key, unique per author: replays return
+  /// this message and concurrent same-key sends create exactly one row.
+  idempotencyKey String
+
+  createdAt DateTime @default(now())
+
+  /// Administrative redaction (Phase 17): a redacted row keeps its id, author,
+  /// channel, and ordering as a tombstone; only the player-visible body is
+  /// replaced. Report snapshots and audit evidence are preserved. There is no
+  /// hard-delete path for a message that has been redacted or reported.
+  redactedAt      DateTime?
+  redactedByUserId String?
+  redactionReason String?
+
+  reports ChatReport[]
+
+  @@unique([authorCharacterId, idempotencyKey])
+  /// Stable cursor pagination and unread counting order by (createdAt, id).
+  @@index([channelId, createdAt, id])
+}
+
+/// Per-character read position in a channel. Advances only forward (to a real
+/// message in the channel); the stored (createdAt, id) pair keeps comparisons
+/// stable without a foreign key, so retention cleanup never breaks it.
+model ChatChannelReadState {
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  /// Deliberately not a foreign key: the referenced message may be cleaned up
+  /// later; the copied (createdAt, id) ordering pair remains valid forever.
+  lastReadMessageId        String
+  lastReadMessageCreatedAt DateTime
+
+  updatedAt DateTime @updatedAt
+
+  @@id([characterId, channelId])
+}
+
+/// Unilateral block: the blocker no longer sees the blocked author's messages
+/// or live invalidations. Never visible to (and never alters data of) the
+/// blocked character. A migration adds a CHECK preventing self-blocks.
+model ChatBlock {
+  blockerCharacterId String
+  blocker            Character @relation("ChatBlocksMade", fields: [blockerCharacterId], references: [id], onDelete: Cascade)
+
+  blockedCharacterId String
+  blocked            Character @relation("ChatBlocksReceived", fields: [blockedCharacterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([blockerCharacterId, blockedCharacterId])
+}
+
+enum ChatReportReason {
+  HARASSMENT
+  SPAM
+  ABUSIVE_LANGUAGE
+  CHEATING_OR_EXPLOITS
+  OTHER
+}
+
+enum ChatReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+/// One report per reporter and message, with an immutable evidence snapshot
+/// taken at report time — the evidence survives message retention cleanup
+/// (the Restrict relation makes reported messages undeletable) and any later
+/// redaction. The reporter is never revealed to the reported player.
+model ChatReport {
+  id String @id @default(uuid())
+
+  reporterCharacterId String
+  reporter            Character @relation("ChatReportsMade", fields: [reporterCharacterId], references: [id], onDelete: Restrict)
+
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Restrict)
+
+  reason ChatReportReason
+  /// Optional bounded free-text details from the reporter.
+  details String?
+
+  /// Immutable snapshots at report time (deliberately not foreign keys).
+  snapshotBody              String
+  snapshotAuthorCharacterId String
+  snapshotChannelId         String
+
+  status    ChatReportStatus @default(OPEN)
+  createdAt DateTime         @default(now())
+
+  /// Administrative resolution (Phase 17). The immutable evidence snapshot
+  /// above is preserved regardless of resolution.
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  resolutionReason String?
+
+  @@unique([reporterCharacterId, messageId])
+  @@index([status, createdAt])
+}
+
+enum ChatRestrictionStatus {
+  ACTIVE
+  REVOKED
+}
+
+/// A temporary or indefinite chat-send restriction. Timestamp-authoritative:
+/// an ACTIVE row past its expiresAt is lazily treated as inactive — no worker
+/// is required. No public API creates these in Phase 16 (the send service
+/// enforces them; administration arrives in Phase 17).
+model ChatRestriction {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Restrict)
+
+  status   ChatRestrictionStatus @default(ACTIVE)
+  startsAt DateTime              @default(now())
+  /// Null means indefinite.
+  expiresAt DateTime?
+
+  reason String
+
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([characterId, status, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 17 — administration, moderation, auditable economy operations
+// ---------------------------------------------------------------------------
+
+/// Append-only authoritative business audit for administrator mutations. This
+/// is a distinct domain from the technical `authoritative mutation` log and
+/// from CurrencyTransaction/ItemTransfer/ItemDestruction/MarketplaceSale/
+/// ChatReport — it never replaces them. A database trigger rejects UPDATE and
+/// DELETE so rows are immutable. Every successful admin mutation writes one row
+/// in the SAME transaction as the domain change. before/after JSON is a
+/// secret-free allowlist, never a full Prisma record.
+model AdminAuditLog {
+  id String @id @default(uuid())
+
+  actorUserId String
+  actor       User   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  /// Snapshot of the acting session id at write time (the session may later be
+  /// revoked; the audit reference remains).
+  actorSessionId String
+
+  /// Dotted action namespace, e.g. "currency.adjust", "chat.redact".
+  actionNamespace String
+  targetType      String
+  targetId        String
+
+  /// Mandatory bounded human reason for the action.
+  reason String
+
+  requestId      String
+  idempotencyKey String
+
+  /// Outcome marker (SUCCESS for committed mutations).
+  outcome String
+
+  /// Allowlisted, secret-free before/after snapshots.
+  beforeJson Json?
+  afterJson  Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([actorUserId, actionNamespace, idempotencyKey])
+  @@index([actorUserId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@index([actionNamespace, createdAt])
+  @@index([createdAt])
+}
+
+enum ChatModerationActionType {
+  REDACT_MESSAGE
+  APPLY_RESTRICTION
+  REVOKE_RESTRICTION
+  RESOLVE_REPORT
+}
+
+/// Explicit moderation-action record linking a redaction/restriction/
+/// revocation/report-resolution to its actor, subject, reason, and related
+/// message/report/restriction. Deliberately a first-class domain record rather
+/// than only a generic audit line.
+model ChatModerationAction {
+  id String @id @default(uuid())
+
+  actorUserId String
+  actor       User   @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  action ChatModerationActionType
+
+  subjectCharacterId String?
+  messageId          String?
+  reportId           String?
+  restrictionId      String?
+
+  reason String
+
+  createdAt DateTime @default(now())
+
+  @@index([subjectCharacterId, createdAt])
+  @@index([action, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 19 — versioned game content and publishing lifecycle
+// ---------------------------------------------------------------------------
+
+enum ContentReleaseStatus {
+  DRAFT
+  VALIDATING
+  PUBLISHED
+  RETIRED
+}
+
+/// A versioned bundle of game-content definitions moving through a publishing
+/// lifecycle. The live gameplay tables remain the runtime source of truth; this
+/// platform records immutable published revisions, enables validation, export/
+/// import, and safe evolution WITHOUT changing gameplay. Release 1 is a
+/// snapshot of the originally seeded content.
+model ContentRelease {
+  id      String               @id @default(uuid())
+  /// Monotonic release number; unique across the platform.
+  version Int                  @unique
+  status  ContentReleaseStatus @default(DRAFT)
+
+  /// Human label + mandatory reason recorded at publish/retire time.
+  title  String
+  notes  String?
+
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  retiredAt   DateTime?
+
+  definitions ContentDefinition[]
+
+  @@index([status, version])
+}
+
+enum ContentType {
+  ITEM
+  LOCATION
+  TRAVEL_ROUTE
+  LOCATION_FEATURE
+  REGIONAL_PRICE_MODIFIER
+  NPC_SHOP
+  GATHERING_ACTION
+  CRAFTING_RECIPE
+  ENEMY
+  ENCOUNTER
+  QUEST
+  COLLECTION
+  CHARACTER_CLASS
+  LEVEL_PROGRESSION
+}
+
+/// One content definition within a release: a stable key, a revision number,
+/// a canonical JSON payload (references expressed by stable key, never DB id),
+/// and a checksum. Rows belonging to a PUBLISHED release are immutable —
+/// enforced by a database trigger so a published revision can never change.
+model ContentDefinition {
+  id String @id @default(uuid())
+
+  releaseId String
+  release   ContentRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+
+  contentType ContentType
+  /// Stable key, unique per (release, type). Never a database id.
+  stableKey   String
+  /// Revision number for this key across the platform (informational).
+  revision    Int         @default(1)
+
+  /// Canonical, deterministic payload. References use stable keys.
+  payload  Json
+  /// SHA-256 of the canonical payload, for integrity + change detection.
+  checksum String
+
+  createdAt DateTime @default(now())
+
+  @@unique([releaseId, contentType, stableKey])
+  @@index([contentType, stableKey])
 }

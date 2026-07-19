@@ -82,6 +82,10 @@ const abilityDefinitionSchema = z.object({
   classSlug: z.enum(['vanguard', 'wayfarer', 'arcanist']),
   kind: z.enum(['PHYSICAL', 'MAGICAL', 'SUPPORT']),
   mpCost: z.number().int().min(0),
+  /** Character level at which this ability becomes equippable (Phase 23). */
+  unlockLevel: z.number().int().min(1).default(1),
+  /** Actor-turn cooldown after use; 0 = usable every turn (Phase 23). */
+  cooldownTurns: z.number().int().min(0).default(0),
   /** Damage power in bps of the attacker's offensive stat (0 = no damage). */
   powerBps: z.number().int().min(0),
   /** Number of damage hits (each rolled separately). */
@@ -213,6 +217,125 @@ export const CLASS_ABILITIES: AbilityDefinition[] = z.array(abilityDefinitionSch
     powerBps: 10_000,
     element: 'STORM',
     targeting: 'ALL_ENEMIES',
+    cooldownTurns: 1,
+  },
+  // --- Higher-level abilities (Phase 23), staggered so builds diverge ---
+  {
+    slug: 'rallying-shout',
+    name: 'Rallying Shout',
+    description: 'A battle-cry that quickens your own step.',
+    classSlug: 'vanguard',
+    kind: 'SUPPORT',
+    mpCost: 4,
+    unlockLevel: 8,
+    powerBps: 0,
+    targeting: 'SELF',
+    applies: { status: 'HASTE', magnitude: 15_000, turns: 3, chanceBps: 10_000 },
+  },
+  {
+    slug: 'earthshaker',
+    name: 'Earthshaker',
+    description: 'Bring your weapon down like a falling hill, cracking the whole line.',
+    classSlug: 'vanguard',
+    kind: 'PHYSICAL',
+    mpCost: 8,
+    unlockLevel: 16,
+    cooldownTurns: 2,
+    powerBps: 9000,
+    element: 'STONE',
+    targeting: 'ALL_ENEMIES',
+  },
+  {
+    slug: 'unbreakable',
+    name: 'Unbreakable',
+    description: 'Set your stance beyond breaking for a moment that matters.',
+    classSlug: 'vanguard',
+    kind: 'SUPPORT',
+    mpCost: 6,
+    unlockLevel: 24,
+    cooldownTurns: 3,
+    powerBps: 0,
+    targeting: 'SELF',
+    applies: { status: 'GUARD', magnitude: 6000, turns: 2, chanceBps: 10_000 },
+  },
+  {
+    slug: 'pinning-shot',
+    name: 'Pinning Shot',
+    description: 'A shot to the leg that slows even the swiftest quarry.',
+    classSlug: 'wayfarer',
+    kind: 'PHYSICAL',
+    mpCost: 5,
+    unlockLevel: 8,
+    powerBps: 9000,
+    targeting: 'ENEMY',
+    ranged: true,
+    applies: { status: 'SLOW', magnitude: 5000, turns: 3, chanceBps: 8000 },
+  },
+  {
+    slug: 'venom-blades',
+    name: 'Venom Blades',
+    description: 'Coated edges that leave a lingering, spreading poison.',
+    classSlug: 'wayfarer',
+    kind: 'PHYSICAL',
+    mpCost: 6,
+    unlockLevel: 16,
+    cooldownTurns: 2,
+    powerBps: 7000,
+    hits: 2,
+    targeting: 'ENEMY',
+    applies: { status: 'POISON', magnitude: 6, turns: 3, chanceBps: 10_000 },
+  },
+  {
+    slug: 'fan-of-knives',
+    name: 'Fan of Knives',
+    description: 'A spinning throw that catches the whole front line.',
+    classSlug: 'wayfarer',
+    kind: 'PHYSICAL',
+    mpCost: 8,
+    unlockLevel: 24,
+    cooldownTurns: 3,
+    powerBps: 8000,
+    targeting: 'ALL_ENEMIES',
+    ranged: true,
+  },
+  {
+    slug: 'stone-spikes',
+    name: 'Stone Spikes',
+    description: 'Jagged rock erupts beneath a single foe.',
+    classSlug: 'arcanist',
+    kind: 'MAGICAL',
+    mpCost: 6,
+    unlockLevel: 8,
+    powerBps: 14_000,
+    element: 'STONE',
+    targeting: 'ENEMY',
+  },
+  {
+    slug: 'silencing-hex',
+    name: 'Silencing Hex',
+    description: 'A hex that seals a foe’s tongue and stills their spells.',
+    classSlug: 'arcanist',
+    kind: 'MAGICAL',
+    mpCost: 7,
+    unlockLevel: 16,
+    cooldownTurns: 2,
+    powerBps: 6000,
+    element: 'STORM',
+    targeting: 'ENEMY',
+    applies: { status: 'SILENCE', magnitude: 1, turns: 2, chanceBps: 9000 },
+  },
+  {
+    slug: 'meteor',
+    name: 'Meteor',
+    description: 'Call down a burning stone to break the entire enemy line.',
+    classSlug: 'arcanist',
+    kind: 'MAGICAL',
+    mpCost: 14,
+    unlockLevel: 24,
+    cooldownTurns: 3,
+    powerBps: 13_000,
+    element: 'FLAME',
+    targeting: 'ALL_ENEMIES',
   },
 ]);
 
@@ -222,4 +345,258 @@ export function abilitiesForClass(classSlug: string): AbilityDefinition[] {
 
 export function findAbility(classSlug: string, slug: string): AbilityDefinition | undefined {
   return CLASS_ABILITIES.find((a) => a.classSlug === classSlug && a.slug === slug);
+}
+
+/** The most abilities a character may equip at once (Phase 23). */
+export const LOADOUT_CAPACITY = 4;
+
+/**
+ * Class talents (Phase 23): a bounded choice at each tier. A character picks at
+ * most one talent per unlocked tier; each is a small, deterministic stat
+ * modifier applied at combat start. Two options per tier keep at least two
+ * viable builds per class without unbounded affix complexity.
+ */
+const statModifierSchema = z.object({
+  maxHpBps: z.number().int().default(0),
+  maxMpBps: z.number().int().default(0),
+  strengthBps: z.number().int().default(0),
+  agilityBps: z.number().int().default(0),
+  magicBps: z.number().int().default(0),
+  defenseBps: z.number().int().default(0),
+  magicDefenseBps: z.number().int().default(0),
+  luckBps: z.number().int().default(0),
+});
+export type StatModifier = z.infer<typeof statModifierSchema>;
+
+const talentDefinitionSchema = z.object({
+  slug: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  classSlug: z.enum(['vanguard', 'wayfarer', 'arcanist']),
+  tier: z.number().int().min(1).max(3),
+  unlockLevel: z.number().int().min(1),
+  modifiers: statModifierSchema,
+});
+export type TalentDefinition = z.infer<typeof talentDefinitionSchema>;
+
+/** Tier → character level at which that talent tier unlocks. */
+export const TALENT_TIER_LEVELS: Record<number, number> = { 1: 10, 2: 20, 3: 30 };
+
+export const CLASS_TALENTS: TalentDefinition[] = z.array(talentDefinitionSchema).parse([
+  // Vanguard
+  {
+    slug: 'bulwark',
+    name: 'Bulwark',
+    description: 'Fortify body and shield.',
+    classSlug: 'vanguard',
+    tier: 1,
+    unlockLevel: 10,
+    modifiers: { maxHpBps: 1000, defenseBps: 800 },
+  },
+  {
+    slug: 'berserker',
+    name: 'Berserker',
+    description: 'Trade caution for raw power.',
+    classSlug: 'vanguard',
+    tier: 1,
+    unlockLevel: 10,
+    modifiers: { strengthBps: 1000 },
+  },
+  {
+    slug: 'ironhide',
+    name: 'Ironhide',
+    description: 'Harden against sorcery.',
+    classSlug: 'vanguard',
+    tier: 2,
+    unlockLevel: 20,
+    modifiers: { magicDefenseBps: 1000, maxHpBps: 600 },
+  },
+  {
+    slug: 'juggernaut',
+    name: 'Juggernaut',
+    description: 'Momentum that flattens guards.',
+    classSlug: 'vanguard',
+    tier: 2,
+    unlockLevel: 20,
+    modifiers: { strengthBps: 800, defenseBps: 600 },
+  },
+  {
+    slug: 'colossus',
+    name: 'Colossus',
+    description: 'An immovable wall of a warrior.',
+    classSlug: 'vanguard',
+    tier: 3,
+    unlockLevel: 30,
+    modifiers: { maxHpBps: 1200 },
+  },
+  {
+    slug: 'warlord',
+    name: 'Warlord',
+    description: 'Every blow lands like a verdict.',
+    classSlug: 'vanguard',
+    tier: 3,
+    unlockLevel: 30,
+    modifiers: { strengthBps: 1200 },
+  },
+  // Wayfarer
+  {
+    slug: 'fleet',
+    name: 'Fleet',
+    description: 'Move before they can answer.',
+    classSlug: 'wayfarer',
+    tier: 1,
+    unlockLevel: 10,
+    modifiers: { agilityBps: 1000 },
+  },
+  {
+    slug: 'deadeye',
+    name: 'Deadeye',
+    description: 'Patience rewarded with precision.',
+    classSlug: 'wayfarer',
+    tier: 1,
+    unlockLevel: 10,
+    modifiers: { strengthBps: 800, luckBps: 600 },
+  },
+  {
+    slug: 'shadowstep',
+    name: 'Shadowstep',
+    description: 'Slip the odds in your favor.',
+    classSlug: 'wayfarer',
+    tier: 2,
+    unlockLevel: 20,
+    modifiers: { agilityBps: 1000, luckBps: 500 },
+  },
+  {
+    slug: 'predator',
+    name: 'Predator',
+    description: 'Strike for the throat.',
+    classSlug: 'wayfarer',
+    tier: 2,
+    unlockLevel: 20,
+    modifiers: { strengthBps: 1000 },
+  },
+  {
+    slug: 'windrunner',
+    name: 'Windrunner',
+    description: 'Faster than the eye.',
+    classSlug: 'wayfarer',
+    tier: 3,
+    unlockLevel: 30,
+    modifiers: { agilityBps: 1200 },
+  },
+  {
+    slug: 'assassin',
+    name: 'Assassin',
+    description: 'One chance is all you need.',
+    classSlug: 'wayfarer',
+    tier: 3,
+    unlockLevel: 30,
+    modifiers: { strengthBps: 800, luckBps: 800 },
+  },
+  // Arcanist
+  {
+    slug: 'scholar',
+    name: 'Scholar',
+    description: 'Deeper study, sharper spells.',
+    classSlug: 'arcanist',
+    tier: 1,
+    unlockLevel: 10,
+    modifiers: { magicBps: 1000 },
+  },
+  {
+    slug: 'warding',
+    name: 'Warding',
+    description: 'Wards woven into every robe-thread.',
+    classSlug: 'arcanist',
+    tier: 1,
+    unlockLevel: 10,
+    modifiers: { magicDefenseBps: 1000, maxMpBps: 600 },
+  },
+  {
+    slug: 'archmage',
+    name: 'Archmage',
+    description: 'Power and reserves in equal measure.',
+    classSlug: 'arcanist',
+    tier: 2,
+    unlockLevel: 20,
+    modifiers: { magicBps: 1000, maxMpBps: 600 },
+  },
+  {
+    slug: 'mystic-guard',
+    name: 'Mystic Guard',
+    description: 'Turn hostile magic aside.',
+    classSlug: 'arcanist',
+    tier: 2,
+    unlockLevel: 20,
+    modifiers: { magicDefenseBps: 1000 },
+  },
+  {
+    slug: 'sorcerer',
+    name: 'Sorcerer',
+    description: 'Raw arcane overwhelming force.',
+    classSlug: 'arcanist',
+    tier: 3,
+    unlockLevel: 30,
+    modifiers: { magicBps: 1200 },
+  },
+  {
+    slug: 'eternal',
+    name: 'Eternal',
+    description: 'A bottomless well of power.',
+    classSlug: 'arcanist',
+    tier: 3,
+    unlockLevel: 30,
+    modifiers: { maxMpBps: 1000, magicDefenseBps: 800 },
+  },
+]);
+
+export function talentsForClass(classSlug: string): TalentDefinition[] {
+  return CLASS_TALENTS.filter((t) => t.classSlug === classSlug);
+}
+
+export function findTalent(classSlug: string, slug: string): TalentDefinition | undefined {
+  return CLASS_TALENTS.find((t) => t.classSlug === classSlug && t.slug === slug);
+}
+
+/** The default equipped loadout for a class at a level: the first unlocked abilities. */
+export function defaultLoadout(classSlug: string, level: number): string[] {
+  return abilitiesForClass(classSlug)
+    .filter((a) => a.unlockLevel <= level)
+    .slice(0, LOADOUT_CAPACITY)
+    .map((a) => a.slug);
+}
+
+/** Applies chosen talent stat modifiers to a derived stat block (Phase 23). */
+export function applyTalentModifiers<
+  T extends {
+    maxHp: number;
+    maxMp: number;
+    strength: number;
+    agility: number;
+    magic: number;
+    defense: number;
+    magicDefense: number;
+    luck: number;
+  },
+>(stats: T, classSlug: string, talentSlugs: string[]): T {
+  const total: StatModifier = statModifierSchema.parse({});
+  for (const slug of talentSlugs) {
+    const talent = findTalent(classSlug, slug);
+    if (!talent) continue;
+    for (const key of Object.keys(total) as Array<keyof StatModifier>) {
+      total[key] += talent.modifiers[key];
+    }
+  }
+  const scale = (value: number, bps: number) => Math.floor((value * (10_000 + bps)) / 10_000);
+  return {
+    ...stats,
+    maxHp: scale(stats.maxHp, total.maxHpBps),
+    maxMp: scale(stats.maxMp, total.maxMpBps),
+    strength: scale(stats.strength, total.strengthBps),
+    agility: scale(stats.agility, total.agilityBps),
+    magic: scale(stats.magic, total.magicBps),
+    defense: scale(stats.defense, total.defenseBps),
+    magicDefense: scale(stats.magicDefense, total.magicDefenseBps),
+    luck: scale(stats.luck, total.luckBps),
+  };
 }

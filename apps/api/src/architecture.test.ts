@@ -33,6 +33,7 @@ describe('application composition', () => {
     expect(names).toEqual([
       'auth',
       'account',
+      'assets',
       'economy-core',
       'characters',
       'notifications',
@@ -41,12 +42,16 @@ describe('application composition', () => {
       'world',
       'inventory',
       'currency',
+      'builds',
       'npc-shops',
       'marketplace',
       'gathering',
       'crafting',
       'combat',
       'museum',
+      'activities',
+      'chat',
+      'admin',
     ]);
     expect(new Set(names).size).toBe(names.length);
   });
@@ -56,19 +61,24 @@ describe('application composition', () => {
     const representatives: Array<[string, string, string]> = [
       ['auth', 'POST', '/api/v1/auth/login'],
       ['account', 'GET', '/api/v1/account/settings'],
+      ['assets', 'GET', '/api/v1/assets'],
       ['characters', 'GET', '/api/v1/characters/me'],
       ['quests', 'GET', '/api/v1/quests'],
       ['travel', 'POST', '/api/v1/travel/start'],
       ['world', 'GET', '/api/v1/locations/current'],
       ['inventory', 'GET', '/api/v1/inventory'],
       ['currency', 'GET', '/api/v1/currency'],
+      ['builds', 'GET', '/api/v1/builds/me'],
       ['npc-shops', 'GET', '/api/v1/npc-shops'],
       ['marketplace', 'GET', '/api/v1/marketplace/listings'],
       ['gathering', 'GET', '/api/v1/gathering/actions'],
       ['crafting', 'GET', '/api/v1/crafting/recipes'],
       ['combat', 'GET', '/api/v1/combat/encounters'],
       ['museum', 'GET', '/api/v1/collections'],
+      ['activities', 'GET', '/api/v1/bounties'],
       ['notifications', 'GET', '/api/v1/notifications'],
+      ['chat', 'GET', '/api/v1/chat/channels'],
+      ['admin', 'GET', '/api/v1/admin/session'],
     ];
     for (const [module, method, url] of representatives) {
       expect(app.hasRoute({ method: method, url }), `${module}: ${method} ${url}`).toBe(true);

@@ -1,4 +1,4 @@
-import type { NpcShopStockEntryInfo, StockLevel } from '@rpg/shared';
+import type { InventoryStackInfo, NpcShopStockEntryInfo, StockLevel } from '@rpg/shared';
 import { useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 
@@ -9,8 +9,10 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
+import { useSellback } from '../features/activities/useActivities';
 import { useCharacter } from '../features/character/useCharacter';
 import { useCurrency } from '../features/currency/useCurrency';
+import { useInventory } from '../features/inventory/useInventory';
 import { usePurchase, useShopDetail } from '../features/npc-shops/useNpcShops';
 import { ApiRequestError } from '../lib/api';
 
@@ -38,10 +40,14 @@ export function ShopPage() {
   const { data: character, isPending: characterPending } = useCharacter();
   const shop = useShopDetail(shopId);
   const purchase = usePurchase(shopId ?? '');
+  const sellback = useSellback(shopId ?? '');
+  const inventory = useInventory(Boolean(character));
   const { data: wallet } = useCurrency(Boolean(character));
   const { showToast } = useToast();
   const [selected, setSelected] = useState<NpcShopStockEntryInfo | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [sellSelected, setSellSelected] = useState<InventoryStackInfo | null>(null);
+  const [sellQuantity, setSellQuantity] = useState(1);
 
   if (characterPending) return <LoadingState label="Pushing open the shop door…" />;
   if (!character) return <Navigate to="/character/new" replace />;
@@ -81,6 +87,29 @@ export function ShopPage() {
       },
     );
   };
+
+  const confirmSell = () => {
+    if (!sellSelected) return;
+    sellback.mutate(
+      { itemSlug: sellSelected.item.slug, quantity: sellQuantity },
+      {
+        onSuccess: (result) => {
+          setSellSelected(null);
+          showToast(
+            `Sold ${result.quantity} × ${sellSelected.item.name} for ${result.goldReceived} Gold.`,
+            'success',
+          );
+        },
+        onError: (err) =>
+          showToast(
+            err instanceof ApiRequestError ? err.message : 'The shopkeeper will not buy that.',
+            'error',
+          ),
+      },
+    );
+  };
+
+  const sellableStacks = inventory.data?.stacks ?? [];
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -154,6 +183,96 @@ export function ShopPage() {
           </ul>
         </Card>
       )}
+
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+          Sell to the shop
+        </h2>
+        {sellableStacks.length === 0 ? (
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            You have no stackable goods to sell here. The shop pays below its own asking price.
+          </p>
+        ) : (
+          <Card>
+            <ul className="divide-y divide-stone-200 dark:divide-stone-800">
+              {sellableStacks.map((stack) => (
+                <li
+                  key={stack.item.slug}
+                  className="flex items-center justify-between gap-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-stone-900 dark:text-stone-100">
+                      {stack.item.name}
+                    </p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400">
+                      You hold {stack.quantity}
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    className="px-3 py-1 text-xs"
+                    onClick={() => {
+                      setSellSelected(stack);
+                      setSellQuantity(1);
+                    }}
+                  >
+                    Sell
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </div>
+
+      <Dialog
+        open={sellSelected !== null}
+        title={sellSelected ? `Sell ${sellSelected.item.name}` : ''}
+        onClose={() => setSellSelected(null)}
+        footer={
+          sellSelected ? (
+            <>
+              <Button variant="ghost" onClick={() => setSellSelected(null)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmSell} disabled={sellback.isPending}>
+                Sell {sellQuantity}
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {sellSelected && (
+          <div className="space-y-3">
+            <p className="text-sm text-stone-600 dark:text-stone-400">
+              The shop buys goods below its asking price — selling is a Gold sink, not an arbitrage.
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-sm">Quantity</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  className="px-2 py-0.5"
+                  onClick={() => setSellQuantity((q) => Math.max(1, q - 1))}
+                >
+                  −
+                </Button>
+                <span className="w-8 text-center font-medium" data-testid="sell-quantity">
+                  {sellQuantity}
+                </span>
+                <Button
+                  variant="secondary"
+                  className="px-2 py-0.5"
+                  onClick={() => setSellQuantity((q) => Math.min(sellSelected.quantity, q + 1))}
+                >
+                  +
+                </Button>
+              </div>
+              <span className="text-xs text-stone-500">of {sellSelected.quantity}</span>
+            </div>
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         open={selected !== null}
