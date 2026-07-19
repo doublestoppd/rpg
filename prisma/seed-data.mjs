@@ -709,6 +709,17 @@ export const LEVEL_PROGRESSION = [
   { level: 18, cumulativeXp: 27800 },
   { level: 19, cumulativeXp: 32500 },
   { level: 20, cumulativeXp: 37800 },
+  // Phase 23 raised the cap to 30 (strictly increasing deltas).
+  { level: 21, cumulativeXp: 43600 },
+  { level: 22, cumulativeXp: 49900 },
+  { level: 23, cumulativeXp: 56700 },
+  { level: 24, cumulativeXp: 64000 },
+  { level: 25, cumulativeXp: 71800 },
+  { level: 26, cumulativeXp: 80100 },
+  { level: 27, cumulativeXp: 88900 },
+  { level: 28, cumulativeXp: 98200 },
+  { level: 29, cumulativeXp: 108000 },
+  { level: 30, cumulativeXp: 118300 },
 ];
 
 /**

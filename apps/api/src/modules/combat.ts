@@ -13,6 +13,7 @@ export const combatModule: GameModule = {
       requireService(ctx.services, 'currencyService'),
       requireService(ctx.services, 'inventoryService'),
       requireService(ctx.services, 'questService').events,
+      requireService(ctx.services, 'buildService'),
     );
     ctx.services.combatService = combatService;
     await ctx.app.register(combatRoutes, { prefix: '/api/v1', combatService });

@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell';
 import { RequireAuth } from './features/auth/RequireAuth';
 import { AccountSettingsPage } from './pages/AccountSettingsPage';
 import { AdminPage } from './pages/AdminPage';
+import { BuildsPage } from './pages/BuildsPage';
 import { CharacterCreatePage } from './pages/CharacterCreatePage';
 import { CharacterPage } from './pages/CharacterPage';
 import { ChatPage } from './pages/ChatPage';
@@ -48,6 +49,14 @@ export function App() {
           element={
             <RequireAuth>
               <CharacterPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="character/build"
+          element={
+            <RequireAuth>
+              <BuildsPage />
             </RequireAuth>
           }
         />

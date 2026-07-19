@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Env } from '../config/env.js';
 import type { SettingsService } from '../domain/account/settings-service.js';
 import type { AuthService } from '../domain/auth/auth-service.js';
+import type { BuildService } from '../domain/character/build-service.js';
 import type { CharacterService } from '../domain/character/character-service.js';
 import type { ChatService } from '../domain/chat/chat-service.js';
 import type { CombatService } from '../domain/combat/combat-service.js';
@@ -36,6 +37,7 @@ export interface ServiceRegistry {
   inventoryService?: InventoryService;
   currencyService?: CurrencyService;
   characterService?: CharacterService;
+  buildService?: BuildService;
   liveHub?: LiveHub;
   notificationService?: NotificationService;
   equipmentService?: EquipmentService;

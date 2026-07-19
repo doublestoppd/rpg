@@ -173,6 +173,7 @@ model Character {
   marketPurchases      MarketplaceSale[]              @relation("SaleBuyer")
   deliveries           Delivery[]                     @relation("DeliveryBuyer")
   skills               CharacterSkill[]
+  build                CharacterBuild?
   gatheringRuns        GatheringRun[]
   professions          CraftingProfessionProgress[]
   craftingRuns         CraftingRun[]
@@ -522,6 +523,22 @@ enum SkillType {
   HERBALISM
 }
 
+/// Per-character ability loadout and talent choices (Phase 23). `loadout` is an
+/// ordered list of equipped ability slugs (bounded by LOADOUT_CAPACITY);
+/// `talents` is the chosen talent slug per unlocked tier. `configVersion` bumps
+/// on every change (a respec is just a reset). Level is never stored here.
+model CharacterBuild {
+  id String @id @default(uuid())
+
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  loadout       Json
+  talents       Json
+  configVersion Int      @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
 /// Per-character gathering skill progress. Level is derived from xp by the
 /// skill progression table (never stored, so the two cannot disagree).
 model CharacterSkill {
@@ -812,6 +829,11 @@ model Combat {
 
   /// Append-only human-readable combat log.
   log Json
+
+  /// Build snapshot taken at combat start (Phase 23): the equipped ability
+  /// loadout, chosen talents, and per-ability cooldown counters. Read during
+  /// the battle so a later respec or content publish never alters it.
+  buildSnapshot Json?
 
   /// Failed flee attempts so far (feeds the retry bonus).
   fleeAttempts Int @default(0)

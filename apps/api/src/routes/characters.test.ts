@@ -54,9 +54,9 @@ describe('seeded configuration', () => {
     }
   });
 
-  it('seeds a strictly monotonic XP table for levels 1-20', async () => {
+  it('seeds a strictly monotonic XP table to the level-30 cap', async () => {
     const rows = await prisma.levelProgression.findMany({ orderBy: { level: 'asc' } });
-    expect(rows).toHaveLength(20);
+    expect(rows).toHaveLength(30);
     expect(rows[0]).toMatchObject({ level: 1, cumulativeXp: 0 });
     for (let i = 1; i < rows.length; i++) {
       expect(rows[i]!.level).toBe(rows[i - 1]!.level + 1);
@@ -194,11 +194,11 @@ describe('experience and level-up', () => {
     expect(row.level).toBe(5);
     expect(row.currentHp).toBe(120 + 12 * 4);
 
-    // Enormous XP caps at level 20.
+    // Enormous XP caps at level 30 (Phase 23 raised the cap).
     const capped = await characterService.addExperience(prisma, character.id, 10_000_000);
-    expect(capped.level).toBe(20);
+    expect(capped.level).toBe(30);
     row = await prisma.character.findUniqueOrThrow({ where: { id: character.id } });
-    expect(row.level).toBe(20);
+    expect(row.level).toBe(30);
 
     // At the cap, xpForNextLevel is null in the API response.
     const me = await app.inject({

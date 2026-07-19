@@ -3098,6 +3098,744 @@
         }
       }
     },
+    "/api/v1/builds/me": {
+      "get": {
+        "summary": "The character ability roster, loadout, and talents",
+        "tags": ["builds"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "classSlug": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "loadoutCapacity": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "configVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "respecFeeGold": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "abilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PHYSICAL", "MAGICAL", "SUPPORT"]
+                          },
+                          "mpCost": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "element": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": ["FLAME", "FROST", "STORM", "STONE"]
+                          },
+                          "targeting": {
+                            "type": "string",
+                            "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownTurns": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "equipped": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "description",
+                          "kind",
+                          "mpCost",
+                          "element",
+                          "targeting",
+                          "unlockLevel",
+                          "cooldownTurns",
+                          "unlocked",
+                          "equipped"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "talents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tier": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "chosenSlug": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "effect": {
+                                  "type": "string"
+                                },
+                                "chosen": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["slug", "name", "description", "effect", "chosen"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["tier", "unlockLevel", "unlocked", "chosenSlug", "options"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "classSlug",
+                    "level",
+                    "loadoutCapacity",
+                    "configVersion",
+                    "respecFeeGold",
+                    "abilities",
+                    "talents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/builds/me/loadout": {
+      "put": {
+        "summary": "Set the equipped ability loadout (bounded, unlocked only)",
+        "tags": ["builds"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "abilitySlugs": {
+                    "maxItems": 12,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "required": ["abilitySlugs"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "classSlug": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "loadoutCapacity": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "configVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "respecFeeGold": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "abilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PHYSICAL", "MAGICAL", "SUPPORT"]
+                          },
+                          "mpCost": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "element": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": ["FLAME", "FROST", "STORM", "STONE"]
+                          },
+                          "targeting": {
+                            "type": "string",
+                            "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownTurns": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "equipped": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "description",
+                          "kind",
+                          "mpCost",
+                          "element",
+                          "targeting",
+                          "unlockLevel",
+                          "cooldownTurns",
+                          "unlocked",
+                          "equipped"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "talents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tier": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "chosenSlug": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "effect": {
+                                  "type": "string"
+                                },
+                                "chosen": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["slug", "name", "description", "effect", "chosen"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["tier", "unlockLevel", "unlocked", "chosenSlug", "options"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "classSlug",
+                    "level",
+                    "loadoutCapacity",
+                    "configVersion",
+                    "respecFeeGold",
+                    "abilities",
+                    "talents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/builds/me/talents": {
+      "put": {
+        "summary": "Choose (or clear) the talent for an unlocked tier",
+        "tags": ["builds"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tier": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3
+                  },
+                  "talentSlug": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["tier", "talentSlug"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "classSlug": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "loadoutCapacity": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "configVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "respecFeeGold": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "abilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PHYSICAL", "MAGICAL", "SUPPORT"]
+                          },
+                          "mpCost": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "element": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": ["FLAME", "FROST", "STORM", "STONE"]
+                          },
+                          "targeting": {
+                            "type": "string",
+                            "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownTurns": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "equipped": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "description",
+                          "kind",
+                          "mpCost",
+                          "element",
+                          "targeting",
+                          "unlockLevel",
+                          "cooldownTurns",
+                          "unlocked",
+                          "equipped"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "talents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tier": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "chosenSlug": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "effect": {
+                                  "type": "string"
+                                },
+                                "chosen": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["slug", "name", "description", "effect", "chosen"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["tier", "unlockLevel", "unlocked", "chosenSlug", "options"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "classSlug",
+                    "level",
+                    "loadoutCapacity",
+                    "configVersion",
+                    "respecFeeGold",
+                    "abilities",
+                    "talents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/builds/me/respec": {
+      "post": {
+        "summary": "Respec at a trainer: reset loadout and talents for a Gold fee",
+        "tags": ["builds"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 200
+                  }
+                },
+                "required": ["idempotencyKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "classSlug": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "loadoutCapacity": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "configVersion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "respecFeeGold": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "abilities": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PHYSICAL", "MAGICAL", "SUPPORT"]
+                          },
+                          "mpCost": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "element": {
+                            "nullable": true,
+                            "type": "string",
+                            "enum": ["FLAME", "FROST", "STORM", "STONE"]
+                          },
+                          "targeting": {
+                            "type": "string",
+                            "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownTurns": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "equipped": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name",
+                          "description",
+                          "kind",
+                          "mpCost",
+                          "element",
+                          "targeting",
+                          "unlockLevel",
+                          "cooldownTurns",
+                          "unlocked",
+                          "equipped"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "talents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tier": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlockLevel": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "unlocked": {
+                            "type": "boolean"
+                          },
+                          "chosenSlug": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "options": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                },
+                                "effect": {
+                                  "type": "string"
+                                },
+                                "chosen": {
+                                  "type": "boolean"
+                                }
+                              },
+                              "required": ["slug", "name", "description", "effect", "chosen"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["tier", "unlockLevel", "unlocked", "chosenSlug", "options"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "classSlug",
+                    "level",
+                    "loadoutCapacity",
+                    "configVersion",
+                    "respecFeeGold",
+                    "abilities",
+                    "talents"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/npc-shops": {
       "get": {
         "summary": "NPC shops at the current location",
@@ -6804,6 +7542,18 @@
                           "targeting": {
                             "type": "string",
                             "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "cooldownTurns": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownRemaining": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -6813,7 +7563,9 @@
                           "kind",
                           "mpCost",
                           "element",
-                          "targeting"
+                          "targeting",
+                          "cooldownTurns",
+                          "cooldownRemaining"
                         ],
                         "additionalProperties": false
                       }
@@ -7225,6 +7977,18 @@
                           "targeting": {
                             "type": "string",
                             "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "cooldownTurns": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownRemaining": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -7234,7 +7998,9 @@
                           "kind",
                           "mpCost",
                           "element",
-                          "targeting"
+                          "targeting",
+                          "cooldownTurns",
+                          "cooldownRemaining"
                         ],
                         "additionalProperties": false
                       }
@@ -7685,6 +8451,18 @@
                           "targeting": {
                             "type": "string",
                             "enum": ["ENEMY", "ALL_ENEMIES", "SELF"]
+                          },
+                          "cooldownTurns": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "cooldownRemaining": {
+                            "default": 0,
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
                           }
                         },
                         "required": [
@@ -7694,7 +8472,9 @@
                           "kind",
                           "mpCost",
                           "element",
-                          "targeting"
+                          "targeting",
+                          "cooldownTurns",
+                          "cooldownRemaining"
                         ],
                         "additionalProperties": false
                       }

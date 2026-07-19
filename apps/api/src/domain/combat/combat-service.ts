@@ -19,6 +19,7 @@ import { gameConfig } from '../../config/game.js';
 import { createCombatRng, newCombatSeed } from '../../lib/combat-rng.js';
 import { conflict, DomainError } from '../../lib/http-errors.js';
 import { metrics } from '../../lib/metrics.js';
+import type { BuildService } from '../character/build-service.js';
 import type { CharacterService } from '../character/character-service.js';
 import { computeDerivedStats } from '../character/progression.js';
 import { CURRENCY_TYPES, type CurrencyService } from '../currency/currency-service.js';
@@ -122,8 +123,21 @@ export function createCombatService(
   currencyService: CurrencyService,
   inventoryService: InventoryService,
   questEvents: QuestEventSink = noopQuestEvents,
+  buildService?: BuildService,
 ): CombatService {
   type Tx = Prisma.TransactionClient;
+
+  /** Validated shape of Combat.buildSnapshot (Phase 23). */
+  const buildSnapshotSchema = z.object({
+    loadout: z.array(z.string()),
+    talents: z.array(z.string()),
+    cooldowns: z.record(z.string(), z.number().int().min(0)),
+  });
+  type BuildSnapshot = z.infer<typeof buildSnapshotSchema>;
+  const readBuildSnapshot = (value: unknown): BuildSnapshot => {
+    const parsed = buildSnapshotSchema.safeParse(value);
+    return parsed.success ? parsed.data : { loadout: [], talents: [], cooldowns: {} };
+  };
 
   function toEngineCombatant(row: CombatantRow): EngineCombatant {
     return {
@@ -244,7 +258,17 @@ export function createCombatService(
     let abilities: CombatView['abilities'] = [];
     let usableItems: CombatView['usableItems'] = [];
     if (combat.status === 'ACTIVE') {
-      abilities = abilitiesForClass(characterClassSlug).map((a) => ({
+      // The battle offers exactly the snapshotted loadout (Phase 23), with live
+      // cooldown counters. Combats from before builds fall back to the full
+      // class book.
+      const snapshot = readBuildSnapshot(combat.buildSnapshot);
+      const equipped =
+        snapshot.loadout.length > 0
+          ? snapshot.loadout
+              .map((slug) => findAbility(characterClassSlug, slug))
+              .filter((a): a is NonNullable<typeof a> => Boolean(a))
+          : abilitiesForClass(characterClassSlug);
+      abilities = equipped.map((a) => ({
         slug: a.slug,
         name: a.name,
         description: a.description,
@@ -252,6 +276,8 @@ export function createCombatService(
         mpCost: a.mpCost,
         element: a.element ?? null,
         targeting: a.targeting,
+        cooldownTurns: a.cooldownTurns,
+        cooldownRemaining: snapshot.cooldowns[a.slug] ?? 0,
       }));
       const stacks = await tx.inventoryStack.findMany({
         where: { characterId: combat.characterId, itemDefinition: { usableInCombat: true } },
@@ -628,6 +654,16 @@ export function createCombatService(
 
       try {
         const combat = await prisma.$transaction(async (tx) => {
+          // Snapshot the equipped loadout + talents at battle start (Phase 23),
+          // so a later respec or content publish never alters this combat. The
+          // player's stats bake in the chosen talents here.
+          const build = buildService
+            ? await buildService.snapshotFor(tx, character.id, character.classSlug, character.level)
+            : { loadout: [], talents: [] };
+          const playerStats = buildService
+            ? buildService.applyTalents(derived, character.classSlug, build.talents)
+            : derived;
+
           const created = await tx.combat.create({
             data: {
               characterId: character.id,
@@ -635,6 +671,7 @@ export function createCombatService(
               rngSeed: newCombatSeed(),
               log: [`${encounter.name} — battle is joined!`],
               idempotencyKey: input.idempotencyKey,
+              buildSnapshot: { loadout: build.loadout, talents: build.talents, cooldowns: {} },
             },
             include: { encounter: true },
           });
@@ -647,16 +684,16 @@ export function createCombatService(
               name: character.name,
               row: 'FRONT',
               ranged: false,
-              currentHp: Math.max(1, Math.min(character.currentHp, derived.maxHp)),
-              currentMp: Math.min(character.currentMp, derived.maxMp),
-              maxHp: derived.maxHp,
-              maxMp: derived.maxMp,
-              strength: derived.strength,
-              agility: derived.agility,
-              magic: derived.magic,
-              defense: derived.defense,
-              magicDefense: derived.magicDefense,
-              luck: derived.luck,
+              currentHp: Math.max(1, Math.min(character.currentHp, playerStats.maxHp)),
+              currentMp: Math.min(character.currentMp, playerStats.maxMp),
+              maxHp: playerStats.maxHp,
+              maxMp: playerStats.maxMp,
+              strength: playerStats.strength,
+              agility: playerStats.agility,
+              magic: playerStats.magic,
+              defense: playerStats.defense,
+              magicDefense: playerStats.magicDefense,
+              luck: playerStats.luck,
               affinities: {},
             },
           });
@@ -780,6 +817,8 @@ export function createCombatService(
 
         const { state } = await loadEngineState(tx, combat);
         const rng = createCombatRng(combat.rngSeed, combat.rngCounter);
+        const snapshot = readBuildSnapshot(combat.buildSnapshot);
+        let usedAbility: { slug: string; cooldownTurns: number } | null = null;
 
         // Build the engine command, validating inputs that touch the world.
         let engineCommand: PlayerCommand;
@@ -799,6 +838,21 @@ export function createCombatService(
             const ability = findAbility(character.classSlug, input.abilitySlug);
             if (!ability) {
               throw new DomainError(400, 'UNKNOWN_ABILITY', 'You do not know that technique.');
+            }
+            // Only the snapshotted loadout is usable, and not while on cooldown
+            // (Phase 23). Legacy combats (empty loadout) accept the full book.
+            if (snapshot.loadout.length > 0 && !snapshot.loadout.includes(ability.slug)) {
+              throw new DomainError(
+                400,
+                'ABILITY_NOT_EQUIPPED',
+                'That ability is not in your loadout.',
+              );
+            }
+            if ((snapshot.cooldowns[ability.slug] ?? 0) > 0) {
+              throw conflict('ABILITY_ON_COOLDOWN', 'That ability is still on cooldown.');
+            }
+            if (ability.cooldownTurns > 0) {
+              usedAbility = { slug: ability.slug, cooldownTurns: ability.cooldownTurns };
             }
             const isMagic = ability.kind === 'MAGICAL';
             if ((input.action === 'MAGIC') !== isMagic) {
@@ -873,6 +927,14 @@ export function createCombatService(
           });
         }
 
+        // Advance cooldowns one turn: every counter ticks down, then the ability
+        // used this turn is put on its full cooldown (Phase 23).
+        const nextCooldowns: Record<string, number> = {};
+        for (const [slug, turns] of Object.entries(snapshot.cooldowns)) {
+          if (turns - 1 > 0) nextCooldowns[slug] = turns - 1;
+        }
+        if (usedAbility) nextCooldowns[usedAbility.slug] = usedAbility.cooldownTurns;
+
         const updated = await tx.combat.update({
           where: { id: combat.id },
           data: {
@@ -881,6 +943,7 @@ export function createCombatService(
             fleeAttempts: state.fleeAttempts,
             log: state.log,
             status: state.outcome === 'ACTIVE' ? 'ACTIVE' : state.outcome,
+            buildSnapshot: { ...snapshot, cooldowns: nextCooldowns },
             ...(state.outcome !== 'ACTIVE' ? { completedAt: new Date() } : {}),
           },
           include: { encounter: true },

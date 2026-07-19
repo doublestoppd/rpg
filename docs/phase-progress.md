@@ -3,6 +3,57 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 23 — Character Builds, Progression, and Combat Depth (2026-07-19)
+
+**Status: acceptance-core complete.** Raises the cap to 30 and adds ability
+loadouts, talents, trainer respec, and a start-of-battle build snapshot with
+ability cooldowns. All four acceptance properties are met and tested. Equipment
+set bonuses, the broader encounter-mechanics suite, and a new gated boss are
+deferred within Phase 23's ambit (see ADR 0016).
+
+### Delivered
+
+- **Level cap 20 → 30**: the seeded `LevelProgression` table extends to level 30
+  (strictly increasing cumulative XP); the cap is the highest seeded level.
+- **Builds**: each class now has six abilities with staggered unlock levels; a
+  bounded loadout equips up to four unlocked ones; three talent tiers (levels
+  10/20/30) each offer two mutually exclusive stat modifiers. Six-in-four plus
+  talent choices give at least two viable level-30 builds per class. A
+  `CharacterBuild` row holds the loadout and talents.
+- **Trainer respec**: resets the loadout to class defaults and clears talents
+  for a level-scaled Gold fee debited through the currency ledger. The immutable
+  `RESPEC_FEE` ledger entry is the audit trail; the idempotency key makes a
+  replay a no-op. Level and XP are untouched.
+- **Combat build snapshot + cooldowns**: at battle start the equipped loadout,
+  chosen talents (baked into player stats), and empty cooldowns are frozen into
+  `Combat.buildSnapshot`. The ability command validates against the snapshot
+  (not the live build) and enforces per-ability cooldown turns. Because combat
+  already reads a `CombatantState` snapshot, a later content publish or a
+  mid-fight respec never alters an in-progress battle.
+
+### Endpoints (additive)
+
+`GET /api/v1/builds/me`, `PUT /api/v1/builds/me/loadout`,
+`PUT /api/v1/builds/me/talents`, `POST /api/v1/builds/me/respec`. Combat ability
+views gain `cooldownTurns`/`cooldownRemaining`. OpenAPI baseline regenerated
+(additive).
+
+### Tests
+
+8 new (1 file), one per acceptance property and more: ≥2 viable level-30 builds
+per class (roster/talent config + saving two distinct loadouts), unlock
+enforcement, respec exact + ledger-audited + idempotent, an active combat's
+snapshot unchanged when the enemy definition changes, an ability rejected on
+cooldown, a stale-version command rejected, and the level cap at 30. The engine
+roster test was updated for the six-ability classes.
+
+### Scope note
+
+This is the acceptance-core. Deferred within Phase 23: equipment tiers with set
+bonuses / deterministic affix groups; multiple waves, telegraphing,
+reinforcements, conditional phases, status resistance, dispel/cleanse; and a new
+gated boss to exercise them. See ADR 0016.
+
 ## Phase 22 — World Expansion: Northmarch, Herbalism, and Alchemy (2026-07-19)
 
 **Status: complete.** The first large gameplay expansion, delivered as _content_

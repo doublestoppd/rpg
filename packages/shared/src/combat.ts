@@ -81,6 +81,10 @@ export const combatAbilityInfoSchema = z.object({
   mpCost: z.number().int().min(0),
   element: combatElementSchema.nullable(),
   targeting: z.enum(['ENEMY', 'ALL_ENEMIES', 'SELF']),
+  /** Actor-turn cooldown after use (Phase 23). */
+  cooldownTurns: z.number().int().min(0).default(0),
+  /** Turns remaining before this ability can be used again (0 = ready). */
+  cooldownRemaining: z.number().int().min(0).default(0),
 });
 export type CombatAbilityInfo = z.infer<typeof combatAbilityInfoSchema>;
 

@@ -2,6 +2,7 @@ import { accountModule } from './account.js';
 import { adminModule } from './admin.js';
 import { assetsModule } from './assets.js';
 import { authModule } from './auth.js';
+import { buildsModule } from './builds.js';
 import { charactersModule } from './characters.js';
 import { chatModule } from './chat.js';
 import { combatModule } from './combat.js';
@@ -36,6 +37,7 @@ export const GAME_MODULES: readonly GameModule[] = [
   worldModule,
   inventoryModule,
   currencyModule,
+  buildsModule,
   npcShopsModule,
   marketplaceModule,
   gatheringModule,
