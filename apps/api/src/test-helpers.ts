@@ -50,7 +50,8 @@ export async function truncateAll(prisma: PrismaClient): Promise<void> {
       '"PlayerShop", "NpcShopPurchase", "NpcShopStockEntry", "NpcShopRestock", ' +
       '"CurrencyTransaction", "CurrencyAccount", ' +
       '"ItemTransfer", "EquipmentAssignment", "InventoryCapacityReservation", ' +
-      '"ItemInstance", "InventoryStack", "Character", "Session", "UserSettings", "User" ' +
+      '"ItemInstance", "InventoryStack", "RegionAtmosphereState", ' +
+      '"Character", "Session", "UserSettings", "User" ' +
       'RESTART IDENTITY CASCADE',
   );
   // Shops are seed config; reset their runtime restock state so every test

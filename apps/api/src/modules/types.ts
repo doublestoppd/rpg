@@ -22,6 +22,8 @@ import type { NotificationService } from '../domain/notification/notification-se
 import type { NpcShopService } from '../domain/npc-shop/npc-shop-service.js';
 import type { QuestService } from '../domain/quest/quest-service.js';
 import type { TravelService } from '../domain/travel/travel-service.js';
+import type { AtmosphereService } from '../domain/world-sim/atmosphere-service.js';
+import type { WorldClockService } from '../domain/world-sim/world-clock.js';
 import type { TimedStateFinalizer, TimedStateRunner } from '../lib/timed-state.js';
 
 /**
@@ -52,6 +54,8 @@ export interface ServiceRegistry {
   combatService?: CombatService;
   museumService?: MuseumService;
   chatService?: ChatService;
+  worldClockService?: WorldClockService;
+  atmosphereService?: AtmosphereService;
 }
 
 /** Everything a feature module may use to construct and register itself. */

@@ -3,6 +3,64 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Phase 26 — Living World, NPCs, and Ambient Simulation (2026-07-20)
+
+**Status: in progress — increment 1 of a multi-increment phase.** This phase is
+roughly four times the size of a normal one, so it is being delivered as
+independently tested, gated increments committed to `main`. Increment 1 lands the
+server-authoritative foundation the rest builds on: the deterministic world clock
+and regional atmosphere.
+
+> Sequencing note: this Living-World phase is being built before the
+> Content-Operations / Balance-Lab / Trusted-Asset-Ingestion phase (labeled
+> Phase 25 in its own spec), by request. That phase follows this one.
+
+### Increment 1 — world clock and regional atmosphere (delivered)
+
+- **Deterministic world clock.** A data-driven cycle (active `WorldTimeConfig`
+  row; highest revision wins) defines the cycle length and the DAWN/DAY/DUSK/NIGHT
+  segment boundaries as basis points of the cycle. The current cycle id and
+  segment are **derived from server time** against that config — never stored per
+  row, never dependent on a worker, and computed through an **injected clock** so
+  tests drive time deterministically. `GET /api/v1/world/time` returns the cycle,
+  segment, segment/cycle boundaries, config revision, and server time for client
+  reconciliation. A config change only affects time from that point on, so stored
+  history is never retroactively altered.
+- **Regional atmosphere.** Weather, intensity, visibility, temperature, wind, and
+  crowd level for each region and world cycle, plus an authored description key.
+  Selection is deterministic HMAC-SHA256 over a **persisted server secret** (secure
+  random bytes, created lazily, never exposed) keyed by region + cycle, so the
+  atmosphere for a cycle is fixed and unpredictable without the secret. Missing
+  current-cycle atmosphere is **lazily finalized on read** and stored once per
+  `(region, cycleId)` (unique + insert-once); a concurrent finalizer that loses
+  the insert race re-reads the identical row. `GET /api/v1/world/atmosphere`
+  returns the current atmosphere for the character's region. Correct with the
+  worker stopped: nothing schedules atmosphere; the API path creates it.
+
+### Endpoints (additive)
+
+`GET /api/v1/world/time`, `GET /api/v1/world/atmosphere`. New module `living-world`
+(registers after `world`). OpenAPI baseline regenerated (additive). New metrics:
+`atmosphere_lazy_finalization`, `atmosphere_finalization_conflict`.
+
+### Tests
+
+10 new: world-clock segment-boundary derivation and monotonic cycle ids under an
+injected clock; deterministic atmosphere derivation, enum-validity invariants, and
+secret-dependence; and API tests that `GET /world/time` is authoritative and
+authenticated and `GET /world/atmosphere` finalizes idempotently (exactly one
+stored row per region+cycle) with no worker.
+
+### Remaining increments (this phase's ambit)
+
+NPC content model + placement/schedule availability; authored versioned dialogue
+trees with a typed condition/effect registry and a replay-safe, concurrency-safe,
+transactional interaction lifecycle; per-character NPC narrative state; versioned
+world events with lazy finalization; the privacy-safe local activity feed; the
+coherent current-scene read model and dynamic scene variants; the living-scene and
+NPC-dialogue UI; Content Studio living-world editors; representative seed content;
+and the full integration/EXPLAIN/Playwright suite.
+
 ## Phase 24 — Repeatable Activities and Economy Loop Expansion (2026-07-19)
 
 **Status: acceptance-core complete.** Adds a rotating bounty board with regional
@@ -21,7 +79,7 @@ activity calendar) is deferred within Phase 24's ambit (see ADR 0017).
 - **Once per character and cycle**: claiming consumes the turn-in stack (an item
   sink recording an `ItemTransfer`), credits the reward through the currency
   ledger, and writes a `BountyClaim`. A `@@unique(characterId, cycleId,
-  bountySlug)` plus a deterministic credit key (`cycleId:bountySlug`) make a
+bountySlug)` plus a deterministic credit key (`cycleId:bountySlug`) make a
   re-claim an idempotent no-op — never a second consume or second payout. A
   stale claim from a past cycle never blocks the current cycle.
 - **Regional reputation**: bounties award bounded reputation (`min(cap, …)`),

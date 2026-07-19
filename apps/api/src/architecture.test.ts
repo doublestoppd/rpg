@@ -50,6 +50,7 @@ describe('application composition', () => {
       'combat',
       'museum',
       'activities',
+      'living-world',
       'chat',
       'admin',
     ]);
@@ -76,6 +77,7 @@ describe('application composition', () => {
       ['combat', 'GET', '/api/v1/combat/encounters'],
       ['museum', 'GET', '/api/v1/collections'],
       ['activities', 'GET', '/api/v1/bounties'],
+      ['living-world', 'GET', '/api/v1/world/time'],
       ['notifications', 'GET', '/api/v1/notifications'],
       ['chat', 'GET', '/api/v1/chat/channels'],
       ['admin', 'GET', '/api/v1/admin/session'],

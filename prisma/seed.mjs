@@ -399,6 +399,23 @@ async function main() {
     }
   }
 
+  // Phase 26: the active world-time configuration (highest revision is active).
+  // The current cycle/segment is derived from server time against this row.
+  await prisma.worldTimeConfig.upsert({
+    where: { revision: 1 },
+    create: {
+      revision: 1,
+      cycleLengthSeconds: 7200,
+      segments: [
+        { segment: 'DAWN', startBps: 0 },
+        { segment: 'DAY', startBps: 2000 },
+        { segment: 'DUSK', startBps: 6000 },
+        { segment: 'NIGHT', startBps: 7500 },
+      ],
+    },
+    update: {},
+  });
+
   console.log(
     `seed: ${CHARACTER_CLASSES.length} classes, ${LEVEL_PROGRESSION.length} levels, ` +
       `${LOCATIONS.length} locations, ${LOCATION_FEATURES.length} features, ` +

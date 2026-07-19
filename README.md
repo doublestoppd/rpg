@@ -8,21 +8,22 @@ limited NPC stock, and run a regional player shop. All content is original.
 ## Status
 
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
-for what exists today. **Currently: Phase 18 complete** — production hardening
-and release validation: security headers, explicit proxy trust + bounded body
-size, liveness/readiness split + worker health probe, graceful shutdown, a
-token-guarded OpenMetrics export, allowlisted data-lifecycle cleanup,
-clean-DB migration + seed-idempotency tests, database integrity checks, a
-backup/restore round-trip smoke test, a dependency-audit + SBOM gate, and an
-API-baseline freeze check. See [`docs/RELEASE.md`](docs/RELEASE.md) for the
-go/no-go, [`docs/deployment.md`](docs/deployment.md),
-[`docs/threat-model.md`](docs/threat-model.md), and the runbooks under `docs/`.
+for what exists today. **Currently: Phase 26 (Living World) in progress** — a
+server-authoritative living-world layer, delivered as tested, gated increments.
+Increment 1 lands the deterministic world clock (data-driven cycle and
+DAWN/DAY/DUSK/NIGHT segments derived from server time via an injected clock) and
+regional atmosphere (deterministic from a persisted server secret, lazily
+finalized on read, worker-independent). See
+[`docs/living-world.md`](docs/living-world.md).
 
-Earlier: **Phase 17** — a role-protected administrator workspace (bootstrap-free
-promotion, recent-auth-gated investigation, safe Gold/item ops, config edits,
-database-derived metrics, chat moderation) with append-only same-transaction
-auditing. **Phase 16** — persistent player chat over the shared WebSocket
-(cross-instance via PostgreSQL `LISTEN/NOTIFY`) with polling fallback.
+Earlier highlights: **Phase 24** — repeatable activities (rotating bounty board,
+equipment salvage, NPC sellback) as once-per-cycle, arbitrage-proof economy
+loops. **Phase 23** — character builds, talents, respec, and combat build
+snapshots. **Phases 19–20** — versioned content platform and the admin Content
+Studio (publish onto live tables without a deploy). **Phase 18** — production
+hardening and release validation. See [`docs/RELEASE.md`](docs/RELEASE.md),
+[`docs/deployment.md`](docs/deployment.md),
+[`docs/threat-model.md`](docs/threat-model.md), and the runbooks under `docs/`.
 
 ## Stack (fixed)
 

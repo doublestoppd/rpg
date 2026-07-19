@@ -40,6 +40,10 @@ export const METRIC_NAMES = [
   'chat_listener_reconnect',
   /** A forward-direction chat poll recovered messages without a socket. */
   'chat_polling_recovery',
+  /** A missing current-cycle regional atmosphere was lazily finalized. */
+  'atmosphere_lazy_finalization',
+  /** An atmosphere finalization lost the insert race to a concurrent request. */
+  'atmosphere_finalization_conflict',
 ] as const;
 
 export type MetricName = (typeof METRIC_NAMES)[number];
