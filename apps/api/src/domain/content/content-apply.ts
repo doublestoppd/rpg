@@ -415,6 +415,37 @@ const APPLIERS: Record<ContentType, Applier> = {
       });
     }
   },
+
+  DIALOGUE: async (tx, payloads) => {
+    for (const p of payloads) {
+      const data = {
+        entryNodeId: str(p['entryNodeId']),
+        nodes: json(p['nodes']),
+        status: 'PUBLISHED',
+      };
+      await tx.dialogueDefinition.upsert({
+        where: { key: str(p['key']) },
+        create: { key: str(p['key']), ...data },
+        update: data,
+      });
+    }
+  },
+
+  NARRATIVE_FLAG: async (tx, payloads) => {
+    for (const p of payloads) {
+      const data = {
+        namespace: str(p['namespace']),
+        valueType: str(p['valueType']),
+        allowedValues: asArray(p['allowedValues']).map(str),
+        defaultValue: str(p['defaultValue']),
+      };
+      await tx.narrativeFlagDefinition.upsert({
+        where: { key: str(p['key']) },
+        create: { key: str(p['key']), ...data },
+        update: data,
+      });
+    }
+  },
 };
 
 /**

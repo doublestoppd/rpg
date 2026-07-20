@@ -238,4 +238,20 @@ describe('living-world queries stay on their indexes', () => {
       ['crownfall', 'C1'],
     );
   });
+
+  it('a character NPC state by (character, npc)', async () => {
+    await expectIndex(
+      'SELECT * FROM "CharacterNpcState" WHERE "characterId" = $1 AND "npcKey" = $2',
+      ['CharacterNpcState_characterId_npcKey_key', 'CharacterNpcState_characterId_idx'],
+      [someUuid, 'mira-coinwright'],
+    );
+  });
+
+  it('a character active interactions (ownership lookup)', async () => {
+    await expectIndex(
+      `SELECT * FROM "NpcInteraction" WHERE "characterId" = $1 AND "status" = 'ACTIVE'`,
+      'NpcInteraction_characterId_status_idx',
+      [someUuid],
+    );
+  });
 });

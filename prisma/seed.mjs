@@ -15,8 +15,10 @@ import {
   QUEST_DEFINITIONS,
   ITEM_DEFINITIONS,
   LEVEL_PROGRESSION,
+  DIALOGUES,
   LOCATION_FEATURES,
   LOCATIONS,
+  NARRATIVE_FLAGS,
   NPC_DEFINITIONS,
   NPC_PLACEMENTS,
   NPC_SHOPS,
@@ -436,6 +438,27 @@ async function main() {
       },
       create: { ...placement, status: 'PUBLISHED' },
       update: { ...placement, status: 'PUBLISHED' },
+    });
+  }
+
+  // Phase 26: narrative flags and dialogue trees (living world).
+  for (const flag of NARRATIVE_FLAGS) {
+    await prisma.narrativeFlagDefinition.upsert({
+      where: { key: flag.key },
+      create: flag,
+      update: flag,
+    });
+  }
+  for (const dialogue of DIALOGUES) {
+    const data = {
+      entryNodeId: dialogue.entryNodeId,
+      nodes: dialogue.nodes,
+      status: 'PUBLISHED',
+    };
+    await prisma.dialogueDefinition.upsert({
+      where: { key: dialogue.key },
+      create: { key: dialogue.key, ...data },
+      update: data,
     });
   }
 

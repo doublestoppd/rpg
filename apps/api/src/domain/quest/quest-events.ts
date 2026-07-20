@@ -15,7 +15,8 @@ export type QuestDomainEvent =
     }
   | { type: 'CRAFTING_COMPLETED'; recipeSlug: string }
   | { type: 'COMBAT_VICTORY'; encounterSlug: string; defeatedEnemySlugs: string[] }
-  | { type: 'MUSEUM_DONATION'; itemSlug: string };
+  | { type: 'MUSEUM_DONATION'; itemSlug: string }
+  | { type: 'NPC_INTERACTION'; npcKey: string };
 
 export interface QuestEventSink {
   /** Applies the event to the character's active quests, inside `tx`. */

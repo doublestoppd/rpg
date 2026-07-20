@@ -8,6 +8,7 @@ export const questObjectiveTypeSchema = z.enum([
   'CRAFT_RECIPE',
   'DEFEAT_ENEMY',
   'DONATE_ITEM',
+  'TALK_TO_NPC',
 ]);
 export type QuestObjectiveTypeValue = z.infer<typeof questObjectiveTypeSchema>;
 

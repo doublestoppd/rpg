@@ -1367,7 +1367,8 @@
                                     "GATHER_ITEM",
                                     "CRAFT_RECIPE",
                                     "DEFEAT_ENEMY",
-                                    "DONATE_ITEM"
+                                    "DONATE_ITEM",
+                                    "TALK_TO_NPC"
                                   ]
                                 },
                                 "requiredCount": {
@@ -1518,7 +1519,8 @@
                               "GATHER_ITEM",
                               "CRAFT_RECIPE",
                               "DEFEAT_ENEMY",
-                              "DONATE_ITEM"
+                              "DONATE_ITEM",
+                              "TALK_TO_NPC"
                             ]
                           },
                           "requiredCount": {
@@ -1667,7 +1669,8 @@
                                   "GATHER_ITEM",
                                   "CRAFT_RECIPE",
                                   "DEFEAT_ENEMY",
-                                  "DONATE_ITEM"
+                                  "DONATE_ITEM",
+                                  "TALK_TO_NPC"
                                 ]
                               },
                               "requiredCount": {
@@ -10025,6 +10028,509 @@
         }
       }
     },
+    "/api/v1/npcs/{npcKey}/interactions": {
+      "post": {
+        "summary": "Start a conversation with a present NPC",
+        "tags": ["world"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  }
+                },
+                "required": ["idempotencyKey"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "in": "path",
+            "name": "npcKey",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interactionId": {
+                      "type": "string"
+                    },
+                    "npcKey": {
+                      "type": "string"
+                    },
+                    "npcName": {
+                      "type": "string"
+                    },
+                    "dialogueKey": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["ACTIVE", "CLOSED"]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "speaker": {
+                      "type": "string",
+                      "enum": ["NPC", "PLAYER", "NARRATION"]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "choices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "speaker": {
+                            "type": "string",
+                            "enum": ["NPC", "PLAYER", "NARRATION"]
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "choiceLabel": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": ["speaker", "text", "choiceLabel"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "interactionId",
+                    "npcKey",
+                    "npcName",
+                    "dialogueKey",
+                    "status",
+                    "version",
+                    "nodeId",
+                    "speaker",
+                    "text",
+                    "choices",
+                    "history"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/npc-interactions/{id}": {
+      "get": {
+        "summary": "The current state of an NPC interaction the caller owns",
+        "tags": ["world"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interactionId": {
+                      "type": "string"
+                    },
+                    "npcKey": {
+                      "type": "string"
+                    },
+                    "npcName": {
+                      "type": "string"
+                    },
+                    "dialogueKey": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["ACTIVE", "CLOSED"]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "speaker": {
+                      "type": "string",
+                      "enum": ["NPC", "PLAYER", "NARRATION"]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "choices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "speaker": {
+                            "type": "string",
+                            "enum": ["NPC", "PLAYER", "NARRATION"]
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "choiceLabel": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": ["speaker", "text", "choiceLabel"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "interactionId",
+                    "npcKey",
+                    "npcName",
+                    "dialogueKey",
+                    "status",
+                    "version",
+                    "nodeId",
+                    "speaker",
+                    "text",
+                    "choices",
+                    "history"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/npc-interactions/{id}/choices": {
+      "post": {
+        "summary": "Make a dialogue choice (expected-version + idempotency-key guarded)",
+        "tags": ["world"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "choiceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 64,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  }
+                },
+                "required": ["choiceId", "expectedVersion", "idempotencyKey"]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interactionId": {
+                      "type": "string"
+                    },
+                    "npcKey": {
+                      "type": "string"
+                    },
+                    "npcName": {
+                      "type": "string"
+                    },
+                    "dialogueKey": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["ACTIVE", "CLOSED"]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "speaker": {
+                      "type": "string",
+                      "enum": ["NPC", "PLAYER", "NARRATION"]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "choices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "speaker": {
+                            "type": "string",
+                            "enum": ["NPC", "PLAYER", "NARRATION"]
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "choiceLabel": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": ["speaker", "text", "choiceLabel"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "interactionId",
+                    "npcKey",
+                    "npcName",
+                    "dialogueKey",
+                    "status",
+                    "version",
+                    "nodeId",
+                    "speaker",
+                    "text",
+                    "choices",
+                    "history"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/npc-interactions/{id}/close": {
+      "post": {
+        "summary": "End an NPC interaction",
+        "tags": ["world"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "interactionId": {
+                      "type": "string"
+                    },
+                    "npcKey": {
+                      "type": "string"
+                    },
+                    "npcName": {
+                      "type": "string"
+                    },
+                    "dialogueKey": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["ACTIVE", "CLOSED"]
+                    },
+                    "version": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "speaker": {
+                      "type": "string",
+                      "enum": ["NPC", "PLAYER", "NARRATION"]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "choices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "history": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "speaker": {
+                            "type": "string",
+                            "enum": ["NPC", "PLAYER", "NARRATION"]
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "choiceLabel": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "required": ["speaker", "text", "choiceLabel"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "interactionId",
+                    "npcKey",
+                    "npcName",
+                    "dialogueKey",
+                    "status",
+                    "version",
+                    "nodeId",
+                    "speaker",
+                    "text",
+                    "choices",
+                    "history"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/channels": {
       "get": {
         "summary": "Channels this character may currently access, with unread counts",
@@ -12794,7 +13300,9 @@
                               "CHARACTER_CLASS",
                               "LEVEL_PROGRESSION",
                               "NPC",
-                              "NPC_PLACEMENT"
+                              "NPC_PLACEMENT",
+                              "DIALOGUE",
+                              "NARRATIVE_FLAG"
                             ]
                           },
                           "key": {
@@ -12889,7 +13397,9 @@
                                   "CHARACTER_CLASS",
                                   "LEVEL_PROGRESSION",
                                   "NPC",
-                                  "NPC_PLACEMENT"
+                                  "NPC_PLACEMENT",
+                                  "DIALOGUE",
+                                  "NARRATIVE_FLAG"
                                 ]
                               },
                               "key": {
@@ -12931,7 +13441,9 @@
                               "CHARACTER_CLASS",
                               "LEVEL_PROGRESSION",
                               "NPC",
-                              "NPC_PLACEMENT"
+                              "NPC_PLACEMENT",
+                              "DIALOGUE",
+                              "NARRATIVE_FLAG"
                             ]
                           },
                           "fromKey": {
@@ -12955,7 +13467,9 @@
                               "CHARACTER_CLASS",
                               "LEVEL_PROGRESSION",
                               "NPC",
-                              "NPC_PLACEMENT"
+                              "NPC_PLACEMENT",
+                              "DIALOGUE",
+                              "NARRATIVE_FLAG"
                             ]
                           },
                           "toKey": {
@@ -13029,7 +13543,9 @@
                               "CHARACTER_CLASS",
                               "LEVEL_PROGRESSION",
                               "NPC",
-                              "NPC_PLACEMENT"
+                              "NPC_PLACEMENT",
+                              "DIALOGUE",
+                              "NARRATIVE_FLAG"
                             ]
                           },
                           "key": {
@@ -13090,7 +13606,9 @@
                 "CHARACTER_CLASS",
                 "LEVEL_PROGRESSION",
                 "NPC",
-                "NPC_PLACEMENT"
+                "NPC_PLACEMENT",
+                "DIALOGUE",
+                "NARRATIVE_FLAG"
               ]
             },
             "in": "path",
@@ -13134,7 +13652,9 @@
                         "CHARACTER_CLASS",
                         "LEVEL_PROGRESSION",
                         "NPC",
-                        "NPC_PLACEMENT"
+                        "NPC_PLACEMENT",
+                        "DIALOGUE",
+                        "NARRATIVE_FLAG"
                       ]
                     },
                     "key": {
@@ -13213,7 +13733,9 @@
                 "CHARACTER_CLASS",
                 "LEVEL_PROGRESSION",
                 "NPC",
-                "NPC_PLACEMENT"
+                "NPC_PLACEMENT",
+                "DIALOGUE",
+                "NARRATIVE_FLAG"
               ]
             },
             "in": "path",
@@ -13257,7 +13779,9 @@
                         "CHARACTER_CLASS",
                         "LEVEL_PROGRESSION",
                         "NPC",
-                        "NPC_PLACEMENT"
+                        "NPC_PLACEMENT",
+                        "DIALOGUE",
+                        "NARRATIVE_FLAG"
                       ]
                     },
                     "key": {
@@ -13319,7 +13843,9 @@
                 "CHARACTER_CLASS",
                 "LEVEL_PROGRESSION",
                 "NPC",
-                "NPC_PLACEMENT"
+                "NPC_PLACEMENT",
+                "DIALOGUE",
+                "NARRATIVE_FLAG"
               ]
             },
             "in": "path",
@@ -13392,7 +13918,9 @@
                 "CHARACTER_CLASS",
                 "LEVEL_PROGRESSION",
                 "NPC",
-                "NPC_PLACEMENT"
+                "NPC_PLACEMENT",
+                "DIALOGUE",
+                "NARRATIVE_FLAG"
               ]
             },
             "in": "path",
@@ -13436,7 +13964,9 @@
                         "CHARACTER_CLASS",
                         "LEVEL_PROGRESSION",
                         "NPC",
-                        "NPC_PLACEMENT"
+                        "NPC_PLACEMENT",
+                        "DIALOGUE",
+                        "NARRATIVE_FLAG"
                       ]
                     },
                     "key": {
@@ -13467,7 +13997,9 @@
                               "CHARACTER_CLASS",
                               "LEVEL_PROGRESSION",
                               "NPC",
-                              "NPC_PLACEMENT"
+                              "NPC_PLACEMENT",
+                              "DIALOGUE",
+                              "NARRATIVE_FLAG"
                             ]
                           },
                           "key": {
@@ -13524,7 +14056,9 @@
                 "CHARACTER_CLASS",
                 "LEVEL_PROGRESSION",
                 "NPC",
-                "NPC_PLACEMENT"
+                "NPC_PLACEMENT",
+                "DIALOGUE",
+                "NARRATIVE_FLAG"
               ]
             },
             "in": "path",
@@ -13568,7 +14102,9 @@
                         "CHARACTER_CLASS",
                         "LEVEL_PROGRESSION",
                         "NPC",
-                        "NPC_PLACEMENT"
+                        "NPC_PLACEMENT",
+                        "DIALOGUE",
+                        "NARRATIVE_FLAG"
                       ]
                     },
                     "key": {
@@ -13603,7 +14139,9 @@
                               "CHARACTER_CLASS",
                               "LEVEL_PROGRESSION",
                               "NPC",
-                              "NPC_PLACEMENT"
+                              "NPC_PLACEMENT",
+                              "DIALOGUE",
+                              "NARRATIVE_FLAG"
                             ]
                           },
                           "key": {

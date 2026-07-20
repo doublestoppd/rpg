@@ -176,6 +176,9 @@ model Character {
   build                CharacterBuild?
   bountyClaims         BountyClaim[]
   reputations          CharacterReputation[]
+  npcStates            CharacterNpcState[]
+  npcFlags             CharacterNpcFlag[]
+  npcInteractions      NpcInteraction[]
   gatheringRuns        GatheringRun[]
   professions          CraftingProfessionProgress[]
   craftingRuns         CraftingRun[]
@@ -986,6 +989,7 @@ enum QuestObjectiveType {
   CRAFT_RECIPE
   DEFEAT_ENEMY
   DONATE_ITEM
+  TALK_TO_NPC
 }
 
 /// Seeded quest. Rewards are granted only through the manual claim
@@ -1797,6 +1801,8 @@ enum ContentType {
   LEVEL_PROGRESSION
   NPC
   NPC_PLACEMENT
+  DIALOGUE
+  NARRATIVE_FLAG
 }
 
 /// One content definition within a release: a stable key, a revision number,
@@ -1958,4 +1964,141 @@ model NpcPlacement {
 
   @@unique([npcKey, locationSlug])
   @@index([locationSlug, status])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 26 — living world (increment 3: dialogue, interactions, NPC state)
+// ---------------------------------------------------------------------------
+
+/// An authored dialogue tree (content type DIALOGUE), materialized as the
+/// runtime projection. `nodes` is the full node/choice/condition/effect graph
+/// as canonical JSON. Interactions snapshot the revision they used.
+model DialogueDefinition {
+  id  String @id @default(uuid())
+  key String @unique
+  revision Int @default(1)
+
+  entryNodeId String
+  nodes       Json
+
+  status String @default("PUBLISHED")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A declared narrative flag (content type NARRATIVE_FLAG). Flags are typed and
+/// bounded — never unrestricted key/value storage. SET_FLAG/FLAG_EQUALS may
+/// only reference a declared flag with an allowed value.
+model NarrativeFlagDefinition {
+  id  String @id @default(uuid())
+  key String @unique
+
+  namespace     String
+  valueType     String
+  allowedValues String[]
+  defaultValue  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-character memory of one NPC: when first met, interaction count, a
+/// bounded familiarity value, and the last completed dialogue. Bounded, typed
+/// state — not a free key/value bag.
+model CharacterNpcState {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  npcKey String
+
+  firstMetAt       DateTime  @default(now())
+  lastInteractedAt DateTime  @default(now())
+  interactionCount Int       @default(0)
+  familiarity      Int       @default(0)
+  lastDialogueKey  String?
+  lastDialogueRevision Int?
+
+  @@unique([characterId, npcKey])
+  @@index([characterId])
+}
+
+/// A single typed narrative flag value for a character. The value must be one
+/// of the declared flag's allowed values (enforced by the dialogue service).
+model CharacterNpcFlag {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  flagKey String
+  value   String
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([characterId, flagKey])
+  @@index([characterId])
+}
+
+/// One in-progress or completed NPC conversation. Immutable content references
+/// (npcRevision, dialogueRevision) are snapshotted at start so a later content
+/// publish never alters an interaction. `version` is optimistic-concurrency for
+/// choices; the start idempotency key makes a replayed start a no-op.
+model NpcInteraction {
+  id String @id @default(uuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  npcKey      String
+  npcRevision Int
+
+  dialogueKey      String
+  dialogueRevision Int
+  /// The full dialogue graph frozen at start, so a later content publish never
+  /// alters an in-progress interaction (mirrors Combat.buildSnapshot).
+  dialogueSnapshot Json
+
+  currentNodeId String
+  status        String @default("ACTIVE")
+  version       Int    @default(0)
+
+  startIdempotencyKey String
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  steps NpcInteractionStep[]
+
+  @@unique([characterId, startIdempotencyKey])
+  @@index([characterId, status])
+}
+
+/// An append-only record of one resolved choice: which node and choice, which
+/// conditions passed, which effects were attempted and which committed, and the
+/// idempotency key. The unique (interaction, key) makes a replayed choice a
+/// no-op that returns the original outcome.
+model NpcInteractionStep {
+  id String @id @default(uuid())
+
+  interactionId String
+  interaction   NpcInteraction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  sequence   Int
+  fromNodeId String
+  choiceId   String
+  toNodeId   String?
+
+  conditionsPassed Boolean
+  effectsAttempted Json
+  effectsCommitted Json
+
+  idempotencyKey String
+
+  createdAt DateTime @default(now())
+
+  @@unique([interactionId, idempotencyKey])
+  @@index([interactionId])
 }

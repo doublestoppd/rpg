@@ -1,6 +1,14 @@
 import type { PrismaClient } from '@prisma/client';
-import { type ContentType, equipmentSlotSchema, itemCategorySchema } from '@rpg/shared';
+import {
+  type ContentType,
+  dialogueDefinitionPayloadSchema,
+  equipmentSlotSchema,
+  itemCategorySchema,
+  narrativeFlagPayloadSchema,
+} from '@rpg/shared';
 import { z } from 'zod';
+
+import { dialogueDependencies } from './dialogue-graph.js';
 
 /** A stable-key reference to another definition, for the dependency graph. */
 export interface ContentRef {
@@ -706,27 +714,63 @@ export const CONTENT_TYPE_SPECS: ContentTypeSpec[] = [
     payloadSchema: npcPlacementPayload,
     async exportAll(prisma) {
       const rows = await prisma.npcPlacement.findMany();
-      return rows
-        .map((r) => ({
-          key: `${r.npcKey}@${r.locationSlug}`,
-          payload: {
+      return (
+        rows
+          .map((r) => ({
             key: `${r.npcKey}@${r.locationSlug}`,
-            npcKey: r.npcKey,
-            locationSlug: r.locationSlug,
-            segments: r.segments,
-            priority: r.priority,
-            visibility: r.visibility,
-          },
-        }))
-        // Stable-key order so a re-export byte-matches the stored release
-        // (getReleaseBundle orders by stableKey); the key is computed, so we
-        // cannot ORDER BY it in the query.
-        .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+            payload: {
+              key: `${r.npcKey}@${r.locationSlug}`,
+              npcKey: r.npcKey,
+              locationSlug: r.locationSlug,
+              segments: r.segments,
+              priority: r.priority,
+              visibility: r.visibility,
+            },
+          }))
+          // Stable-key order so a re-export byte-matches the stored release
+          // (getReleaseBundle orders by stableKey); the key is computed, so we
+          // cannot ORDER BY it in the query.
+          .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+      );
     },
     dependencies: (p) => [
       { type: 'NPC', key: String(p['npcKey']) },
       { type: 'LOCATION', key: String(p['locationSlug']) },
     ],
+  },
+  {
+    type: 'DIALOGUE',
+    payloadSchema: dialogueDefinitionPayloadSchema,
+    async exportAll(prisma) {
+      const rows = await prisma.dialogueDefinition.findMany({ orderBy: { key: 'asc' } });
+      return rows.map((r) => ({
+        key: r.key,
+        payload: {
+          key: r.key,
+          entryNodeId: r.entryNodeId,
+          nodes: r.nodes as unknown[],
+        },
+      }));
+    },
+    dependencies: (p) => dialogueDependencies(p),
+  },
+  {
+    type: 'NARRATIVE_FLAG',
+    payloadSchema: narrativeFlagPayloadSchema,
+    async exportAll(prisma) {
+      const rows = await prisma.narrativeFlagDefinition.findMany({ orderBy: { key: 'asc' } });
+      return rows.map((r) => ({
+        key: r.key,
+        payload: {
+          key: r.key,
+          namespace: r.namespace,
+          valueType: r.valueType,
+          allowedValues: r.allowedValues,
+          defaultValue: r.defaultValue,
+        },
+      }));
+    },
+    dependencies: () => [],
   },
 ];
 

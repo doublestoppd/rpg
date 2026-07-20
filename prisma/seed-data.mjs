@@ -1359,7 +1359,7 @@ export const NPC_DEFINITIONS = [
     homeRegion: 'crownfall',
     serviceType: 'SHOP',
     serviceRef: 'crownfall-general-goods',
-    dialogueKey: null,
+    dialogueKey: 'mira-welcome',
   },
   {
     key: 'old-tomas-dockhand',
@@ -1523,5 +1523,102 @@ export const NPC_PLACEMENTS = [
     segments: ['DAY', 'DUSK'],
     priority: 4,
     visibility: 'PUBLIC',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Phase 26 — dialogue and narrative flags (living world, increment 3).
+// ---------------------------------------------------------------------------
+
+export const NARRATIVE_FLAGS = [
+  {
+    key: 'mira-greeted',
+    namespace: 'mira',
+    valueType: 'BOOLEAN',
+    allowedValues: ['false', 'true'],
+    defaultValue: 'false',
+  },
+  {
+    key: 'mira-gift-given',
+    namespace: 'mira',
+    valueType: 'BOOLEAN',
+    allowedValues: ['false', 'true'],
+    defaultValue: 'false',
+  },
+];
+
+export const DIALOGUES = [
+  {
+    key: 'mira-welcome',
+    entryNodeId: 'greet',
+    npcKey: 'mira-coinwright',
+    nodes: [
+      {
+        id: 'greet',
+        speaker: 'NPC',
+        text: "Mira looks up from her ledger. 'A new face! What can I do for you?'",
+        choices: [
+          {
+            id: 'about',
+            label: 'Tell me about your wares.',
+            conditions: [],
+            effects: [
+              { type: 'SET_FLAG', flagKey: 'mira-greeted', value: 'true' },
+              { type: 'INCREMENT_FAMILIARITY', amount: 5 },
+            ],
+            to: 'wares',
+          },
+          {
+            id: 'news',
+            label: 'Heard any news?',
+            conditions: [],
+            effects: [{ type: 'EMIT_QUEST_EVENT' }],
+            to: 'news',
+          },
+          {
+            id: 'gift',
+            label: 'You look generous today.',
+            conditions: [{ type: 'FLAG_EQUALS', flagKey: 'mira-gift-given', value: 'false' }],
+            effects: [
+              { type: 'GRANT_GOLD', amount: '10' },
+              { type: 'SET_FLAG', flagKey: 'mira-gift-given', value: 'true' },
+            ],
+            to: 'gift',
+          },
+          {
+            id: 'veteran',
+            label: 'Talk shop, trader to trader.',
+            conditions: [{ type: 'LEVEL_AT_LEAST', minLevel: 5 }],
+            effects: [],
+            to: 'shoptalk',
+          },
+          { id: 'leave', label: 'Just passing through.', conditions: [], effects: [], to: null },
+        ],
+      },
+      {
+        id: 'wares',
+        speaker: 'NPC',
+        text: "'Finest goods this side of the harbor. Try not to haggle too hard.'",
+        choices: [{ id: 'back-w', label: 'Thanks.', conditions: [], effects: [], to: null }],
+      },
+      {
+        id: 'news',
+        speaker: 'NPC',
+        text: "'They say the harbor watch doubled the night patrol. Storms, or worse.'",
+        choices: [{ id: 'back-n', label: 'Interesting.', conditions: [], effects: [], to: null }],
+      },
+      {
+        id: 'gift',
+        speaker: 'NPC',
+        text: "She flicks a coin your way. 'First one's on me. Don't spend it all.'",
+        choices: [{ id: 'back-g', label: 'Much obliged.', conditions: [], effects: [], to: null }],
+      },
+      {
+        id: 'shoptalk',
+        speaker: 'NPC',
+        text: "'A seasoned trader, eh? Then you know margins are everything.'",
+        choices: [{ id: 'back-s', label: 'Indeed.', conditions: [], effects: [], to: null }],
+      },
+    ],
   },
 ];

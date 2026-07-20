@@ -1,6 +1,8 @@
+import { createInteractionService } from '../domain/living-world/interaction-service.js';
 import { createNpcService } from '../domain/living-world/npc-service.js';
 import { createAtmosphereService } from '../domain/world-sim/atmosphere-service.js';
 import { createWorldClockService } from '../domain/world-sim/world-clock.js';
+import { npcInteractionRoutes } from '../routes/npc-interactions.js';
 import { npcRoutes } from '../routes/npcs.js';
 import { worldSimRoutes } from '../routes/world-sim.js';
 import { type GameModule, requireService } from './types.js';
@@ -16,14 +18,27 @@ export const livingWorldModule: GameModule = {
   name: 'living-world',
   async register(ctx) {
     const locationService = requireService(ctx.services, 'locationService');
+    const characterService = requireService(ctx.services, 'characterService');
+    const inventoryService = requireService(ctx.services, 'inventoryService');
+    const currencyService = requireService(ctx.services, 'currencyService');
+    const questService = requireService(ctx.services, 'questService');
 
     const worldClock = createWorldClockService(ctx.prisma);
     const atmosphereService = createAtmosphereService(ctx.prisma, worldClock);
     const npcService = createNpcService(ctx.prisma, locationService, worldClock);
+    const interactionService = createInteractionService(ctx.prisma, {
+      characterService,
+      inventoryService,
+      currencyService,
+      questEvents: questService.events,
+      worldClock,
+      npcService,
+    });
 
     ctx.services.worldClockService = worldClock;
     ctx.services.atmosphereService = atmosphereService;
     ctx.services.npcService = npcService;
+    ctx.services.interactionService = interactionService;
 
     await ctx.app.register(worldSimRoutes, {
       prefix: '/api/v1',
@@ -32,5 +47,6 @@ export const livingWorldModule: GameModule = {
       locationService,
     });
     await ctx.app.register(npcRoutes, { prefix: '/api/v1', npcService });
+    await ctx.app.register(npcInteractionRoutes, { prefix: '/api/v1', interactionService });
   },
 };

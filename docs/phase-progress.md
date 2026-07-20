@@ -90,6 +90,58 @@ relocation, availability states, retired-NPC exclusion, traveling-character
 rejection, endpoint auth/shape) plus EXPLAIN index-path checks for placement,
 NPC-by-key, and atmosphere lookups.
 
+### Increment 3 — dialogue, interactions, and NPC memory (delivered)
+
+The technical heart of the phase: authored versioned dialogue with a typed
+condition/effect registry, and a replay-safe, concurrency-safe, transactional
+interaction lifecycle.
+
+- **Dialogue + narrative flags as content.** New content types `DIALOGUE`
+  (entry node + node/choice graph with typed conditions and effects) and
+  `NARRATIVE_FLAG` (typed, bounded declarations) publish through the platform and
+  materialize into projection tables. Validation rejects a missing entry, a
+  choice targeting a nonexistent node, an unreachable node, a cycle (unbounded
+  loop), a bad item/quest/flag reference, or a flag set outside its allowed set.
+- **Typed condition/effect registry.** Conditions read only approved models
+  (`LEVEL_AT_LEAST`, `CLASS_IS`, `QUEST_STATUS`, `HAS_ITEM`, `FLAG_EQUALS`,
+  `WORLD_SEGMENT`); effects dispatch to owning services inside one transaction
+  (`SET_FLAG`, `INCREMENT_FAMILIARITY` bounded, `EMIT_QUEST_EVENT` via the quest
+  sink, `GRANT_GOLD` via the currency ledger, `RECORD_ONE_TIME`). Dialogue never
+  mutates gold, inventory, quests, stats, or content directly. A new
+  `TALK_TO_NPC` quest objective + `NPC_INTERACTION` event let a verified dialogue
+  effect progress quests atomically.
+- **Interaction lifecycle.** Starting snapshots the NPC revision, dialogue
+  revision, and the full dialogue graph (stable across later content publishes),
+  is idempotent by key, and requires the NPC to be present. Choices are
+  ownership-checked, version-checked (409 on stale), idempotent on replay
+  (original outcome returned even after the version advanced), and give exactly
+  one winner among concurrent choices. Conditions are re-checked authoritatively;
+  a failing choice or failing effect rolls the whole turn back. Per-character
+  memory (`CharacterNpcState` + typed `CharacterNpcFlag`) is bounded, not a free
+  key/value bag; a retired NPC refuses new interactions but keeps records.
+- **Seed.** A five-node dialogue for the merchant Mira with a flag-gated one-time
+  Gold gift, a familiarity-building branch, a level-gated branch, and a
+  quest-event branch; two declared narrative flags.
+
+### Endpoints (additive, increment 3)
+
+`POST /api/v1/npcs/:npcKey/interactions`, `GET /api/v1/npc-interactions/:id`,
+`POST /api/v1/npc-interactions/:id/choices`, `POST /api/v1/npc-interactions/:id/close`.
+Content types `DIALOGUE`, `NARRATIVE_FLAG`. New metrics for interactions started,
+choices accepted/conflicted/replayed, and condition failures. OpenAPI baseline
+regenerated (additive).
+
+### Tests (increment 3)
+
+Dialogue-graph unit tests (cycle/unreachable/bad-target/dependency extraction),
+dialogue content validation, and interaction lifecycle tests: start snapshots
+revisions and filters gated choices; atomic effects (flag + familiarity + version
+bump); Gold granted once through the currency service; replay-safe and
+concurrency-safe choices (one winner, stale → 409); quest progress only via the
+verified effect; retired-NPC start refused while an active interaction stays
+stable; ownership + auth. Plus EXPLAIN index paths for NPC-state and
+interaction-ownership lookups.
+
 ### Remaining increments (this phase's ambit)
 
 NPC content model + placement/schedule availability; authored versioned dialogue

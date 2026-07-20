@@ -136,8 +136,21 @@ describe('restocking', () => {
       expect(poolEntry).toBeDefined();
       expect(entry.quantityTotal).toBeGreaterThanOrEqual(poolEntry!.minQuantity);
       expect(entry.quantityTotal).toBeLessThanOrEqual(poolEntry!.maxQuantity);
-      // Price: base × 10500 (Market District) × 12000 (markup), floored.
-      const expected = (((entry.itemDefinition.baseValue * 10500n) / 10000n) * 12000n) / 10000n;
+      // Price: base × the item category's regional modifier (default 10000) ×
+      // the shop markup, each applied as floored basis points — exactly as the
+      // service computes it. The pool spans categories with different modifiers,
+      // so the expected value must use each item's own category modifier.
+      const modifier = await prisma.regionalPriceModifier.findUnique({
+        where: {
+          locationId_category: {
+            locationId: shop.locationId,
+            category: entry.itemDefinition.category,
+          },
+        },
+      });
+      const modifierBps = BigInt(modifier?.modifierBps ?? 10_000);
+      const regional = (entry.itemDefinition.baseValue * modifierBps) / 10_000n;
+      const expected = (regional * BigInt(shop.markupBps)) / 10_000n;
       expect(entry.unitPrice).toBe(expected > 0n ? expected : 1n);
     }
 

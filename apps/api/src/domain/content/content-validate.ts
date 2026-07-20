@@ -7,6 +7,7 @@ import {
 
 import { buildDependencyGraph, reachableLocations } from './content-graph.js';
 import { CONTENT_TYPE_SPEC_BY_TYPE } from './content-types.js';
+import { validateDialogueGraph } from './dialogue-graph.js';
 
 const asRecord = (v: unknown): Record<string, unknown> =>
   v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
@@ -215,6 +216,37 @@ export function validateBundle(bundle: ContentBundle): ContentValidationResult {
     }
   }
 
+  // Dialogue graphs: entry present, targets resolve, all nodes reachable, no
+  // unbounded loops (cycles). Flag effects/conditions must reference a declared
+  // narrative flag with an allowed value.
+  const flags = byType.get('NARRATIVE_FLAG');
+  for (const [key, payload] of byType.get('DIALOGUE') ?? []) {
+    for (const issue of validateDialogueGraph(payload)) {
+      err('INVALID_DIALOGUE', 'DIALOGUE', key, issue.message);
+    }
+    for (const node of asArray(payload['nodes'])) {
+      for (const choice of asArray(asRecord(node)['choices'])) {
+        const c = asRecord(choice);
+        const rules = [...asArray(c['conditions']), ...asArray(c['effects'])].map(asRecord);
+        for (const rule of rules) {
+          if (rule['type'] !== 'SET_FLAG' && rule['type'] !== 'FLAG_EQUALS') continue;
+          const flagKey = String(rule['flagKey']);
+          const flag = flags?.get(flagKey);
+          if (!flag) continue; // unresolved reference already reported by the graph
+          const allowed = asArray(flag['allowedValues']).map(String);
+          if (!allowed.includes(String(rule['value']))) {
+            err(
+              'INVALID_FLAG_VALUE',
+              'DIALOGUE',
+              key,
+              `Dialogue "${key}" sets flag "${flagKey}" to a value outside its allowed set.`,
+            );
+          }
+        }
+      }
+    }
+  }
+
   // Collections must reference COLLECTIBLE items.
   const items = byType.get('ITEM');
   for (const [key, payload] of byType.get('COLLECTION') ?? []) {
@@ -241,6 +273,7 @@ export function validateBundle(bundle: ContentBundle): ContentValidationResult {
     'CRAFT_RECIPE',
     'DEFEAT_ENEMY',
     'DONATE_ITEM',
+    'TALK_TO_NPC',
   ]);
   for (const [key, payload] of byType.get('QUEST') ?? []) {
     for (const obj of asArray(payload['objectives'])) {

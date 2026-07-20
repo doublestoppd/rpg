@@ -53,6 +53,8 @@ function incrementFor(objective: QuestObjective, event: QuestDomainEvent): numbe
         : 0;
     case 'DONATE_ITEM':
       return event.type === 'MUSEUM_DONATION' && event.itemSlug === objective.targetSlug ? 1 : 0;
+    case 'TALK_TO_NPC':
+      return event.type === 'NPC_INTERACTION' && event.npcKey === objective.targetSlug ? 1 : 0;
   }
 }
 

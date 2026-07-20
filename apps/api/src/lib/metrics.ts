@@ -44,6 +44,16 @@ export const METRIC_NAMES = [
   'atmosphere_lazy_finalization',
   /** An atmosphere finalization lost the insert race to a concurrent request. */
   'atmosphere_finalization_conflict',
+  /** An NPC interaction was started. */
+  'npc_interaction_started',
+  /** A dialogue choice was accepted and committed. */
+  'dialogue_choice_accepted',
+  /** A dialogue choice was rejected for a stale interaction version. */
+  'dialogue_choice_conflict',
+  /** A dialogue choice replayed an existing interaction + idempotency key. */
+  'dialogue_idempotent_replay',
+  /** A dialogue choice was rejected because its conditions did not hold. */
+  'dialogue_condition_failure',
 ] as const;
 
 export type MetricName = (typeof METRIC_NAMES)[number];

@@ -94,6 +94,62 @@ world segment — an always-available NPC, or a replacement per segment. Existin
 non-NPC location features (shops, the inn) remain the ultimate fallback, so a
 service never becomes unreachable because one NPC is off schedule.
 
+## Dialogue and interactions
+
+Dialogue trees are versioned content (`DIALOGUE`), and narrative flags are
+versioned, typed declarations (`NARRATIVE_FLAG`). A conversation is an
+`NpcInteraction`; every choice resolves through the interaction service.
+
+### Authoring
+
+- A **dialogue** has an entry node and a list of nodes; each node has a speaker,
+  text, and choices. A **choice** has a label, a list of typed **conditions**
+  (gate its visibility) and typed **effects**, and a `to` target node (or `null`
+  to end the conversation). Choices never contain code, SQL, or free
+  expressions — only the declared condition/effect variants.
+- **Conditions** (approved read models only): `LEVEL_AT_LEAST`, `CLASS_IS`,
+  `QUEST_STATUS`, `HAS_ITEM`, `FLAG_EQUALS`, `WORLD_SEGMENT`. An unset flag reads
+  as its declared default.
+- **Effects** (each dispatches to the owning domain service, inside one
+  transaction): `SET_FLAG` (declared flag + allowed value), `INCREMENT_FAMILIARITY`
+  (bounded by `FAMILIARITY_CAP`), `EMIT_QUEST_EVENT` (a verified `NPC_INTERACTION`
+  quest event through the quest sink — the only way dialogue touches quest
+  progress), `GRANT_GOLD` (through the currency ledger), `RECORD_ONE_TIME`.
+  Dialogue never mutates gold, inventory, quests, stats, or content directly.
+- **Narrative flags** are declared with a namespace, value type, allowed values,
+  and default. `SET_FLAG`/`FLAG_EQUALS` may only reference a declared flag with
+  an allowed value — validation rejects anything else.
+
+### Validation
+
+Publication rejects a dialogue with a missing entry node, a choice targeting a
+nonexistent node, an unreachable node, a cycle (unbounded loop), an unsupported
+condition/effect variant (structural), a reference to a missing item/quest/flag,
+or a flag set to a value outside its allowed set.
+
+### Runtime lifecycle
+
+- `POST /api/v1/npcs/:npcKey/interactions` starts a conversation. The NPC must be
+  **present** at the character's current location and segment, and must have a
+  published dialogue entry point. The NPC revision, dialogue revision, and the
+  **full dialogue graph** are snapshotted into the interaction, so a later
+  content publish never alters an in-progress conversation (mirrors
+  `Combat.buildSnapshot`). Start is idempotent by key.
+- `GET /api/v1/npc-interactions/:id` returns the current node, the
+  condition-filtered choices, and the conversation history. Ownership required.
+- `POST /api/v1/npc-interactions/:id/choices` resolves one choice. It is
+  authorized, **version-checked** (a stale `expectedVersion` is 409), and
+  **idempotent** (a replayed idempotency key returns the original outcome, even
+  after the version advanced). Concurrent choices have exactly one winner (a
+  conditional version bump). Conditions are re-checked authoritatively; a failing
+  choice rolls the whole turn back. Effects apply in order through their owning
+  services, all in one transaction — a failed effect rolls the interaction back.
+- `POST /api/v1/npc-interactions/:id/close` ends the conversation.
+- **Per-character memory** (`CharacterNpcState`): first-met, last-interacted,
+  interaction count, bounded familiarity, and last completed dialogue. Flags live
+  in `CharacterNpcFlag` (typed, one row per declared flag). Not a free key/value
+  bag. A retired NPC refuses new interactions but never invalidates records.
+
 ## Runbook — atmosphere finalization
 
 Symptoms are visible through the `atmosphere_lazy_finalization` and

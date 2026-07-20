@@ -78,6 +78,7 @@ describe('application composition', () => {
       ['museum', 'GET', '/api/v1/collections'],
       ['activities', 'GET', '/api/v1/bounties'],
       ['living-world', 'GET', '/api/v1/world/time'],
+      ['living-world', 'GET', '/api/v1/locations/current/npcs'],
       ['notifications', 'GET', '/api/v1/notifications'],
       ['chat', 'GET', '/api/v1/chat/channels'],
       ['admin', 'GET', '/api/v1/admin/session'],

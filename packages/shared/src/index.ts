@@ -21,6 +21,7 @@ export * from './combat.js';
 export * from './content.js';
 export * from './crafting.js';
 export * from './currency.js';
+export * from './dialogue.js';
 export * from './errors.js';
 export * from './gathering.js';
 export * from './health.js';
