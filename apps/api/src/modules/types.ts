@@ -16,6 +16,7 @@ import type { EquipmentService } from '../domain/inventory/equipment-service.js'
 import type { InventoryService } from '../domain/inventory/inventory-service.js';
 import type { InteractionService } from '../domain/living-world/interaction-service.js';
 import type { NpcService } from '../domain/living-world/npc-service.js';
+import type { WorldEventService } from '../domain/living-world/world-event-service.js';
 import type { LocationService } from '../domain/location/location-service.js';
 import type { MarketplaceService } from '../domain/marketplace/marketplace-service.js';
 import type { MuseumService } from '../domain/museum/museum-service.js';
@@ -60,6 +61,7 @@ export interface ServiceRegistry {
   atmosphereService?: AtmosphereService;
   npcService?: NpcService;
   interactionService?: InteractionService;
+  worldEventService?: WorldEventService;
 }
 
 /** Everything a feature module may use to construct and register itself. */

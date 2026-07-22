@@ -1803,6 +1803,7 @@ enum ContentType {
   NPC_PLACEMENT
   DIALOGUE
   NARRATIVE_FLAG
+  WORLD_EVENT
 }
 
 /// One content definition within a release: a stable key, a revision number,
@@ -2101,4 +2102,68 @@ model NpcInteractionStep {
 
   @@unique([interactionId, idempotencyKey])
   @@index([interactionId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 26 — living world (increment 4: world events)
+// ---------------------------------------------------------------------------
+
+/// A versioned world-event definition (content type WORLD_EVENT), materialized
+/// as the runtime projection. Recurrence is expressed in world cycles, so
+/// scheduling is a pure function of the cycle number — no scheduler state.
+model WorldEventDefinition {
+  id  String @id @default(uuid())
+  key String @unique
+  revision Int @default(1)
+
+  name        String
+  description String
+  eventType   String
+  region      String
+  /// Optional narrower scope; null means the whole region.
+  locationSlug String?
+
+  /// Occurs in cycles where (cycle - offsetCycles) % everyCycles == 0.
+  everyCycles    Int
+  offsetCycles   Int @default(0)
+  durationCycles Int @default(1)
+
+  priority            Int     @default(0)
+  /// Optional scene-effect text key (presentation only).
+  sceneDescriptionKey String?
+
+  status String @default("PUBLISHED")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([region, status])
+}
+
+/// One persisted occurrence of a world event. Timestamp-authoritative
+/// (startsAt/endsAt); created idempotently by lazy finalization (unique per
+/// eventKey + startCycle) with the definition's effects SNAPSHOTTED in, so a
+/// later revision publish never mutates an active occurrence.
+model WorldEventOccurrence {
+  id String @id @default(uuid())
+
+  eventKey   String
+  revision   Int
+  startCycle Int
+
+  name        String
+  description String
+  eventType   String
+  region      String
+  locationSlug String?
+  priority     Int
+  sceneDescriptionKey String?
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventKey, startCycle])
+  @@index([region, endsAt])
 }

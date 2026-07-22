@@ -10531,6 +10531,612 @@
         }
       }
     },
+    "/api/v1/world/events": {
+      "get": {
+        "summary": "Active world events in the character's current region",
+        "tags": ["world"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "region": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "eventType": {
+                            "type": "string",
+                            "enum": [
+                              "MARKET_DAY",
+                              "FESTIVAL",
+                              "STORM",
+                              "CARAVAN_ARRIVAL",
+                              "MINE_SHIFT_CHANGE",
+                              "HARBOR_ARRIVAL",
+                              "MONSTER_ACTIVITY",
+                              "MUSEUM_EXHIBIT",
+                              "NPC_VISIT",
+                              "REGIONAL_RUMOR"
+                            ]
+                          },
+                          "region": {
+                            "type": "string"
+                          },
+                          "locationSlug": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "priority": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "sceneDescriptionKey": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "description",
+                          "eventType",
+                          "region",
+                          "locationSlug",
+                          "priority",
+                          "sceneDescriptionKey",
+                          "startsAt",
+                          "endsAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["region", "events"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/locations/current/activity": {
+      "get": {
+        "summary": "A bounded, privacy-safe recent-activity feed for the current location",
+        "tags": ["world"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locationSlug": {
+                      "type": "string"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["WORLD_EVENT_STARTED"]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "name", "at"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["MARKETPLACE_SALE"]
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "itemName", "quantity", "at"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["MUSEUM_DONATION"]
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "collectionName": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "itemName", "collectionName", "at"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["SHOP_RESTOCKED"]
+                              },
+                              "shopName": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "shopName", "at"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["locationSlug", "entries"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/locations/current/scene": {
+      "get": {
+        "summary": "The coherent current-scene read model (one request, whole scene)",
+        "tags": ["world"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "region": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "artworkKey": {
+                          "type": "string"
+                        },
+                        "isSafe": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "region",
+                        "description",
+                        "artworkKey",
+                        "isSafe"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "segment": {
+                      "type": "string",
+                      "enum": ["DAWN", "DAY", "DUSK", "NIGHT"]
+                    },
+                    "cycleId": {
+                      "type": "string"
+                    },
+                    "atmosphere": {
+                      "type": "object",
+                      "properties": {
+                        "region": {
+                          "type": "string"
+                        },
+                        "cycleId": {
+                          "type": "string"
+                        },
+                        "weather": {
+                          "type": "string",
+                          "enum": ["CLEAR", "CLOUDY", "RAIN", "FOG", "STORM", "SNOW"]
+                        },
+                        "intensity": {
+                          "type": "string",
+                          "enum": ["CALM", "MODERATE", "STRONG"]
+                        },
+                        "visibility": {
+                          "type": "string",
+                          "enum": ["CLEAR", "REDUCED", "POOR"]
+                        },
+                        "temperature": {
+                          "type": "string",
+                          "enum": ["COLD", "MILD", "WARM", "HOT"]
+                        },
+                        "wind": {
+                          "type": "string",
+                          "enum": ["STILL", "BREEZY", "GUSTY"]
+                        },
+                        "crowdLevel": {
+                          "type": "string",
+                          "enum": ["DESERTED", "QUIET", "MODERATE", "BUSY"]
+                        },
+                        "descriptionKey": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "startsAt": {
+                          "type": "string"
+                        },
+                        "expiresAt": {
+                          "type": "string"
+                        },
+                        "configRevision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "region",
+                        "cycleId",
+                        "weather",
+                        "intensity",
+                        "visibility",
+                        "temperature",
+                        "wind",
+                        "crowdLevel",
+                        "descriptionKey",
+                        "startsAt",
+                        "expiresAt",
+                        "configRevision"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "eventType": {
+                            "type": "string",
+                            "enum": [
+                              "MARKET_DAY",
+                              "FESTIVAL",
+                              "STORM",
+                              "CARAVAN_ARRIVAL",
+                              "MINE_SHIFT_CHANGE",
+                              "HARBOR_ARRIVAL",
+                              "MONSTER_ACTIVITY",
+                              "MUSEUM_EXHIBIT",
+                              "NPC_VISIT",
+                              "REGIONAL_RUMOR"
+                            ]
+                          },
+                          "region": {
+                            "type": "string"
+                          },
+                          "locationSlug": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "priority": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "sceneDescriptionKey": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "startsAt": {
+                            "type": "string"
+                          },
+                          "endsAt": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "description",
+                          "eventType",
+                          "region",
+                          "locationSlug",
+                          "priority",
+                          "sceneDescriptionKey",
+                          "startsAt",
+                          "endsAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "npcs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "key": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "pronouns": {
+                            "type": "string"
+                          },
+                          "roles": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "INNKEEPER",
+                                "MERCHANT",
+                                "CRAFTSPERSON",
+                                "TRAINER",
+                                "QUEST_GIVER",
+                                "CURATOR",
+                                "GUARD",
+                                "TRAVELER",
+                                "WORKER",
+                                "SCHOLAR",
+                                "AMBIENT"
+                              ]
+                            }
+                          },
+                          "shortDescription": {
+                            "type": "string"
+                          },
+                          "homeRegion": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "portraitAssetKey": {
+                            "type": "string"
+                          },
+                          "sceneAssetKey": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "serviceType": {
+                            "type": "string",
+                            "enum": ["NONE", "SHOP", "INN", "CRAFTING", "MUSEUM", "TRAINING"]
+                          },
+                          "availability": {
+                            "type": "string",
+                            "enum": ["PRESENT", "OFF_SCHEDULE", "ELSEWHERE"]
+                          }
+                        },
+                        "required": [
+                          "key",
+                          "name",
+                          "pronouns",
+                          "roles",
+                          "shortDescription",
+                          "homeRegion",
+                          "tags",
+                          "portraitAssetKey",
+                          "sceneAssetKey",
+                          "serviceType",
+                          "availability"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "features": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "INN",
+                              "NPC_SHOP",
+                              "MARKETPLACE",
+                              "GATHERING",
+                              "CRAFTING",
+                              "COMBAT",
+                              "QUEST",
+                              "MUSEUM"
+                            ]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["id", "type", "name", "description"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "activity": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["WORLD_EVENT_STARTED"]
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "name", "at"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["MARKETPLACE_SALE"]
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "itemName", "quantity", "at"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["MUSEUM_DONATION"]
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "collectionName": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "itemName", "collectionName", "at"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "enum": ["SHOP_RESTOCKED"]
+                              },
+                              "shopName": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "shopName", "at"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "serverTime": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "location",
+                    "segment",
+                    "cycleId",
+                    "atmosphere",
+                    "events",
+                    "npcs",
+                    "features",
+                    "activity",
+                    "serverTime"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/channels": {
       "get": {
         "summary": "Channels this character may currently access, with unread counts",
@@ -13302,7 +13908,8 @@
                               "NPC",
                               "NPC_PLACEMENT",
                               "DIALOGUE",
-                              "NARRATIVE_FLAG"
+                              "NARRATIVE_FLAG",
+                              "WORLD_EVENT"
                             ]
                           },
                           "key": {
@@ -13399,7 +14006,8 @@
                                   "NPC",
                                   "NPC_PLACEMENT",
                                   "DIALOGUE",
-                                  "NARRATIVE_FLAG"
+                                  "NARRATIVE_FLAG",
+                                  "WORLD_EVENT"
                                 ]
                               },
                               "key": {
@@ -13443,7 +14051,8 @@
                               "NPC",
                               "NPC_PLACEMENT",
                               "DIALOGUE",
-                              "NARRATIVE_FLAG"
+                              "NARRATIVE_FLAG",
+                              "WORLD_EVENT"
                             ]
                           },
                           "fromKey": {
@@ -13469,7 +14078,8 @@
                               "NPC",
                               "NPC_PLACEMENT",
                               "DIALOGUE",
-                              "NARRATIVE_FLAG"
+                              "NARRATIVE_FLAG",
+                              "WORLD_EVENT"
                             ]
                           },
                           "toKey": {
@@ -13545,7 +14155,8 @@
                               "NPC",
                               "NPC_PLACEMENT",
                               "DIALOGUE",
-                              "NARRATIVE_FLAG"
+                              "NARRATIVE_FLAG",
+                              "WORLD_EVENT"
                             ]
                           },
                           "key": {
@@ -13608,7 +14219,8 @@
                 "NPC",
                 "NPC_PLACEMENT",
                 "DIALOGUE",
-                "NARRATIVE_FLAG"
+                "NARRATIVE_FLAG",
+                "WORLD_EVENT"
               ]
             },
             "in": "path",
@@ -13654,7 +14266,8 @@
                         "NPC",
                         "NPC_PLACEMENT",
                         "DIALOGUE",
-                        "NARRATIVE_FLAG"
+                        "NARRATIVE_FLAG",
+                        "WORLD_EVENT"
                       ]
                     },
                     "key": {
@@ -13735,7 +14348,8 @@
                 "NPC",
                 "NPC_PLACEMENT",
                 "DIALOGUE",
-                "NARRATIVE_FLAG"
+                "NARRATIVE_FLAG",
+                "WORLD_EVENT"
               ]
             },
             "in": "path",
@@ -13781,7 +14395,8 @@
                         "NPC",
                         "NPC_PLACEMENT",
                         "DIALOGUE",
-                        "NARRATIVE_FLAG"
+                        "NARRATIVE_FLAG",
+                        "WORLD_EVENT"
                       ]
                     },
                     "key": {
@@ -13845,7 +14460,8 @@
                 "NPC",
                 "NPC_PLACEMENT",
                 "DIALOGUE",
-                "NARRATIVE_FLAG"
+                "NARRATIVE_FLAG",
+                "WORLD_EVENT"
               ]
             },
             "in": "path",
@@ -13920,7 +14536,8 @@
                 "NPC",
                 "NPC_PLACEMENT",
                 "DIALOGUE",
-                "NARRATIVE_FLAG"
+                "NARRATIVE_FLAG",
+                "WORLD_EVENT"
               ]
             },
             "in": "path",
@@ -13966,7 +14583,8 @@
                         "NPC",
                         "NPC_PLACEMENT",
                         "DIALOGUE",
-                        "NARRATIVE_FLAG"
+                        "NARRATIVE_FLAG",
+                        "WORLD_EVENT"
                       ]
                     },
                     "key": {
@@ -13999,7 +14617,8 @@
                               "NPC",
                               "NPC_PLACEMENT",
                               "DIALOGUE",
-                              "NARRATIVE_FLAG"
+                              "NARRATIVE_FLAG",
+                              "WORLD_EVENT"
                             ]
                           },
                           "key": {
@@ -14058,7 +14677,8 @@
                 "NPC",
                 "NPC_PLACEMENT",
                 "DIALOGUE",
-                "NARRATIVE_FLAG"
+                "NARRATIVE_FLAG",
+                "WORLD_EVENT"
               ]
             },
             "in": "path",
@@ -14104,7 +14724,8 @@
                         "NPC",
                         "NPC_PLACEMENT",
                         "DIALOGUE",
-                        "NARRATIVE_FLAG"
+                        "NARRATIVE_FLAG",
+                        "WORLD_EVENT"
                       ]
                     },
                     "key": {
@@ -14141,7 +14762,8 @@
                               "NPC",
                               "NPC_PLACEMENT",
                               "DIALOGUE",
-                              "NARRATIVE_FLAG"
+                              "NARRATIVE_FLAG",
+                              "WORLD_EVENT"
                             ]
                           },
                           "key": {

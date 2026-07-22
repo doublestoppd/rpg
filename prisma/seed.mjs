@@ -22,6 +22,7 @@ import {
   NPC_DEFINITIONS,
   NPC_PLACEMENTS,
   NPC_SHOPS,
+  WORLD_EVENTS,
   REGIONAL_PRICE_MODIFIERS,
   TRAVEL_ROUTES,
 } from './seed-data.mjs';
@@ -459,6 +460,15 @@ async function main() {
       where: { key: dialogue.key },
       create: { key: dialogue.key, ...data },
       update: data,
+    });
+  }
+
+  // Phase 26: world-event definitions (living world).
+  for (const event of WORLD_EVENTS) {
+    await prisma.worldEventDefinition.upsert({
+      where: { key: event.key },
+      create: { ...event, status: 'PUBLISHED' },
+      update: { ...event, status: 'PUBLISHED' },
     });
   }
 

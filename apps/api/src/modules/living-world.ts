@@ -1,9 +1,13 @@
+import { createActivityService } from '../domain/living-world/activity-service.js';
 import { createInteractionService } from '../domain/living-world/interaction-service.js';
 import { createNpcService } from '../domain/living-world/npc-service.js';
+import { createSceneService } from '../domain/living-world/scene-service.js';
+import { createWorldEventService } from '../domain/living-world/world-event-service.js';
 import { createAtmosphereService } from '../domain/world-sim/atmosphere-service.js';
 import { createWorldClockService } from '../domain/world-sim/world-clock.js';
 import { npcInteractionRoutes } from '../routes/npc-interactions.js';
 import { npcRoutes } from '../routes/npcs.js';
+import { sceneRoutes } from '../routes/scene.js';
 import { worldSimRoutes } from '../routes/world-sim.js';
 import { type GameModule, requireService } from './types.js';
 
@@ -34,11 +38,22 @@ export const livingWorldModule: GameModule = {
       worldClock,
       npcService,
     });
+    const worldEventService = createWorldEventService(ctx.prisma, worldClock, locationService);
+    const activityService = createActivityService(ctx.prisma, locationService);
+    const sceneService = createSceneService({
+      locationService,
+      worldClock,
+      atmosphereService,
+      worldEventService,
+      npcService,
+      activityService,
+    });
 
     ctx.services.worldClockService = worldClock;
     ctx.services.atmosphereService = atmosphereService;
     ctx.services.npcService = npcService;
     ctx.services.interactionService = interactionService;
+    ctx.services.worldEventService = worldEventService;
 
     await ctx.app.register(worldSimRoutes, {
       prefix: '/api/v1',
@@ -48,5 +63,11 @@ export const livingWorldModule: GameModule = {
     });
     await ctx.app.register(npcRoutes, { prefix: '/api/v1', npcService });
     await ctx.app.register(npcInteractionRoutes, { prefix: '/api/v1', interactionService });
+    await ctx.app.register(sceneRoutes, {
+      prefix: '/api/v1',
+      sceneService,
+      worldEventService,
+      activityService,
+    });
   },
 };

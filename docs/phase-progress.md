@@ -142,15 +142,59 @@ verified effect; retired-NPC start refused while an active interaction stays
 stable; ownership + auth. Plus EXPLAIN index paths for NPC-state and
 interaction-ownership lookups.
 
+### Increment 4 — world events, activity feed, and the coherent scene (delivered)
+
+- **World events.** New content type `WORLD_EVENT` (definitions projected into
+  `WorldEventDefinition`) with recurrence expressed in world cycles: an event
+  occurs in cycles where `(cycle − offset) % every == 0`, lasting
+  `durationCycles`. Occurrences are **timestamp-authoritative** and finalized
+  **lazily on read**, stored once per `(eventKey, startCycle)` with the
+  definition's fields **snapshotted in**, so a later revision publish never
+  mutates an active occurrence and everything is correct with the worker
+  stopped. `GET /api/v1/world/events`.
+- **Privacy-safe local activity feed.** `GET /api/v1/locations/current/activity`
+  is a bounded **read-time projection** over verified domain records
+  (marketplace sales, museum donations, shop restocks, world-event starts). By
+  construction there are no fabricated player events (every entry has a source
+  row), no duplicates (source rows are unique), nothing blocks a gameplay
+  transaction (no extra writes), and entries are typed with item/shop/collection
+  names and quantities only — never account ids, character ids, character names,
+  or balances.
+- **Coherent scene read model.** `GET /api/v1/locations/current/scene` returns
+  the whole scene in one request — location, world-time segment, cycle,
+  atmosphere, active events, present NPCs, features, and a bounded activity
+  summary — composed from the owning services under a single `now`, so the
+  browser never assembles the scene from many calls.
+- **Seed.** Three world events (Crownfall market day, a harbor caravan, a
+  Northmarch storm). New metrics: `world_event_lazy_finalization`,
+  `world_event_occurrence_conflict`.
+
+### Endpoints (additive, increment 4)
+
+`GET /api/v1/world/events`, `GET /api/v1/locations/current/activity`,
+`GET /api/v1/locations/current/scene`. Content type `WORLD_EVENT`. OpenAPI
+baseline regenerated (additive).
+
+### Tests (increment 4)
+
+Recurrence math (`occurrenceWindowAt`), lazy worker-independent finalization
+(idempotent, single occurrence per cycle, snapshot stable across a later edit),
+the coherent scene read model (shape + agreement with the world clock + present
+NPCs), and a privacy assertion that the activity feed surfaces a verified museum
+donation without leaking the donor's character id or name. EXPLAIN index path for
+active events by region + timestamp.
+
 ### Remaining increments (this phase's ambit)
 
-NPC content model + placement/schedule availability; authored versioned dialogue
-trees with a typed condition/effect registry and a replay-safe, concurrency-safe,
-transactional interaction lifecycle; per-character NPC narrative state; versioned
-world events with lazy finalization; the privacy-safe local activity feed; the
-coherent current-scene read model and dynamic scene variants; the living-scene and
-NPC-dialogue UI; Content Studio living-world editors; representative seed content;
-and the full integration/EXPLAIN/Playwright suite.
+Delivered through increment 4: the NPC content model + placement/schedule
+availability; authored versioned dialogue trees with a typed condition/effect
+registry and a replay-safe, concurrency-safe, transactional interaction
+lifecycle; per-character NPC narrative state; versioned world events with lazy
+finalization; the privacy-safe local activity feed; and the coherent
+current-scene read model. Still to come: dynamic scene variants; the
+living-scene and NPC-dialogue UI; Content Studio living-world editors; a fuller
+representative seed (named NPCs and authored dialogues); and the full
+integration/EXPLAIN/Playwright suite.
 
 ## Phase 24 — Repeatable Activities and Economy Loop Expansion (2026-07-19)
 

@@ -247,6 +247,21 @@ export function validateBundle(bundle: ContentBundle): ContentValidationResult {
     }
   }
 
+  // World events: an occurrence must fit within its recurrence window, or
+  // successive occurrences would overlap (an impossible schedule).
+  for (const [key, payload] of byType.get('WORLD_EVENT') ?? []) {
+    const every = Number(payload['everyCycles']);
+    const duration = Number(payload['durationCycles']);
+    if (every >= 1 && duration >= 1 && duration > every) {
+      err(
+        'IMPOSSIBLE_EVENT_SCHEDULE',
+        'WORLD_EVENT',
+        key,
+        `Event "${key}" lasts ${duration} cycles but recurs every ${every}; occurrences overlap.`,
+      );
+    }
+  }
+
   // Collections must reference COLLECTIBLE items.
   const items = byType.get('ITEM');
   for (const [key, payload] of byType.get('COLLECTION') ?? []) {

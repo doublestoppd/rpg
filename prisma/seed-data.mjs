@@ -1622,3 +1622,50 @@ export const DIALOGUES = [
     ],
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Phase 26 — world events (living world, increment 4). Recurrence is measured
+// in world cycles; occurrences are finalized lazily and are worker-independent.
+// ---------------------------------------------------------------------------
+
+export const WORLD_EVENTS = [
+  {
+    key: 'crownfall-market-day',
+    name: 'Market Day',
+    description: 'The Crownfall stalls overflow and the crowds thicken.',
+    eventType: 'MARKET_DAY',
+    region: 'crownfall',
+    locationSlug: null,
+    everyCycles: 2,
+    offsetCycles: 0,
+    durationCycles: 1,
+    priority: 5,
+    sceneDescriptionKey: 'scene.market-day',
+  },
+  {
+    key: 'harbor-caravan',
+    name: 'Caravan Arrival',
+    description: 'A trade caravan rolls into the harbor, wheels caked in road dust.',
+    eventType: 'CARAVAN_ARRIVAL',
+    region: 'crownfall',
+    locationSlug: 'crownfall-harbor',
+    everyCycles: 4,
+    offsetCycles: 2,
+    durationCycles: 1,
+    priority: 6,
+    sceneDescriptionKey: 'scene.caravan',
+  },
+  {
+    key: 'northmarch-storm',
+    name: 'Northern Storm',
+    description: 'A cold front sweeps down from the hills; folk shutter their windows.',
+    eventType: 'STORM',
+    region: 'northmarch',
+    locationSlug: null,
+    everyCycles: 3,
+    offsetCycles: 1,
+    durationCycles: 1,
+    priority: 8,
+    sceneDescriptionKey: 'scene.storm',
+  },
+];

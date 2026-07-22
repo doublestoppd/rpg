@@ -20,6 +20,7 @@ export const contentTypeSchema = z.enum([
   'NPC_PLACEMENT',
   'DIALOGUE',
   'NARRATIVE_FLAG',
+  'WORLD_EVENT',
 ]);
 export type ContentType = z.infer<typeof contentTypeSchema>;
 

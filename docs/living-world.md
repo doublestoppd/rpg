@@ -150,6 +150,43 @@ or a flag set to a value outside its allowed set.
   in `CharacterNpcFlag` (typed, one row per declared flag). Not a free key/value
   bag. A retired NPC refuses new interactions but never invalidates records.
 
+## World events, activity, and the scene
+
+World events are versioned content (`WORLD_EVENT`) projected into
+`WorldEventDefinition`. Recurrence is a pure function of the world-cycle number:
+an event occurs in cycles where `(cycle − offsetCycles) % everyCycles == 0` and
+stays active for `durationCycles`. There is no scheduler state.
+
+- **Occurrences** are persisted once per `(eventKey, startCycle)` with the
+  definition's fields snapshotted in, so a later revision publish never mutates
+  an active occurrence. They are finalized lazily on read and are
+  timestamp-authoritative (`startsAt`/`endsAt`) — correct with the worker
+  stopped. `GET /api/v1/world/events`.
+- **Local activity** (`GET /api/v1/locations/current/activity`) is a bounded,
+  read-time projection over verified domain records — marketplace sales, museum
+  donations, shop restocks, and world-event starts. It fabricates nothing,
+  duplicates nothing, and blocks no gameplay transaction, and it exposes only
+  typed template parameters (item/shop/collection names, quantities) — never
+  account or character identifiers, names, or balances.
+- **The scene** (`GET /api/v1/locations/current/scene`) is one coherent read
+  model — location, time segment, cycle, atmosphere, active events, present
+  NPCs, features, and a bounded activity summary — composed under a single
+  `now`. Its documented query budget is roughly a dozen index-backed reads.
+
+### Runbook — world-event finalization
+
+Watch `world_event_lazy_finalization` and `world_event_occurrence_conflict`.
+
+- **An event that should be active isn't showing.** Confirm the cycle math:
+  `GET /world/time` gives the current cycle id; the event fires only when
+  `(cycle − offset) % every == 0`. Reading `/world/events` finalizes any due
+  occurrence — no worker action needed.
+- **`world_event_occurrence_conflict` climbing.** Benign: concurrent first-touch
+  readers of the same cycle race to insert; the losers re-read the winning row.
+- **A published edit didn't change a live event.** Expected — occurrences
+  snapshot the definition. The edit applies to the next occurrence, not the
+  current one.
+
 ## Runbook — atmosphere finalization
 
 Symptoms are visible through the `atmosphere_lazy_finalization` and

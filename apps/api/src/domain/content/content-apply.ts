@@ -446,6 +446,30 @@ const APPLIERS: Record<ContentType, Applier> = {
       });
     }
   },
+
+  WORLD_EVENT: async (tx, payloads) => {
+    for (const p of payloads) {
+      const data = {
+        name: str(p['name']),
+        description: str(p['description']),
+        eventType: str(p['eventType']),
+        region: str(p['region']),
+        locationSlug: p['locationSlug'] == null ? null : str(p['locationSlug']),
+        everyCycles: int(p['everyCycles']),
+        offsetCycles: int(p['offsetCycles']),
+        durationCycles: int(p['durationCycles']),
+        priority: int(p['priority']),
+        sceneDescriptionKey:
+          p['sceneDescriptionKey'] == null ? null : str(p['sceneDescriptionKey']),
+        status: 'PUBLISHED',
+      };
+      await tx.worldEventDefinition.upsert({
+        where: { key: str(p['key']) },
+        create: { key: str(p['key']), ...data },
+        update: data,
+      });
+    }
+  },
 };
 
 /**

@@ -254,4 +254,12 @@ describe('living-world queries stay on their indexes', () => {
       [someUuid],
     );
   });
+
+  it('active world events by region + timestamp', async () => {
+    await expectIndex(
+      `SELECT * FROM "WorldEventOccurrence" WHERE "region" = $1 AND "endsAt" > now()`,
+      'WorldEventOccurrence_region_endsAt_idx',
+      ['crownfall'],
+    );
+  });
 });

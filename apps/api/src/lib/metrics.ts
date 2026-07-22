@@ -54,6 +54,10 @@ export const METRIC_NAMES = [
   'dialogue_idempotent_replay',
   /** A dialogue choice was rejected because its conditions did not hold. */
   'dialogue_condition_failure',
+  /** A due world-event occurrence was lazily finalized. */
+  'world_event_lazy_finalization',
+  /** A world-event occurrence lost the insert race to a concurrent request. */
+  'world_event_occurrence_conflict',
 ] as const;
 
 export type MetricName = (typeof METRIC_NAMES)[number];

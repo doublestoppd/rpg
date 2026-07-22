@@ -5,6 +5,7 @@ import {
   equipmentSlotSchema,
   itemCategorySchema,
   narrativeFlagPayloadSchema,
+  worldEventDefinitionPayloadSchema,
 } from '@rpg/shared';
 import { z } from 'zod';
 
@@ -771,6 +772,32 @@ export const CONTENT_TYPE_SPECS: ContentTypeSpec[] = [
       }));
     },
     dependencies: () => [],
+  },
+  {
+    type: 'WORLD_EVENT',
+    payloadSchema: worldEventDefinitionPayloadSchema,
+    async exportAll(prisma) {
+      const rows = await prisma.worldEventDefinition.findMany({ orderBy: { key: 'asc' } });
+      return rows.map((r) => ({
+        key: r.key,
+        payload: {
+          key: r.key,
+          name: r.name,
+          description: r.description,
+          eventType: r.eventType,
+          region: r.region,
+          locationSlug: r.locationSlug,
+          everyCycles: r.everyCycles,
+          offsetCycles: r.offsetCycles,
+          durationCycles: r.durationCycles,
+          priority: r.priority,
+          sceneDescriptionKey: r.sceneDescriptionKey,
+        },
+      }));
+    },
+    // A location-scoped event references that location; region-only events do not.
+    dependencies: (p) =>
+      typeof p['locationSlug'] === 'string' ? [{ type: 'LOCATION', key: p['locationSlug'] }] : [],
   },
 ];
 
