@@ -57,12 +57,23 @@ tests/            Repository-level tests
 Requires Node.js 22 (see `.nvmrc`) and Docker (for PostgreSQL).
 
 ```bash
-npm ci                     # reproducible install from lockfile
 docker compose up          # PostgreSQL + API dev + worker + web dev
 ```
 
+Compose is self-contained and cross-platform: a one-shot `deps` service installs
+Linux-native dependencies and generates the Prisma client into a container-owned
+`node_modules` volume before the app services start, so it works from a macOS,
+Windows, or Linux host regardless of what your host `node_modules` was built for.
+The first `up` takes a minute while `deps` runs `npm ci`.
+
 Then open http://localhost:5173. The web dev server proxies `/api` to the API
-process. Copy `.env.example` to `.env` if running processes without Docker:
+process.
+
+For local tooling — tests, typecheck, lint, or running the processes directly
+without Docker — install on the host and copy `.env.example` to `.env`:
+
+```bash
+npm ci                     # reproducible install from lockfile (host tooling)
 
 ```bash
 npm run dev:api            # API with reload (needs DATABASE_URL)

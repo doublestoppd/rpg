@@ -1,6 +1,13 @@
 # Development environment: PostgreSQL, API dev service, web dev service, and
-# the job worker. Requires `npm ci` on the host first (the repo is mounted
-# into the Node containers, matching the host linux platform).
+# the job worker.
+#
+# Cross-platform note: the repo is bind-mounted into the Node containers, but a
+# container-owned `node_modules` volume SHADOWS the host's. A one-shot `deps`
+# service installs Linux-native dependencies (and generates the Prisma client)
+# into that volume before the app services start, so it does not matter what OS
+# or CPU the host used for its own `npm ci` — macOS/Windows/Linux all work. The
+# host's `node_modules` is only for local tooling (tests, typecheck, IDE) and
+# never leaks into the containers.
 #
 # Production never uses this file: it runs `npm run start:api` and
 # `npm run start:worker` as separate processes and serves the static web
@@ -23,6 +30,16 @@ services:
       timeout: 3s
       retries: 10
 
+  # One-shot: install Linux-native dependencies + generate the Prisma engine
+  # into the shared node_modules volume, then exit. App services wait for it.
+  deps:
+    image: node:22-bookworm-slim
+    working_dir: /app
+    command: sh -c "npm ci && npx prisma generate --schema prisma/schema.prisma"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+
   api:
     image: node:22-bookworm-slim
     working_dir: /app
@@ -35,9 +52,12 @@ services:
       - '3000:3000'
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
+      deps:
+        condition: service_completed_successfully
 
   worker:
     image: node:22-bookworm-slim
@@ -47,9 +67,12 @@ services:
       DATABASE_URL: postgresql://rpg:rpg@postgres:5432/rpg
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
+      deps:
+        condition: service_completed_successfully
 
   web:
     image: node:22-bookworm-slim
@@ -61,8 +84,13 @@ services:
       - '5173:5173'
     volumes:
       - .:/app
+      - node_modules:/app/node_modules
     depends_on:
-      - api
+      deps:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
 
 volumes:
   pgdata:
+  node_modules:
