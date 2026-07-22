@@ -170,8 +170,19 @@ stays active for `durationCycles`. There is no scheduler state.
   account or character identifiers, names, or balances.
 - **The scene** (`GET /api/v1/locations/current/scene`) is one coherent read
   model — location, time segment, cycle, atmosphere, active events, present
-  NPCs, features, and a bounded activity summary — composed under a single
-  `now`. Its documented query budget is roughly a dozen index-backed reads.
+  NPCs, present players, features, and a bounded activity summary — composed
+  under a single `now`. Its documented query budget is roughly a dozen
+  index-backed reads.
+- **Player presence** is a read-activity heartbeat: viewing the scene touches
+  the caller's `Character.lastSeenAt`, and the scene lists the _other_ players
+  whose `lastSeenAt` at the same location is within the last five minutes
+  (capped, newest first, backed by the `(currentLocationId, lastSeenAt)` index).
+  "Present" therefore means _actively looking at the place_, not merely logged
+  in. Only public character identity (name, class, level — the same shown in
+  chat and combat) is exposed; the account behind a character is never revealed,
+  and the caller never appears in their own list. NPCs and players are distinct:
+  NPCs are authored content, players are live presence, and neither ever crosses
+  into player chat.
 
 ## The living-scene UI
 

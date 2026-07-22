@@ -262,4 +262,12 @@ describe('living-world queries stay on their indexes', () => {
       ['crownfall'],
     );
   });
+
+  it('present players by location + recency (scene presence lookup)', async () => {
+    await expectIndex(
+      `SELECT * FROM "Character" WHERE "currentLocationId" = $1 AND "lastSeenAt" >= now() - interval '5 minutes'`,
+      'Character_currentLocationId_lastSeenAt_idx',
+      [someUuid],
+    );
+  });
 });

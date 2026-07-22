@@ -11085,6 +11085,27 @@
                         "additionalProperties": false
                       }
                     },
+                    "players": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "classSlug": {
+                            "type": "string"
+                          },
+                          "level": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": ["name", "classSlug", "level"],
+                        "additionalProperties": false
+                      }
+                    },
                     "features": {
                       "type": "array",
                       "items": {
@@ -11213,6 +11234,7 @@
                     "atmosphere",
                     "events",
                     "npcs",
+                    "players",
                     "features",
                     "activity",
                     "serverTime"

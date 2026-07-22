@@ -193,8 +193,15 @@ model Character {
   chatReportsMade      ChatReport[]                   @relation("ChatReportsMade")
   chatRestrictions     ChatRestriction[]
 
+  /// Last time this character was actively viewing the world (touched on scene
+  /// reads). Drives the "who is here" presence panel; not a login timestamp.
+  lastSeenAt DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  /// Presence lookups: characters at a location seen within the recent window.
+  @@index([currentLocationId, lastSeenAt])
 }
 
 // ---------------------------------------------------------------------------

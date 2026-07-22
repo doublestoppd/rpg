@@ -14,6 +14,7 @@ import { useInnRest } from '../features/currency/useCurrency';
 import { GatheringPanel } from '../features/gathering/GatheringPanel';
 import { ActivityFeed } from '../features/living-world/ActivityFeed';
 import { NpcsPanel } from '../features/living-world/NpcsPanel';
+import { PlayersHere } from '../features/living-world/PlayersHere';
 import { SceneAtmosphere } from '../features/living-world/SceneAtmosphere';
 import { useScene } from '../features/living-world/useScene';
 import { LocationArtwork } from '../features/location/LocationArtwork';
@@ -175,6 +176,7 @@ export function LocationPage() {
       {scene.data && (
         <section aria-label="People here" className="space-y-3">
           <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">People here</h2>
+          <PlayersHere players={scene.data.players} />
           <NpcsPanel npcs={scene.data.npcs} />
         </section>
       )}

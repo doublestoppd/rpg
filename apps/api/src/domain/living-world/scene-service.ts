@@ -5,6 +5,7 @@ import type { AtmosphereService } from '../world-sim/atmosphere-service.js';
 import type { WorldClockService } from '../world-sim/world-clock.js';
 import type { ActivityService } from './activity-service.js';
 import type { NpcService } from './npc-service.js';
+import type { PresenceService } from './presence-service.js';
 import type { WorldEventService } from './world-event-service.js';
 
 /**
@@ -28,6 +29,7 @@ export function createSceneService(deps: {
   worldEventService: WorldEventService;
   npcService: NpcService;
   activityService: ActivityService;
+  presenceService: PresenceService;
 }): SceneService {
   const {
     locationService,
@@ -36,6 +38,7 @@ export function createSceneService(deps: {
     worldEventService,
     npcService,
     activityService,
+    presenceService,
   } = deps;
 
   return {
@@ -45,12 +48,13 @@ export function createSceneService(deps: {
       // availability are mutually consistent within the response.
       const { location } = await locationService.getCurrentLocation(userId);
       const time = await worldClock.currentTime(now);
-      const [atmosphere, events, npcList, featuresResponse, activity] = await Promise.all([
+      const [atmosphere, events, npcList, featuresResponse, activity, players] = await Promise.all([
         atmosphereService.finalizeCurrent(location.region, now),
         worldEventService.activeEvents(location.region, now),
         npcService.listAtCurrentLocation(userId, now),
         locationService.getCurrentFeatures(userId),
         activityService.recentAt(location.slug, location.region, now),
+        presenceService.touchAndList(userId, location.id, now),
       ]);
 
       return {
@@ -60,6 +64,7 @@ export function createSceneService(deps: {
         atmosphere,
         events,
         npcs: npcList.npcs,
+        players,
         features: featuresResponse.features,
         activity,
         serverTime: now.toISOString(),

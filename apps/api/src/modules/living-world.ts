@@ -1,6 +1,7 @@
 import { createActivityService } from '../domain/living-world/activity-service.js';
 import { createInteractionService } from '../domain/living-world/interaction-service.js';
 import { createNpcService } from '../domain/living-world/npc-service.js';
+import { createPresenceService } from '../domain/living-world/presence-service.js';
 import { createSceneService } from '../domain/living-world/scene-service.js';
 import { createWorldEventService } from '../domain/living-world/world-event-service.js';
 import { createAtmosphereService } from '../domain/world-sim/atmosphere-service.js';
@@ -40,6 +41,7 @@ export const livingWorldModule: GameModule = {
     });
     const worldEventService = createWorldEventService(ctx.prisma, worldClock, locationService);
     const activityService = createActivityService(ctx.prisma, locationService);
+    const presenceService = createPresenceService(ctx.prisma, characterService);
     const sceneService = createSceneService({
       locationService,
       worldClock,
@@ -47,6 +49,7 @@ export const livingWorldModule: GameModule = {
       worldEventService,
       npcService,
       activityService,
+      presenceService,
     });
 
     ctx.services.worldClockService = worldClock;

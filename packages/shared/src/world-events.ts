@@ -89,6 +89,20 @@ export const activityResponseSchema = z.object({
 });
 export type ActivityResponse = z.infer<typeof activityResponseSchema>;
 
+// --- present players ---------------------------------------------------------
+
+/**
+ * A player character currently present at the location. Only public character
+ * identity is exposed — the same name, class, and level shown in chat and
+ * combat — never the account behind it.
+ */
+export const presentPlayerSchema = z.object({
+  name: z.string(),
+  classSlug: z.string(),
+  level: z.number().int().min(1),
+});
+export type PresentPlayer = z.infer<typeof presentPlayerSchema>;
+
 // --- the coherent scene read model ------------------------------------------
 
 export const sceneResponseSchema = z.object({
@@ -98,6 +112,8 @@ export const sceneResponseSchema = z.object({
   atmosphere: atmosphereResponseSchema,
   events: z.array(worldEventInfoSchema),
   npcs: z.array(npcInfoSchema),
+  /** Other players active at this location recently (excludes the caller). */
+  players: z.array(presentPlayerSchema),
   features: z.array(locationFeatureSchema),
   activity: z.array(activityEntrySchema),
   serverTime: z.string(),

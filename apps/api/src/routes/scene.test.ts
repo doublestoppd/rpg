@@ -74,6 +74,43 @@ describe('GET /locations/current/scene', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().region).toBe('crownfall');
   });
+
+  it('lists other players present at the location but never the caller', async () => {
+    const viewer = await makeCharacterAt('crownfall-city');
+    const other = await makeCharacterAt('crownfall-city');
+    const otherRow = await prisma.character.findUniqueOrThrow({
+      where: { id: other.characterId },
+    });
+
+    // The other player must have viewed the scene to register as present.
+    await get(other.cookie, '/api/v1/locations/current/scene');
+
+    const scene = (await get(viewer.cookie, '/api/v1/locations/current/scene')).json();
+    const names = scene.players.map((p: { name: string }) => p.name);
+    expect(names).toContain(otherRow.name);
+
+    // Presence never includes the caller themselves.
+    const viewerRow = await prisma.character.findUniqueOrThrow({
+      where: { id: viewer.characterId },
+    });
+    expect(names).not.toContain(viewerRow.name);
+  });
+
+  it('drops players who have not been seen within the presence window', async () => {
+    const viewer = await makeCharacterAt('crownfall-city');
+    const stale = await makeCharacterAt('crownfall-city');
+    // Backdate the stale player's presence well beyond the window.
+    await prisma.character.update({
+      where: { id: stale.characterId },
+      data: { lastSeenAt: new Date(Date.now() - 60 * 60 * 1000) },
+    });
+
+    const scene = (await get(viewer.cookie, '/api/v1/locations/current/scene')).json();
+    const staleRow = await prisma.character.findUniqueOrThrow({
+      where: { id: stale.characterId },
+    });
+    expect(scene.players.map((p: { name: string }) => p.name)).not.toContain(staleRow.name);
+  });
 });
 
 describe('GET /locations/current/activity (privacy-safe)', () => {
