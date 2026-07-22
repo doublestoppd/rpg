@@ -125,24 +125,50 @@ function QuestCard({ quest }: { quest: QuestView }) {
 export function QuestsPage() {
   const { data: character, isPending: characterPending } = useCharacter();
   const quests = useQuests(Boolean(character));
+  const [hideClaimed, setHideClaimed] = useState(true);
 
   if (characterPending) return <LoadingState label="Unrolling the notice board…" />;
   if (!character) return <Navigate to="/character/new" replace />;
   if (quests.isPending) return <LoadingState label="Unrolling the notice board…" />;
   if (quests.isError || !quests.data) return <ErrorState onRetry={() => void quests.refetch()} />;
 
+  const claimedCount = quests.data.quests.filter((q) => q.status === 'CLAIMED').length;
+  const visible = hideClaimed
+    ? quests.data.quests.filter((q) => q.status !== 'CLAIMED')
+    : quests.data.quests;
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
-        Quests
-      </h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-stone-900 dark:text-stone-100">
+          Quests
+        </h1>
+        {claimedCount > 0 && (
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-600 dark:text-stone-400">
+            <input
+              type="checkbox"
+              checked={hideClaimed}
+              onChange={(event) => setHideClaimed(event.target.checked)}
+              className="rounded border-stone-300 text-amber-600 focus:ring-amber-500 dark:border-stone-600"
+            />
+            Hide claimed ({claimedCount})
+          </label>
+        )}
+      </div>
       <p className="text-sm text-stone-600 dark:text-stone-400">
         Progress counts only after you accept a quest — the world keeps its own ledger of your
         deeds.
       </p>
-      {quests.data.quests.map((quest) => (
-        <QuestCard key={quest.id} quest={quest} />
-      ))}
+      {visible.length > 0 ? (
+        visible.map((quest) => <QuestCard key={quest.id} quest={quest} />)
+      ) : (
+        <Card>
+          <p className="text-sm text-stone-600 dark:text-stone-400">
+            No quests to show.{' '}
+            {hideClaimed && claimedCount > 0 && 'Untick “Hide claimed” to review finished quests.'}
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

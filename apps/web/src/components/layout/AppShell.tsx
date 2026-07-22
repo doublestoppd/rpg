@@ -4,6 +4,8 @@ import { ThemeApplier } from '../../features/account/ThemeApplier';
 import { useSession } from '../../features/auth/useSession';
 import { DevHealthIndicator } from '../../features/health/DevHealthIndicator';
 import { NotificationsNavLink } from '../../features/notifications/NotificationsNavLink';
+import { useNotificationToasts } from '../../features/notifications/useNotificationToasts';
+import { useTravelArrivalWatcher } from '../../features/travel/useTravelArrivalWatcher';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm font-medium ${
@@ -20,6 +22,11 @@ const linkClass = ({ isActive }: { isActive: boolean }) =>
 export function AppShell() {
   const { data: session } = useSession();
 
+  // App-wide side effects that must run on every page: toast new notifications
+  // and refresh location-dependent views the moment a journey completes.
+  useNotificationToasts();
+  useTravelArrivalWatcher();
+
   const navLinks = (
     <>
       <NavLink to="/" end className={linkClass}>
@@ -33,7 +40,7 @@ export function AppShell() {
           <NavLink to="/travel" className={linkClass}>
             Travel
           </NavLink>
-          <NavLink to="/character" className={linkClass}>
+          <NavLink to="/character" end className={linkClass}>
             Character
           </NavLink>
           <NavLink to="/character/build" className={linkClass}>

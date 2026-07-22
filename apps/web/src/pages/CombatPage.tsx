@@ -149,22 +149,46 @@ export function CombatPage() {
       );
     return (
       <ul className="space-y-1">
-        {entries.map((ability) => (
-          <li key={ability.slug}>
-            <button
-              type="button"
-              disabled={busy || ability.mpCost > combat.player.mp}
-              onClick={() => chooseAbility(kind, ability)}
-              className="w-full rounded border border-stone-200 px-2 py-1.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
-            >
-              <span className="font-medium text-stone-900 dark:text-stone-100">{ability.name}</span>
-              <span className="float-right text-xs text-stone-500">{ability.mpCost} MP</span>
-              <span className="block text-xs text-stone-600 dark:text-stone-400">
-                {ability.description}
-              </span>
-            </button>
-          </li>
-        ))}
+        {entries.map((ability) => {
+          const onCooldown = ability.cooldownRemaining > 0;
+          const notEnoughMp = ability.mpCost > combat.player.mp;
+          return (
+            <li key={ability.slug}>
+              <button
+                type="button"
+                disabled={busy || notEnoughMp || onCooldown}
+                onClick={() => chooseAbility(kind, ability)}
+                className="w-full rounded border border-stone-200 px-2 py-1.5 text-left text-sm hover:bg-stone-50 disabled:opacity-40 dark:border-stone-700 dark:hover:bg-stone-800"
+              >
+                <span className="font-medium text-stone-900 dark:text-stone-100">
+                  {ability.name}
+                </span>
+                <span className="float-right text-xs text-stone-500">
+                  {onCooldown ? (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      Ready in {ability.cooldownRemaining}
+                    </span>
+                  ) : (
+                    `${ability.mpCost} MP`
+                  )}
+                </span>
+                <span className="block text-xs text-stone-600 dark:text-stone-400">
+                  {ability.description}
+                </span>
+                {ability.cooldownTurns > 0 && (
+                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
+                    <span
+                      className="block h-full bg-amber-500"
+                      style={{
+                        width: `${Math.round(((ability.cooldownTurns - ability.cooldownRemaining) / ability.cooldownTurns) * 100)}%`,
+                      }}
+                    />
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     );
   };
