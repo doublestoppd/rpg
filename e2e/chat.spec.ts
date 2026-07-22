@@ -90,10 +90,11 @@ test('two players chat globally and locally, then travel, block, and report', as
   await expect(alice.getByText(/Report submitted/)).toBeVisible();
 
   // Alice travels away: she loses Crownfall City local access.
-  await a.nav.getByRole('link', { name: 'Travel' }).click();
-  await expect(alice.getByText('Crownfall Market District', { exact: true })).toBeVisible();
-  await alice.getByRole('button', { name: 'Set out' }).first().click();
-  await expect(alice.getByRole('progressbar')).toBeVisible();
+  await a.nav.getByRole('link', { name: 'Location' }).click();
+  const aliceRoads = alice.getByRole('region', { name: 'Roads from here' });
+  await expect(aliceRoads.getByText('Crownfall Market District', { exact: true })).toBeVisible();
+  await aliceRoads.getByRole('button', { name: 'Set out' }).first().click();
+  await expect(alice.getByRole('progressbar').first()).toBeVisible();
 
   // While traveling, only Global is available (no location tab).
   await a.nav.getByRole('link', { name: 'Chat' }).click();

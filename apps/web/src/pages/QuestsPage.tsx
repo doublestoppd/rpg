@@ -125,7 +125,7 @@ function QuestCard({ quest }: { quest: QuestView }) {
 export function QuestsPage() {
   const { data: character, isPending: characterPending } = useCharacter();
   const quests = useQuests(Boolean(character));
-  const [hideClaimed, setHideClaimed] = useState(true);
+  const [hideClaimed, setHideClaimed] = useState(false);
 
   if (characterPending) return <LoadingState label="Unrolling the notice board…" />;
   if (!character) return <Navigate to="/character/new" replace />;

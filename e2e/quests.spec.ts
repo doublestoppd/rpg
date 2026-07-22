@@ -41,11 +41,12 @@ test('a courier accepts the market errand, walks the road, and claims the reward
   await expect(page.getByText('In progress').first()).toBeVisible();
   await expect(page.getByText('0/1').first()).toBeVisible();
 
-  // Walk the 30-second road to the Market District.
-  await nav.getByRole('link', { name: 'Travel' }).click();
-  await expect(page.getByText('Crownfall Market District', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Set out' }).first().click();
-  await expect(page.getByRole('progressbar')).toBeVisible();
+  // Walk the 30-second road to the Market District (travel lives on the hub).
+  await nav.getByRole('link', { name: 'Location' }).click();
+  const roads = page.getByRole('region', { name: 'Roads from here' });
+  await expect(roads.getByText('Crownfall Market District', { exact: true })).toBeVisible();
+  await roads.getByRole('button', { name: 'Set out' }).first().click();
+  await expect(page.getByRole('progressbar').first()).toBeVisible();
   await page.waitForTimeout(32_000);
 
   // Arrival finalizes lazily and the quest completes in the same transaction.

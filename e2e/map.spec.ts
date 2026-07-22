@@ -25,8 +25,8 @@ test('the world map shows every location, the roads between them, and “you are
   await expect(page.getByRole('img', { name: /World map showing locations/ })).toBeVisible();
 
   // The accessible adjacency list names distant, not-yet-connected places too.
-  await expect(page.getByText('Ironroot Mine')).toBeVisible();
-  await expect(page.getByText('Silvermere Lake')).toBeVisible();
+  await expect(page.getByText('Ironroot Mine').first()).toBeVisible();
+  await expect(page.getByText('Silvermere Lake').first()).toBeVisible();
 
   // The starting location is marked as the current position.
   await expect(page.getByText('You are here').first()).toBeVisible();
