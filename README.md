@@ -74,8 +74,6 @@ without Docker — install on the host and copy `.env.example` to `.env`:
 
 ```bash
 npm ci                     # reproducible install from lockfile (host tooling)
-
-```bash
 npm run dev:api            # API with reload (needs DATABASE_URL)
 npm run dev:worker         # pg-boss worker with reload
 npm run dev:web            # Vite dev server
