@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 
 import { ThemeApplier } from '../../features/account/ThemeApplier';
 import { useSession } from '../../features/auth/useSession';
+import { ChatDock } from '../../features/chat/ChatDock';
 import { DevHealthIndicator } from '../../features/health/DevHealthIndicator';
 import { NotificationsNavLink } from '../../features/notifications/NotificationsNavLink';
 import { useNotificationToasts } from '../../features/notifications/useNotificationToasts';
@@ -132,6 +133,8 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      <ChatDock />
     </div>
   );
 }
