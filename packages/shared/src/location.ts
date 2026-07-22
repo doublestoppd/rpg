@@ -53,3 +53,25 @@ export const travelDestinationsResponseSchema = z.object({
   destinations: z.array(travelDestinationSchema),
 });
 export type TravelDestinationsResponse = z.infer<typeof travelDestinationsResponseSchema>;
+
+// --- world map -------------------------------------------------------------
+
+/** A single directed road on the world map. */
+export const worldMapEdgeSchema = z.object({
+  fromSlug: z.string(),
+  toSlug: z.string(),
+  travelSeconds: z.number().int().min(1),
+});
+export type WorldMapEdge = z.infer<typeof worldMapEdgeSchema>;
+
+/**
+ * The whole navigable world topology: every location and every road between
+ * them, plus the caller's current location (null while traveling). Read-only
+ * public geography — it carries no per-player state beyond that pointer.
+ */
+export const worldMapResponseSchema = z.object({
+  locations: z.array(locationSchema),
+  edges: z.array(worldMapEdgeSchema),
+  currentLocationSlug: z.string().nullable(),
+});
+export type WorldMapResponse = z.infer<typeof worldMapResponseSchema>;

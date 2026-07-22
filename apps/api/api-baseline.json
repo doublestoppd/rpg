@@ -2277,6 +2277,94 @@
         }
       }
     },
+    "/api/v1/world/map": {
+      "get": {
+        "summary": "The whole world topology and the caller’s current location",
+        "tags": ["locations"],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "locations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "region": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "artworkKey": {
+                            "type": "string"
+                          },
+                          "isSafe": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "region",
+                          "description",
+                          "artworkKey",
+                          "isSafe"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "edges": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "fromSlug": {
+                            "type": "string"
+                          },
+                          "toSlug": {
+                            "type": "string"
+                          },
+                          "travelSeconds": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": ["fromSlug", "toSlug", "travelSeconds"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "currentLocationSlug": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": ["locations", "edges", "currentLocationSlug"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inventory": {
       "get": {
         "summary": "Inventory: slot usage, stacks, and unique items",

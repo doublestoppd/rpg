@@ -30,7 +30,10 @@ test('location hub shows Crownfall City, its features, and connected roads', asy
     featuresSection.getByText('Museum of Regional Artifacts', { exact: true }),
   ).toBeVisible();
 
-  // Only directly connected destinations are listed.
-  const roads = page.getByRole('region', { name: 'Connected roads' }).getByRole('listitem');
-  await expect(roads).toHaveText([/Crownfall Market District/, /Crownfall Harbor/, /North Road/]);
+  // Only directly connected destinations are listed, now actionable in place.
+  const roads = page.getByRole('region', { name: 'Roads from here' });
+  await expect(roads.getByText('Crownfall Market District', { exact: true })).toBeVisible();
+  await expect(roads.getByText('Crownfall Harbor', { exact: true })).toBeVisible();
+  await expect(roads.getByText('North Road', { exact: true })).toBeVisible();
+  await expect(roads.getByRole('button', { name: 'Set out' })).toHaveCount(3);
 });

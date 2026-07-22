@@ -189,3 +189,41 @@ describe('travel destinations', () => {
     expect(slugs).toEqual(['blackwood-forest', 'greenmeadow-village']);
   });
 });
+
+describe('world map', () => {
+  it('returns the whole topology and the caller’s current location', async () => {
+    const auth = await setupCharacter();
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/world/map',
+      cookies: { [SESSION_COOKIE]: auth.cookie },
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.locations).toHaveLength(8);
+    expect(body.edges).toHaveLength(16); // 8 roads x 2 directions
+    expect(body.currentLocationSlug).toBe('crownfall-city');
+
+    // Every edge references known locations.
+    const slugs = new Set(body.locations.map((l: { slug: string }) => l.slug));
+    for (const edge of body.edges) {
+      expect(slugs.has(edge.fromSlug)).toBe(true);
+      expect(slugs.has(edge.toSlug)).toBe(true);
+      expect(edge.travelSeconds).toBeGreaterThan(0);
+    }
+  });
+
+  it('reports no current location while traveling', async () => {
+    const auth = await setupCharacter();
+    await prisma.character.updateMany({ data: { currentLocationId: null } });
+    // Unlike the current-location read, the map must not backfill a starting
+    // location — a character in transit has no "you are here" pin.
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/world/map',
+      cookies: { [SESSION_COOKIE]: auth.cookie },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().currentLocationSlug).toBeNull();
+  });
+});

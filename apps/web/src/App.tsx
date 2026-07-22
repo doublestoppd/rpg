@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from './components/layout/AppShell';
 import { RequireAuth } from './features/auth/RequireAuth';
@@ -15,12 +15,12 @@ import { InventoryPage } from './pages/InventoryPage';
 import { LandingPage } from './pages/LandingPage';
 import { LocationPage } from './pages/LocationPage';
 import { LoginPage } from './pages/LoginPage';
+import { MapPage } from './pages/MapPage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { QuestsPage } from './pages/QuestsPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ShopPage } from './pages/ShopPage';
-import { TravelPage } from './pages/TravelPage';
 
 export function App() {
   return (
@@ -38,13 +38,15 @@ export function App() {
           }
         />
         <Route
-          path="travel"
+          path="map"
           element={
             <RequireAuth>
-              <TravelPage />
+              <MapPage />
             </RequireAuth>
           }
         />
+        {/* Travel merged into the location hub; keep the old path working. */}
+        <Route path="travel" element={<Navigate to="/location" replace />} />
         <Route
           path="character"
           element={

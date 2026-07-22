@@ -19,18 +19,16 @@ test('travel to a neighbor, blocked local actions, and arrival on refresh', asyn
   await page.getByRole('button', { name: 'Begin your journey' }).click();
   await expect(page).toHaveURL(/\/character$/); // wait out the post-creation redirect
 
+  // Travel is part of the location hub now: the roads out are actionable there.
+  await nav.getByRole('link', { name: 'Location' }).click();
+  const roads = page.getByRole('region', { name: 'Roads from here' });
+  await expect(roads.getByText('Crownfall Market District', { exact: true })).toBeVisible();
   // Set out for the Market District (shortest road, 30s; listed first).
-  await nav.getByRole('link', { name: 'Travel' }).click();
-  await expect(page.getByText('Crownfall Market District', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Set out' }).first().click();
+  await roads.getByRole('button', { name: 'Set out' }).first().click();
 
   // Progress UI appears; travel cannot be canceled.
   await expect(page.getByText(/On the road to Crownfall Market District/)).toBeVisible();
-  await expect(page.getByRole('progressbar')).toBeVisible();
-
-  // Local actions are unavailable while traveling.
-  await nav.getByRole('link', { name: 'Location' }).click();
-  await expect(page.getByText('You are on the road')).toBeVisible();
+  await expect(page.getByRole('progressbar').first()).toBeVisible();
 
   // Wait out the journey, then a plain refresh of the location page
   // finalizes arrival (no worker, no websocket).

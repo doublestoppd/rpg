@@ -17,13 +17,10 @@ import { NpcsPanel } from '../features/living-world/NpcsPanel';
 import { SceneAtmosphere } from '../features/living-world/SceneAtmosphere';
 import { useScene } from '../features/living-world/useScene';
 import { LocationArtwork } from '../features/location/LocationArtwork';
-import {
-  useCurrentLocation,
-  useLocationFeatures,
-  useTravelDestinations,
-} from '../features/location/useLocation';
+import { useCurrentLocation, useLocationFeatures } from '../features/location/useLocation';
 import { MuseumPanel } from '../features/museum/MuseumPanel';
 import { useLocalShops } from '../features/npc-shops/useNpcShops';
+import { ActiveTravelCard, DestinationList } from '../features/travel/TravelSection';
 import { useTravelStatus } from '../features/travel/useTravel';
 
 const FEATURE_TYPE_LABELS: Record<LocationFeatureType, string> = {
@@ -37,16 +34,10 @@ const FEATURE_TYPE_LABELS: Record<LocationFeatureType, string> = {
   MUSEUM: 'Museum',
 };
 
-function formatTravelTime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
-}
-
 /**
  * The current-location page is the gameplay hub: local activities appear here
- * as feature cards rather than global navigation destinations.
+ * as feature cards rather than global navigation destinations, and the roads
+ * leading out are actionable here too — location and travel are one screen.
  */
 function InnRestAction() {
   const innRest = useInnRest();
@@ -81,29 +72,18 @@ export function LocationPage() {
   const atLocation = Boolean(character) && travel.data?.active === null;
   const location = useCurrentLocation(atLocation);
   const features = useLocationFeatures(atLocation);
-  const destinations = useTravelDestinations(atLocation);
   const localShops = useLocalShops(atLocation);
   const scene = useScene(atLocation);
 
   if (characterPending) return <LoadingState label="Finding your bearings…" />;
   if (!character) return <Navigate to="/character/new" replace />;
 
-  // A traveling character is at neither origin nor destination.
+  // A traveling character is at neither origin nor destination: the journey
+  // itself is the whole screen until they arrive.
   if (travel.data?.active) {
     return (
       <div className="mx-auto max-w-2xl">
-        <Card title="You are on the road">
-          <p className="mb-3 text-sm text-stone-600 dark:text-stone-400">
-            Local services are out of reach until you arrive at{' '}
-            {travel.data.active.destination.name}.
-          </p>
-          <Link
-            to="/travel"
-            className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
-          >
-            Check your progress →
-          </Link>
-        </Card>
+        <ActiveTravelCard travel={travel.data.active} />
       </div>
     );
   }
@@ -208,31 +188,22 @@ export function LocationPage() {
         </section>
       )}
 
-      <section aria-label="Connected roads" className="space-y-3">
-        <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
-          Connected roads
-        </h2>
-        {destinations.data ? (
-          <Card>
-            <ul className="divide-y divide-stone-200 dark:divide-stone-800">
-              {destinations.data.destinations.map((destination) => (
-                <li
-                  key={destination.location.id}
-                  className="flex items-center justify-between py-2 text-sm"
-                >
-                  <span className="font-medium text-stone-900 dark:text-stone-100">
-                    {destination.location.name}
-                  </span>
-                  <span className="text-xs text-stone-500 dark:text-stone-400">
-                    {formatTravelTime(destination.travelSeconds)} away
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ) : (
-          <LoadingState label="Consulting the map…" />
-        )}
+      <section aria-label="Roads from here" className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            Roads from here
+          </h2>
+          <Link
+            to="/map"
+            className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
+          >
+            View the map →
+          </Link>
+        </div>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          Travel cannot be canceled once you set out.
+        </p>
+        <DestinationList enabled={atLocation} />
       </section>
     </div>
   );

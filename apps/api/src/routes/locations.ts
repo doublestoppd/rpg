@@ -2,6 +2,7 @@ import {
   currentLocationResponseSchema,
   locationFeaturesResponseSchema,
   travelDestinationsResponseSchema,
+  worldMapResponseSchema,
 } from '@rpg/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -56,5 +57,18 @@ export async function locationRoutes(
       },
     },
     async (request) => locationService.getDestinations(request.currentUser!.id),
+  );
+
+  typed.get(
+    '/world/map',
+    {
+      preHandler: app.requireAuth,
+      schema: {
+        tags: ['locations'],
+        summary: 'The whole world topology and the caller’s current location',
+        response: { 200: worldMapResponseSchema },
+      },
+    },
+    async (request) => locationService.getWorldMap(request.currentUser!.id),
   );
 }

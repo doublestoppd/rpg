@@ -4,6 +4,7 @@ import type {
   LocationFeaturesResponse,
   LocationInfo,
   TravelDestinationsResponse,
+  WorldMapResponse,
 } from '@rpg/shared';
 
 import { DomainError } from '../../lib/http-errors.js';
@@ -43,6 +44,8 @@ export interface LocationService {
   getCurrentFeatures(userId: string): Promise<LocationFeaturesResponse>;
   /** Only directly connected destinations are ever returned. */
   getDestinations(userId: string): Promise<TravelDestinationsResponse>;
+  /** The whole world topology plus the caller's current location (null while traveling). */
+  getWorldMap(userId: string): Promise<WorldMapResponse>;
   /** The character's current location id (with lazy backfill). */
   requireCurrentLocationId(userId: string): Promise<string>;
 }
@@ -117,6 +120,38 @@ export function createLocationService(
           travelSeconds: route.travelSeconds,
           goldCost: route.goldCost.toString(),
         })),
+      };
+    },
+
+    async getWorldMap(userId) {
+      const character = await characterService.requireCharacter(userId);
+      // Lazily finalize any expired journey so an arrived player sees the right
+      // "you are here" pin, but do not force a location on a still-traveling one.
+      await travelGuard.ensureAtLocation(character.id);
+      const [locations, routes, fresh] = await Promise.all([
+        prisma.location.findMany({ orderBy: [{ region: 'asc' }, { name: 'asc' }] }),
+        prisma.travelRoute.findMany({
+          include: {
+            fromLocation: { select: { slug: true } },
+            toLocation: { select: { slug: true } },
+          },
+        }),
+        prisma.character.findUniqueOrThrow({
+          where: { id: character.id },
+          select: { currentLocationId: true },
+        }),
+      ]);
+      const currentSlug = fresh.currentLocationId
+        ? (locations.find((l) => l.id === fresh.currentLocationId)?.slug ?? null)
+        : null;
+      return {
+        locations: locations.map(toLocationInfo),
+        edges: routes.map((route) => ({
+          fromSlug: route.fromLocation.slug,
+          toSlug: route.toLocation.slug,
+          travelSeconds: route.travelSeconds,
+        })),
+        currentLocationSlug: currentSlug,
       };
     },
 
