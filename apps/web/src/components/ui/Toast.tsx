@@ -10,14 +10,20 @@ import {
 
 type ToastKind = 'info' | 'success' | 'error';
 
+interface ToastOptions {
+  /** Invoked when the toast body is clicked; the toast then dismisses. */
+  onClick?: () => void;
+}
+
 interface ToastItem {
   id: number;
   kind: ToastKind;
   message: string;
+  onClick?: () => void;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, kind?: ToastKind) => void;
+  showToast: (message: string, kind?: ToastKind, options?: ToastOptions) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -32,13 +38,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(1);
 
-  const showToast = useCallback((message: string, kind: ToastKind = 'info') => {
-    const id = nextId.current++;
-    setToasts((current) => [...current, { id, kind, message }]);
-    setTimeout(() => {
-      setToasts((current) => current.filter((t) => t.id !== id));
-    }, 5000);
+  const dismiss = useCallback((id: number) => {
+    setToasts((current) => current.filter((t) => t.id !== id));
   }, []);
+
+  const showToast = useCallback(
+    (message: string, kind: ToastKind = 'info', options?: ToastOptions) => {
+      const id = nextId.current++;
+      const item: ToastItem = { id, kind, message };
+      if (options?.onClick) item.onClick = options.onClick;
+      setToasts((current) => [...current, item]);
+      setTimeout(() => dismiss(id), 5000);
+    },
+    [dismiss],
+  );
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
@@ -47,14 +60,35 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-2 px-4"
       >
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto w-full max-w-sm rounded-md border px-4 py-2 text-sm shadow-md ${kindClasses[toast.kind]}`}
+            className={`pointer-events-auto flex w-full max-w-sm items-start gap-2 rounded-md border px-4 py-2 text-sm shadow-md ${kindClasses[toast.kind]}`}
           >
-            {toast.message}
+            {toast.onClick ? (
+              <button
+                type="button"
+                onClick={() => {
+                  toast.onClick?.();
+                  dismiss(toast.id);
+                }}
+                className="flex-1 cursor-pointer text-left"
+              >
+                {toast.message}
+              </button>
+            ) : (
+              <span className="flex-1">{toast.message}</span>
+            )}
+            <button
+              type="button"
+              aria-label="Dismiss"
+              onClick={() => dismiss(toast.id)}
+              className="-mr-1 shrink-0 rounded p-0.5 text-current opacity-60 hover:opacity-100"
+            >
+              ✕
+            </button>
           </div>
         ))}
       </div>

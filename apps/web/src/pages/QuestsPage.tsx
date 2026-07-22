@@ -8,6 +8,7 @@ import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
 import { useCharacter } from '../features/character/useCharacter';
+import { setTrackedQuest, useTrackedQuestId } from '../features/quests/trackedQuestStore';
 import { useAcceptQuest, useClaimQuest, useQuests } from '../features/quests/useQuests';
 import { ApiRequestError } from '../lib/api';
 
@@ -31,7 +32,11 @@ function QuestCard({ quest }: { quest: QuestView }) {
   const acceptQuest = useAcceptQuest();
   const claimQuest = useClaimQuest();
   const { showToast } = useToast();
+  const trackedId = useTrackedQuestId();
   const [error, setError] = useState<string | null>(null);
+
+  const isTracked = trackedId === quest.id;
+  const trackable = quest.status === 'ACTIVE' || quest.status === 'ACCEPTED';
 
   const onAccept = () => {
     setError(null);
@@ -108,16 +113,26 @@ function QuestCard({ quest }: { quest: QuestView }) {
         </p>
       )}
 
-      {quest.status === 'NOT_ACCEPTED' && (
-        <Button className="mt-3" disabled={acceptQuest.isPending} onClick={onAccept}>
-          Accept quest
-        </Button>
-      )}
-      {quest.claimable && (
-        <Button className="mt-3" disabled={claimQuest.isPending} onClick={onClaim}>
-          Claim reward
-        </Button>
-      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {quest.status === 'NOT_ACCEPTED' && (
+          <Button disabled={acceptQuest.isPending} onClick={onAccept}>
+            Accept quest
+          </Button>
+        )}
+        {quest.claimable && (
+          <Button disabled={claimQuest.isPending} onClick={onClaim}>
+            Claim reward
+          </Button>
+        )}
+        {trackable && (
+          <Button
+            variant={isTracked ? 'primary' : 'secondary'}
+            onClick={() => setTrackedQuest(isTracked ? null : quest.id)}
+          >
+            {isTracked ? 'Tracking ✓' : 'Track in status bar'}
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }
