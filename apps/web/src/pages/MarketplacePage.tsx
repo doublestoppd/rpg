@@ -238,7 +238,7 @@ export function MarketplacePage() {
   const [search, setSearch] = useState('');
   const [mine, setMine] = useState(false);
   const listingsQuery = {
-    ...(search ? { itemSlug: search } : {}),
+    ...(search ? { search } : {}),
     ...(mine ? { mine: true } : {}),
   };
   const listings = useListings(listingsQuery, Boolean(character));
@@ -301,8 +301,8 @@ export function MarketplacePage() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-48 flex-1">
               <TextField
-                label="Filter by item slug"
-                placeholder="e.g. copper-ore"
+                label="Search by name"
+                placeholder="e.g. Forge Coal"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -312,7 +312,13 @@ export function MarketplacePage() {
             </Button>
           </div>
 
-          {search && <SummaryCard itemSlug={search} />}
+          {/* Price history for the matched item, once results narrow to one kind. */}
+          {search &&
+            listings.data &&
+            new Set(listings.data.listings.map((l) => l.item.slug)).size === 1 &&
+            listings.data.listings[0] && (
+              <SummaryCard itemSlug={listings.data.listings[0].item.slug} />
+            )}
 
           {listings.data && listings.data.listings.length === 0 ? (
             <EmptyState

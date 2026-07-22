@@ -28,6 +28,8 @@ export const locationFeatureSchema = z.object({
   type: locationFeatureTypeSchema,
   name: z.string(),
   description: z.string(),
+  /** For INN features: the level-scaled rest fee in Gold (decimal string). */
+  restFee: z.string().regex(/^\d+$/).nullable().default(null),
 });
 export type LocationFeatureInfo = z.infer<typeof locationFeatureSchema>;
 

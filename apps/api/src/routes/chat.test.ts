@@ -351,7 +351,7 @@ describe('cursor pagination', () => {
     ).toBe(400);
     // limit beyond the hard maximum is rejected by the schema.
     expect(
-      (await get(auth, `/api/v1/chat/channels/${global.id}/messages?limit=500`)).statusCode,
+      (await get(auth, `/api/v1/chat/channels/${global.id}/messages?limit=501`)).statusCode,
     ).toBe(400);
   });
 });

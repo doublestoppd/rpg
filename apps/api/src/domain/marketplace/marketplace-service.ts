@@ -474,10 +474,17 @@ export function createMarketplaceService(
           ...(query.mine
             ? { sellerCharacterId: character.id, status: { in: ['ACTIVE', 'SOLD', 'EXPIRED'] } }
             : { status: 'ACTIVE', expiresAt: { gt: now } }),
-          ...(query.itemSlug || query.category
+          ...(query.search || query.category
             ? {
                 itemDefinition: {
-                  ...(query.itemSlug ? { slug: query.itemSlug } : {}),
+                  ...(query.search
+                    ? {
+                        OR: [
+                          { name: { contains: query.search, mode: 'insensitive' as const } },
+                          { slug: { contains: query.search, mode: 'insensitive' as const } },
+                        ],
+                      }
+                    : {}),
                   ...(query.category ? { category: query.category } : {}),
                 },
               }

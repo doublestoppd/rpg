@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 import { useCharacter } from '../character/useCharacter';
+import { CHAT_CHANNELS_KEY } from '../chat/useChat';
 import { SCENE_KEY } from '../living-world/useScene';
 import { DESTINATIONS_KEY, FEATURES_KEY, LOCATION_KEY } from '../location/useLocation';
 import { NOTIFICATIONS_KEY } from '../notifications/useNotifications';
@@ -37,7 +38,13 @@ export function useTravelArrivalWatcher() {
         SCENE_KEY,
         QUESTS_KEY,
         NOTIFICATIONS_KEY,
+        // The location chat channel changes with the place; refresh the channel
+        // list (and every channel's messages) so "Current Location" reflects the
+        // new location, not the one just left.
+        CHAT_CHANNELS_KEY,
+        ['chat', 'messages'],
         ['character', 'me'],
+        ['character', 'stats'],
       ]) {
         void queryClient.invalidateQueries({ queryKey: key });
       }

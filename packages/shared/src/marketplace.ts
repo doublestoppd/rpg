@@ -69,7 +69,8 @@ export const marketplaceListingsResponseSchema = z.object({
 export type MarketplaceListingsResponse = z.infer<typeof marketplaceListingsResponseSchema>;
 
 export const listingsQuerySchema = z.object({
-  itemSlug: z.string().optional(),
+  /** Free-text search over item display name or slug (case-insensitive, partial). */
+  search: z.string().trim().max(120).optional(),
   category: itemCategorySchema.optional(),
   mine: z.coerce.boolean().optional(),
 });

@@ -40,7 +40,7 @@ const FEATURE_TYPE_LABELS: Record<LocationFeatureType, string> = {
  * as feature cards rather than global navigation destinations, and the roads
  * leading out are actionable here too — location and travel are one screen.
  */
-function InnRestAction() {
+function InnRestAction({ fee }: { fee: string | null }) {
   const innRest = useInnRest();
   const { showToast } = useToast();
   return (
@@ -62,7 +62,7 @@ function InnRestAction() {
         )
       }
     >
-      Rest (level-scaled fee)
+      {fee ? `Rest — ${fee} Gold` : 'Rest'}
     </Button>
   );
 }
@@ -143,7 +143,7 @@ export function LocationPage() {
                 <p className="text-xs leading-5 text-stone-600 dark:text-stone-400">
                   {feature.description}
                 </p>
-                {feature.type === 'INN' && <InnRestAction />}
+                {feature.type === 'INN' && <InnRestAction fee={feature.restFee} />}
                 {feature.type === 'GATHERING' && <GatheringPanel />}
                 {feature.type === 'CRAFTING' && <CraftingPanel />}
                 {feature.type === 'COMBAT' && <EncounterPanel />}

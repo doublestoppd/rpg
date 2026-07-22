@@ -84,7 +84,7 @@ export function useListings(query: ListingsQuery, enabled = true) {
     queryKey: [...LISTINGS_KEY, query],
     queryFn: () => {
       const params = new URLSearchParams();
-      if (query.itemSlug) params.set('itemSlug', query.itemSlug);
+      if (query.search) params.set('search', query.search);
       if (query.category) params.set('category', query.category);
       if (query.mine) params.set('mine', 'true');
       const qs = params.toString();

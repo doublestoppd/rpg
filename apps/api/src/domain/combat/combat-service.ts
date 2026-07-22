@@ -621,6 +621,18 @@ export function createCombatService(
         throw conflict('COMBAT_ACTIVE', 'You are already locked in battle.');
       }
 
+      // A character cannot fight while a timed gathering run is still underway.
+      const gathering = await prisma.gatheringRun.findFirst({
+        where: {
+          characterId: character.id,
+          status: 'IN_PROGRESS',
+          completesAt: { gt: new Date() },
+        },
+      });
+      if (gathering) {
+        throw conflict('BUSY_GATHERING', 'You are busy gathering — finish that first.');
+      }
+
       const encounter = await prisma.encounterDefinition.findUnique({
         where: { slug: input.encounterSlug },
       });

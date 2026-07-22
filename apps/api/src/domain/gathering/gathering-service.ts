@@ -337,6 +337,13 @@ export function createGatheringService(
                 : 'You are already working a claim.',
             );
           }
+          // Nor can a character gather while locked in an active battle.
+          const combat = await tx.combat.findFirst({
+            where: { characterId: character.id, status: 'ACTIVE' },
+          });
+          if (combat) {
+            throw conflict('COMBAT_ACTIVE', 'You cannot gather while locked in battle.');
+          }
           // Stamina is charged exactly once, here, atomically with creation.
           await characterService.spendStamina(tx, character.id, action.staminaCost);
           return tx.gatheringRun.create({

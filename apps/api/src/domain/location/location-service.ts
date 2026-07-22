@@ -9,6 +9,7 @@ import type {
 
 import { DomainError } from '../../lib/http-errors.js';
 import type { CharacterService } from '../character/character-service.js';
+import { innRestFee } from '../inn/inn-service.js';
 
 export const STARTING_LOCATION_SLUG = 'crownfall-city';
 
@@ -92,6 +93,7 @@ export function createLocationService(
     },
 
     async getCurrentFeatures(userId) {
+      const character = await characterService.requireCharacter(userId);
       const location = await resolveCurrentLocation(userId);
       const features = await prisma.locationFeature.findMany({
         where: { locationId: location.id },
@@ -103,6 +105,8 @@ export function createLocationService(
           type: f.type,
           name: f.name,
           description: f.description,
+          // Preview the level-scaled inn fee so the UI can show the real cost.
+          restFee: f.type === 'INN' ? innRestFee(character.level).toString() : null,
         })),
       };
     },
@@ -126,8 +130,14 @@ export function createLocationService(
     async getWorldMap(userId) {
       const character = await characterService.requireCharacter(userId);
       // Lazily finalize any expired journey so an arrived player sees the right
-      // "you are here" pin, but do not force a location on a still-traveling one.
-      await travelGuard.ensureAtLocation(character.id);
+      // "you are here" pin. Unlike the location reads, the map is legitimately
+      // viewable in transit, so a still-traveling character is not an error —
+      // swallow that specific rejection and report a null current location.
+      try {
+        await travelGuard.ensureAtLocation(character.id);
+      } catch (error) {
+        if (!(error instanceof DomainError) || error.code !== 'CURRENTLY_TRAVELING') throw error;
+      }
       const [locations, routes, fresh] = await Promise.all([
         prisma.location.findMany({ orderBy: [{ region: 'asc' }, { name: 'asc' }] }),
         prisma.travelRoute.findMany({

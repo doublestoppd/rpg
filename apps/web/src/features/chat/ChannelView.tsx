@@ -31,7 +31,8 @@ export function ChannelView({
   compact?: boolean;
 }) {
   const { showToast } = useToast();
-  const messages = useChatMessages(channel.id);
+  // The pinned dock stays light (recent 100); the full page shows up to 500.
+  const messages = useChatMessages(channel.id, compact ? 100 : 500);
   const send = useSendChatMessage(channel.id);
   const markRead = useMarkChatRead(channel.id);
   const block = useBlockCharacter();

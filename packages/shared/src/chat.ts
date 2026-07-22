@@ -7,7 +7,7 @@ export const CHAT_MESSAGE_MAX_CODE_POINTS = 500;
 /** Maximum message length in UTF-8 bytes. */
 export const CHAT_MESSAGE_MAX_BYTES = 2000;
 /** Hard maximum page size for chat history requests. */
-export const CHAT_HISTORY_MAX_LIMIT = 50;
+export const CHAT_HISTORY_MAX_LIMIT = 500;
 /** Unread counts are capped at this value for display. */
 export const CHAT_UNREAD_CAP = 99;
 

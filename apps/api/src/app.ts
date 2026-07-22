@@ -50,6 +50,10 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
 
   const app = Fastify({
     logger: buildLoggerOptions(env),
+    // Fastify auto-logs an "incoming request"/"request completed" pair per call
+    // at info level. That floods a dev console with no signal, so silence it
+    // outside production (errors and explicit logs still come through).
+    disableRequestLogging: env.NODE_ENV !== 'production',
     genReqId: () => randomUUID(),
     // Explicit proxy trust so request.ip and secure-cookie detection are
     // correct behind a reverse proxy; bounded body size (Phase 18).

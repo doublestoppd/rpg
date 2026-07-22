@@ -10,7 +10,7 @@
     "dev:worker": "tsx watch src/worker.ts",
     "start": "node dist/index.js",
     "start:worker": "node dist/worker.js",
-    "admin:promote": "node dist/admin-promote.js",
+    "admin:promote": "tsx src/admin-promote.ts",
     "content:export": "node dist/content-cli.js export",
     "content:validate": "node dist/content-cli.js validate",
     "content:release1": "node dist/content-cli.js release1",

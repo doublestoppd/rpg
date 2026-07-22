@@ -2182,9 +2182,15 @@
                           },
                           "description": {
                             "type": "string"
+                          },
+                          "restFee": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string",
+                            "pattern": "^\\d+$"
                           }
                         },
-                        "required": ["id", "type", "name", "description"],
+                        "required": ["id", "type", "name", "description", "restFee"],
                         "additionalProperties": false
                       }
                     }
@@ -4643,10 +4649,11 @@
         "parameters": [
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 120
             },
             "in": "query",
-            "name": "itemSlug",
+            "name": "search",
             "required": false
           },
           {
@@ -11134,9 +11141,15 @@
                           },
                           "description": {
                             "type": "string"
+                          },
+                          "restFee": {
+                            "default": null,
+                            "nullable": true,
+                            "type": "string",
+                            "pattern": "^\\d+$"
                           }
                         },
-                        "required": ["id", "type", "name", "description"],
+                        "required": ["id", "type", "name", "description", "restFee"],
                         "additionalProperties": false
                       }
                     },
@@ -11333,7 +11346,7 @@
               "default": 30,
               "type": "integer",
               "minimum": 1,
-              "maximum": 50
+              "maximum": 500
             },
             "in": "query",
             "name": "limit",

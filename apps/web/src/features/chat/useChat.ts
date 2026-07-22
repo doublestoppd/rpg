@@ -38,11 +38,14 @@ export function useChatChannels(enabled = true): UseQueryResult<ChatChannelsResp
  * fallback: the live socket only makes refetches arrive sooner. The list is
  * newest-first from the API; the UI reverses it for display.
  */
-export function useChatMessages(channelId: string | null): UseQueryResult<ChatMessagesResponse> {
+export function useChatMessages(
+  channelId: string | null,
+  limit = 500,
+): UseQueryResult<ChatMessagesResponse> {
   return useQuery<ChatMessagesResponse>({
     queryKey: chatMessagesKey(channelId ?? 'none'),
     queryFn: () =>
-      apiGet(`/api/v1/chat/channels/${channelId}/messages?limit=50`, (raw) =>
+      apiGet(`/api/v1/chat/channels/${channelId}/messages?limit=${limit}`, (raw) =>
         chatMessagesResponseSchema.parse(raw),
       ),
     enabled: Boolean(channelId),

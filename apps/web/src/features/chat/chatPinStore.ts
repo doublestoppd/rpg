@@ -13,9 +13,10 @@ const listeners = new Set<() => void>();
 
 function readInitial(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'true';
+    // Pinned by default: only an explicit un-pin ("false") turns it off.
+    return localStorage.getItem(STORAGE_KEY) !== 'false';
   } catch {
-    return false;
+    return true;
   }
 }
 
