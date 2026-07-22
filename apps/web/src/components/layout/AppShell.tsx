@@ -6,6 +6,7 @@ import { DevHealthIndicator } from '../../features/health/DevHealthIndicator';
 import { NotificationsNavLink } from '../../features/notifications/NotificationsNavLink';
 import { useNotificationToasts } from '../../features/notifications/useNotificationToasts';
 import { useTravelArrivalWatcher } from '../../features/travel/useTravelArrivalWatcher';
+import { StatusBar } from './StatusBar';
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-md px-3 py-2 text-sm font-medium ${
@@ -125,9 +126,12 @@ export function AppShell() {
         </nav>
       </header>
 
-      <main className="flex-1 p-4 md:p-8">
-        <Outlet />
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <StatusBar />
+        <main className="flex-1 p-4 md:p-8">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
