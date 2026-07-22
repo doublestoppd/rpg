@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { locationFeatureSchema,locationSchema } from './location.js';
+import { locationFeatureSchema, locationSchema } from './location.js';
 import { npcInfoSchema } from './npcs-world.js';
 import { atmosphereResponseSchema, worldTimeSegmentSchema } from './world-sim.js';
 

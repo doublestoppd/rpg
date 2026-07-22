@@ -12,6 +12,10 @@ import { EncounterPanel } from '../features/combat/EncounterPanel';
 import { CraftingPanel } from '../features/crafting/CraftingPanel';
 import { useInnRest } from '../features/currency/useCurrency';
 import { GatheringPanel } from '../features/gathering/GatheringPanel';
+import { ActivityFeed } from '../features/living-world/ActivityFeed';
+import { NpcsPanel } from '../features/living-world/NpcsPanel';
+import { SceneAtmosphere } from '../features/living-world/SceneAtmosphere';
+import { useScene } from '../features/living-world/useScene';
 import { LocationArtwork } from '../features/location/LocationArtwork';
 import {
   useCurrentLocation,
@@ -79,6 +83,7 @@ export function LocationPage() {
   const features = useLocationFeatures(atLocation);
   const destinations = useTravelDestinations(atLocation);
   const localShops = useLocalShops(atLocation);
+  const scene = useScene(atLocation);
 
   if (characterPending) return <LoadingState label="Finding your bearings…" />;
   if (!character) return <Navigate to="/character/new" replace />;
@@ -134,6 +139,14 @@ export function LocationPage() {
         </p>
       </div>
 
+      {scene.data && (
+        <SceneAtmosphere
+          segment={scene.data.segment}
+          atmosphere={scene.data.atmosphere}
+          events={scene.data.events}
+        />
+      )}
+
       <section aria-label="Local features" className="space-y-3">
         <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">Around here</h2>
         {features.data && features.data.features.length > 0 ? (
@@ -178,6 +191,22 @@ export function LocationPage() {
           />
         )}
       </section>
+
+      {scene.data && (
+        <section aria-label="People here" className="space-y-3">
+          <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">People here</h2>
+          <NpcsPanel npcs={scene.data.npcs} />
+        </section>
+      )}
+
+      {scene.data && (
+        <section aria-label="Local happenings" className="space-y-3">
+          <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            Local happenings
+          </h2>
+          <ActivityFeed entries={scene.data.activity} />
+        </section>
+      )}
 
       <section aria-label="Connected roads" className="space-y-3">
         <h2 className="text-lg font-semibold text-stone-900 dark:text-stone-100">

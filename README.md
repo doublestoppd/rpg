@@ -10,11 +10,14 @@ limited NPC stock, and run a regional player shop. All content is original.
 Built in strictly ordered phases. See [`docs/phase-progress.md`](docs/phase-progress.md)
 for what exists today. **Currently: Phase 26 (Living World) in progress** — a
 server-authoritative living-world layer, delivered as tested, gated increments.
-Increment 1 lands the deterministic world clock (data-driven cycle and
-DAWN/DAY/DUSK/NIGHT segments derived from server time via an injected clock) and
-regional atmosphere (deterministic from a persisted server secret, lazily
-finalized on read, worker-independent). See
-[`docs/living-world.md`](docs/living-world.md).
+So far: a deterministic world clock (data-driven cycle and DAWN/DAY/DUSK/NIGHT
+segments derived from server time via an injected clock) and regional atmosphere;
+named NPCs with placement/schedule availability; authored, versioned dialogue
+trees with a typed condition/effect registry and a replay- and concurrency-safe
+interaction lifecycle; versioned world events with lazy, worker-independent
+finalization; a privacy-safe local activity feed; and the coherent current-scene
+read model, surfaced on the location hub as a living scene with an accessible
+NPC-conversation UI. See [`docs/living-world.md`](docs/living-world.md).
 
 Earlier highlights: **Phase 24** — repeatable activities (rotating bounty board,
 equipment salvage, NPC sellback) as once-per-cycle, arbitrage-proof economy

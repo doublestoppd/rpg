@@ -173,6 +173,30 @@ stays active for `durationCycles`. There is no scheduler state.
   NPCs, features, and a bounded activity summary — composed under a single
   `now`. Its documented query budget is roughly a dozen index-backed reads.
 
+## The living-scene UI
+
+The location hub renders the scene read model directly, so a place looks
+different by time of day and by what is happening in it.
+
+- **Atmosphere banner** — the current world-time segment (with a dawn/day/dusk/
+  night glyph), the weather, and a row of atmosphere chips (temperature, wind,
+  crowd, and reduced visibility when present). A "Happening now" panel lists any
+  active world events. Presentation-only, matching the server contract.
+- **People here** — the NPCs present at this location and segment (the scene's
+  `npcs` filtered to `PRESENT`), each with a portrait and a **Talk** action.
+- **Conversation** — Talk opens an accessible dialogue modal built on the native
+  `<dialog>` (focus trapped, Escape closes). The transcript is a polite live
+  region so each new line is announced; choices are ordinary buttons in document
+  order. Every choice submits the interaction's current `version` and a fresh
+  idempotency key, so a stale or replayed turn is resolved server-side, never in
+  the client. NPCs are game characters and live only on the scene — never in
+  player chat.
+- **Local happenings** — the privacy-safe activity feed, each entry rendered
+  client-side from its typed, anonymous parameters.
+
+The scene is fetched once per location view and gently re-polled so a segment
+change or a newly-active event appears without a manual reload.
+
 ### Runbook — world-event finalization
 
 Watch `world_event_lazy_finalization` and `world_event_occurrence_conflict`.

@@ -1343,7 +1343,7 @@ export const NPC_DEFINITIONS = [
     homeRegion: 'crownfall',
     serviceType: 'INN',
     serviceRef: null,
-    dialogueKey: null,
+    dialogueKey: 'brannic-welcome',
   },
   {
     key: 'mira-coinwright',
@@ -1548,6 +1548,62 @@ export const NARRATIVE_FLAGS = [
 ];
 
 export const DIALOGUES = [
+  {
+    key: 'brannic-welcome',
+    entryNodeId: 'hearth',
+    npcKey: 'brannic-hearthkeeper',
+    nodes: [
+      {
+        id: 'hearth',
+        speaker: 'NPC',
+        text: "Brannic looks up from the hearth and wipes his hands. 'Rest your boots, traveler. What brings you through Crownfall?'",
+        choices: [
+          {
+            id: 'greet',
+            label: 'Just getting my bearings.',
+            conditions: [],
+            effects: [{ type: 'INCREMENT_FAMILIARITY', amount: 3 }],
+            to: 'bearings',
+          },
+          {
+            id: 'rumor',
+            label: 'Heard anything worth knowing?',
+            conditions: [],
+            effects: [{ type: 'EMIT_QUEST_EVENT' }],
+            to: 'rumor',
+          },
+          {
+            id: 'nightword',
+            label: 'The city feels different after dark.',
+            conditions: [{ type: 'WORLD_SEGMENT', segment: 'NIGHT' }],
+            effects: [],
+            to: 'nightword',
+          },
+          { id: 'leave', label: 'Maybe later.', conditions: [], effects: [], to: null },
+        ],
+      },
+      {
+        id: 'bearings',
+        speaker: 'NPC',
+        text: "'Market's up the road, harbor's down by the water. You'll find your feet soon enough.'",
+        choices: [
+          { id: 'back-b', label: 'Thanks, Brannic.', conditions: [], effects: [], to: null },
+        ],
+      },
+      {
+        id: 'rumor',
+        speaker: 'NPC',
+        text: "'They say the caravans have been running heavy this season. Good time to be a trader — or a thief.'",
+        choices: [{ id: 'back-r', label: 'Good to know.', conditions: [], effects: [], to: null }],
+      },
+      {
+        id: 'nightword',
+        speaker: 'NPC',
+        text: "He lowers his voice. 'Aye. The watch doubles up after dark. Keep to the lit streets and you'll be fine.'",
+        choices: [{ id: 'back-nw', label: 'I will.', conditions: [], effects: [], to: null }],
+      },
+    ],
+  },
   {
     key: 'mira-welcome',
     entryNodeId: 'greet',

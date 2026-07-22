@@ -190,11 +190,12 @@ Delivered through increment 4: the NPC content model + placement/schedule
 availability; authored versioned dialogue trees with a typed condition/effect
 registry and a replay-safe, concurrency-safe, transactional interaction
 lifecycle; per-character NPC narrative state; versioned world events with lazy
-finalization; the privacy-safe local activity feed; and the coherent
-current-scene read model. Still to come: dynamic scene variants; the
-living-scene and NPC-dialogue UI; Content Studio living-world editors; a fuller
-representative seed (named NPCs and authored dialogues); and the full
-integration/EXPLAIN/Playwright suite.
+finalization; the privacy-safe local activity feed; the coherent current-scene
+read model; and (increment 5) the living-scene and accessible NPC-dialogue UI —
+the atmosphere/time banner, present-NPC panel, dialogue modal, and activity
+feed on the location hub, with a Playwright walk-through. Still to come: dynamic
+scene variants; Content Studio living-world editors; and a fuller representative
+seed (more named NPCs and authored dialogues).
 
 ## Phase 24 — Repeatable Activities and Economy Loop Expansion (2026-07-19)
 
