@@ -76,6 +76,13 @@ export const sellbackResponseSchema = z.object({
 });
 export type SellbackResponse = z.infer<typeof sellbackResponseSchema>;
 
+/** A read-only preview of what a shop pays per unit for an item (proceeds). */
+export const sellbackQuoteResponseSchema = z.object({
+  itemSlug: z.string(),
+  unitPrice: goldString,
+});
+export type SellbackQuoteResponse = z.infer<typeof sellbackQuoteResponseSchema>;
+
 // --- salvage ---------------------------------------------------------------
 
 export const salvageRequestSchema = z.object({

@@ -4208,6 +4208,56 @@
         }
       }
     },
+    "/api/v1/npc-shops/{id}/sellback/{itemSlug}": {
+      "get": {
+        "summary": "Per-unit sellback price preview for an item at this shop",
+        "tags": ["npc-shops"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "in": "path",
+            "name": "itemSlug",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "itemSlug": {
+                      "type": "string"
+                    },
+                    "unitPrice": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    }
+                  },
+                  "required": ["itemSlug", "unitPrice"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/npc-shops/{id}/purchases": {
       "post": {
         "summary": "Buy from a stock entry (atomic, race-safe, idempotent)",

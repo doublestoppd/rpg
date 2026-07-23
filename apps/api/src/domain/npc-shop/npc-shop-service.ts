@@ -3,6 +3,7 @@ import type {
   NpcShopDetailResponse,
   NpcShopListResponse,
   NpcShopPurchaseResponse,
+  SellbackQuoteResponse,
   SellbackResponse,
   StockLevel,
 } from '@rpg/shared';
@@ -56,6 +57,12 @@ export interface NpcShopService {
     shopId: string,
     input: { itemSlug: string; quantity: number; idempotencyKey: string },
   ): Promise<SellbackResponse>;
+  /** Read-only per-unit sellback price so the UI can preview proceeds. */
+  getSellbackQuote(
+    userId: string,
+    shopId: string,
+    itemSlug: string,
+  ): Promise<SellbackQuoteResponse>;
   /** Lazily restocks if due (timestamp authority; at most one catch-up). */
   ensureRestocked(shopId: string, now?: Date): Promise<void>;
 }
@@ -355,6 +362,19 @@ export function createNpcShopService(
           gold: account.balance.toString(),
         };
       });
+    },
+
+    async getSellbackQuote(userId, shopId, itemSlug) {
+      await characterService.requireCharacter(userId);
+      const shop = await prisma.npcShop.findUnique({ where: { id: shopId } });
+      if (!shop) throw new DomainError(404, 'UNKNOWN_SHOP', 'No such shop.');
+      const item = await prisma.itemDefinition.findUnique({ where: { slug: itemSlug } });
+      if (!item) throw new DomainError(404, 'UNKNOWN_ITEM', 'No such item.');
+      if (!item.stackable) {
+        throw new DomainError(400, 'NOT_SELLABLE', 'That item cannot be sold to a shop here.');
+      }
+      const unitPrice = await sellbackPriceFor(shop, item);
+      return { itemSlug, unitPrice: unitPrice.toString() };
     },
 
     async sell(userId, shopId, input) {

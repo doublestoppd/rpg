@@ -5,6 +5,8 @@ import {
   npcShopListResponseSchema,
   type NpcShopPurchaseRequest,
   npcShopPurchaseResponseSchema,
+  type SellbackQuoteResponse,
+  sellbackQuoteResponseSchema,
 } from '@rpg/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -31,6 +33,19 @@ export function useShopDetail(shopId: string | undefined) {
       apiGet(`/api/v1/npc-shops/${shopId}`, (raw) => npcShopDetailResponseSchema.parse(raw)),
     enabled: Boolean(shopId),
     staleTime: 5_000,
+  });
+}
+
+/** Read-only per-unit sellback price so the sell dialog can preview proceeds. */
+export function useSellbackQuote(shopId: string, itemSlug: string | null) {
+  return useQuery<SellbackQuoteResponse>({
+    queryKey: ['npc-shops', 'sellback-quote', shopId, itemSlug],
+    queryFn: () =>
+      apiGet(`/api/v1/npc-shops/${shopId}/sellback/${itemSlug}`, (raw) =>
+        sellbackQuoteResponseSchema.parse(raw),
+      ),
+    enabled: Boolean(shopId) && Boolean(itemSlug),
+    staleTime: 10_000,
   });
 }
 

@@ -3,6 +3,7 @@ import {
   npcShopListResponseSchema,
   npcShopPurchaseRequestSchema,
   npcShopPurchaseResponseSchema,
+  sellbackQuoteResponseSchema,
   sellbackRequestSchema,
   sellbackResponseSchema,
 } from '@rpg/shared';
@@ -48,6 +49,25 @@ export async function npcShopRoutes(
       },
     },
     async (request) => npcShopService.getShopDetail(request.currentUser!.id, request.params.id),
+  );
+
+  typed.get(
+    '/npc-shops/:id/sellback/:itemSlug',
+    {
+      preHandler: app.requireAuth,
+      schema: {
+        tags: ['npc-shops'],
+        summary: 'Per-unit sellback price preview for an item at this shop',
+        params: z.object({ id: z.uuid(), itemSlug: z.string().min(1) }),
+        response: { 200: sellbackQuoteResponseSchema },
+      },
+    },
+    async (request) =>
+      npcShopService.getSellbackQuote(
+        request.currentUser!.id,
+        request.params.id,
+        request.params.itemSlug,
+      ),
   );
 
   typed.post(

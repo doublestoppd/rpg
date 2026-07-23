@@ -1,4 +1,9 @@
-import type { InventoryStackInfo, NpcShopStockEntryInfo, StockLevel } from '@rpg/shared';
+import type {
+  InventoryStackInfo,
+  ItemDefinitionInfo,
+  NpcShopStockEntryInfo,
+  StockLevel,
+} from '@rpg/shared';
 import { useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 
@@ -7,13 +12,14 @@ import { Card } from '../components/ui/Card';
 import { Dialog } from '../components/ui/Dialog';
 import { EmptyState } from '../components/ui/EmptyState';
 import { ErrorState } from '../components/ui/ErrorState';
+import { ItemDetailsDialog } from '../components/ui/ItemDetailsDialog';
 import { LoadingState } from '../components/ui/LoadingState';
 import { useToast } from '../components/ui/Toast';
 import { useSellback } from '../features/activities/useActivities';
 import { useCharacter } from '../features/character/useCharacter';
 import { useCurrency } from '../features/currency/useCurrency';
 import { useInventory } from '../features/inventory/useInventory';
-import { usePurchase, useShopDetail } from '../features/npc-shops/useNpcShops';
+import { usePurchase, useSellbackQuote, useShopDetail } from '../features/npc-shops/useNpcShops';
 import { ApiRequestError } from '../lib/api';
 
 const STOCK_BADGES: Record<StockLevel, { label: string; className: string }> = {
@@ -48,6 +54,8 @@ export function ShopPage() {
   const [quantity, setQuantity] = useState(1);
   const [sellSelected, setSellSelected] = useState<InventoryStackInfo | null>(null);
   const [sellQuantity, setSellQuantity] = useState(1);
+  const [detailsItem, setDetailsItem] = useState<ItemDefinitionInfo | null>(null);
+  const sellQuote = useSellbackQuote(shopId ?? '', sellSelected?.item.slug ?? null);
 
   if (characterPending) return <LoadingState label="Pushing open the shop door…" />;
   if (!character) return <Navigate to="/character/new" replace />;
@@ -153,9 +161,13 @@ export function ShopPage() {
               return (
                 <li key={entry.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="min-w-0">
-                    <p className="font-medium text-stone-900 dark:text-stone-100">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsItem(entry.item)}
+                      className="text-left font-medium text-stone-900 hover:underline dark:text-stone-100"
+                    >
                       {entry.item.name}
-                    </p>
+                    </button>
                     <p className="text-xs text-stone-500 dark:text-stone-400">
                       {entry.unitPrice} Gold · limit {entry.perCharacterLimit} per restock
                       {entry.purchasedByYou > 0 ? ` (you bought ${entry.purchasedByYou})` : ''}
@@ -201,9 +213,13 @@ export function ShopPage() {
                   className="flex items-center justify-between gap-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <p className="font-medium text-stone-900 dark:text-stone-100">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsItem(stack.item)}
+                      className="text-left font-medium text-stone-900 hover:underline dark:text-stone-100"
+                    >
                       {stack.item.name}
-                    </p>
+                    </button>
                     <p className="text-xs text-stone-500 dark:text-stone-400">
                       You hold {stack.quantity}
                     </p>
@@ -270,9 +286,16 @@ export function ShopPage() {
               </div>
               <span className="text-xs text-stone-500">of {sellSelected.quantity}</span>
             </div>
+            <p className="text-sm font-medium text-stone-900 dark:text-stone-100">
+              {sellQuote.data
+                ? `You will receive ${(BigInt(sellQuote.data.unitPrice) * BigInt(sellQuantity)).toString()} Gold (${sellQuote.data.unitPrice} each).`
+                : 'Checking the shop’s offer…'}
+            </p>
           </div>
         )}
       </Dialog>
+
+      <ItemDetailsDialog item={detailsItem} onClose={() => setDetailsItem(null)} />
 
       <Dialog
         open={selected !== null}

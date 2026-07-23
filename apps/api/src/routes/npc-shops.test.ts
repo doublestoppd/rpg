@@ -191,6 +191,28 @@ describe('restocking', () => {
   });
 });
 
+describe('sellback quote', () => {
+  it('previews a positive per-unit sell price below the shop asking price', async () => {
+    const { auth } = await setupShopper();
+    const shop = await generalGoods();
+    const detail = (await getShop(auth, shop.id)).json();
+    const entry = detail.stock.find((s: { item: { stackable: boolean } }) => s.item.stackable);
+    expect(entry).toBeDefined();
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/v1/npc-shops/${shop.id}/sellback/${entry.item.slug}`,
+      cookies: { [SESSION_COOKIE]: auth.cookie },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    const quote = response.json();
+    expect(quote.itemSlug).toBe(entry.item.slug);
+    expect(BigInt(quote.unitPrice)).toBeGreaterThan(0n);
+    // The shop never buys back at or above its own asking price.
+    expect(BigInt(quote.unitPrice)).toBeLessThan(BigInt(entry.unitPrice));
+  });
+});
+
 describe('purchases', () => {
   it('buys atomically: gold, stock, inventory, ledger, and transfer together', async () => {
     const { auth, characterId } = await setupShopper();
