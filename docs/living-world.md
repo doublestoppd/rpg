@@ -182,9 +182,11 @@ stays active for `durationCycles`. There is no scheduler state.
   chosen `narration` (or null) rides on the scene response. Selection is a pure
   function of the published rows and the same conditions the rest of the scene
   already resolved — deterministic, worker-independent, and presentation-only
-  (a variant never changes a gameplay outcome). Variants are seeded directly as
-  PUBLISHED like the other living-world projections; a `SCENE_VARIANT` content
-  type and Content Studio editor follow in a later increment.
+  (a variant never changes a gameplay outcome). Variants are versioned content
+  (`SCENE_VARIANT`): each references its location, and a variant that targets an
+  unpublished location is an `UNRESOLVED_REFERENCE` at validation. They are
+  authored, validated, and shipped through the Content Studio like every other
+  content type, and the initial set is seeded as PUBLISHED.
 - **Player presence** is a read-activity heartbeat: viewing the scene touches
   the caller's `Character.lastSeenAt`, and the scene lists the _other_ players
   whose `lastSeenAt` at the same location is within the last five minutes

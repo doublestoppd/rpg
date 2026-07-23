@@ -70,5 +70,8 @@ require recent re-authentication. The OpenAPI baseline grows additively.
   as Phase 19: correctness lives in validation + apply, both fully tested.
 - Deleting content is deliberately not offered; retirement plus upsert-only
   apply keeps historical references intact.
-- The definition editor is JSON-with-domain-validation; richer per-type forms
-  and a graphical world editor are layered on this same API in later work.
+- The definition editor is JSON-with-domain-validation. Authors start a
+  brand-new definition of any content type from a per-type starter template
+  (which seeds a correctly-shaped payload to fill in) and may remove a draft
+  definition; the server still validates every save. Richer per-type forms and a
+  graphical world editor are layered on this same API in later work.

@@ -1,4 +1,4 @@
-import type { ContentReleaseStatus, ContentType } from '@rpg/shared';
+import { type ContentReleaseStatus, type ContentType, contentTypeSchema } from '@rpg/shared';
 import { useMemo, useState } from 'react';
 
 import { Button } from '../../components/ui/Button';
@@ -7,6 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { LoadingState } from '../../components/ui/LoadingState';
 import { TextField } from '../../components/ui/TextField';
 import { useToast } from '../../components/ui/Toast';
+import { starterPayload } from './contentTemplates';
 import {
   useContentReleases,
   useCreateDraft,
@@ -15,10 +16,13 @@ import {
   useReleaseDetail,
   useReleaseDiff,
   useReleaseValidation,
+  useRemoveDefinition,
   useRetireRelease,
   useUpsertDefinition,
   useWhereUsed,
 } from './useContentStudio';
+
+const CONTENT_TYPES = contentTypeSchema.options;
 
 const STATUS_STYLES: Record<ContentReleaseStatus, string> = {
   DRAFT: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200',
@@ -164,6 +168,10 @@ function ReleaseWorkspace({ releaseId }: { releaseId: string }) {
 
 type CatalogEntry = { type: ContentType; key: string; revision: number; name: string };
 
+type Selection =
+  | { mode: 'existing'; type: ContentType; key: string }
+  | { mode: 'new'; type: ContentType; key: string };
+
 function Catalog({
   releaseId,
   isDraft,
@@ -174,7 +182,7 @@ function Catalog({
   definitions: CatalogEntry[];
 }) {
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<{ type: ContentType; key: string } | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -187,6 +195,12 @@ function Catalog({
   return (
     <div className="grid gap-3 lg:grid-cols-2">
       <div>
+        {isDraft && (
+          <NewDefinitionForm
+            onCreate={(type, key) => setSelected({ mode: 'new', type, key })}
+            existingKeys={definitions}
+          />
+        )}
         <TextField
           label="Search catalog"
           value={search}
@@ -201,7 +215,7 @@ function Catalog({
             <li key={`${d.type}:${d.key}`}>
               <button
                 type="button"
-                onClick={() => setSelected({ type: d.type, key: d.key })}
+                onClick={() => setSelected({ mode: 'existing', type: d.type, key: d.key })}
                 className={`flex w-full items-center justify-between gap-2 py-1 text-left text-sm ${
                   selected?.key === d.key && selected?.type === d.type ? 'font-medium' : ''
                 }`}
@@ -220,10 +234,14 @@ function Catalog({
       <div>
         {selected ? (
           <DefinitionEditor
+            key={`${selected.mode}:${selected.type}:${selected.key}`}
             releaseId={releaseId}
             type={selected.type}
             defKey={selected.key}
             isDraft={isDraft}
+            isNew={selected.mode === 'new'}
+            onDeleted={() => setSelected(null)}
+            onCreated={(type, key) => setSelected({ mode: 'existing', type, key })}
           />
         ) : (
           <EmptyState title="No definition selected" description="Pick a definition to inspect." />
@@ -233,30 +251,136 @@ function Catalog({
   );
 }
 
+/**
+ * Start a brand-new definition of any content type. The editor opens with a
+ * starter payload template; the definition is not created until it is saved
+ * (which runs the same server-side validation as every other edit).
+ */
+function NewDefinitionForm({
+  onCreate,
+  existingKeys,
+}: {
+  onCreate: (type: ContentType, key: string) => void;
+  existingKeys: CatalogEntry[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [type, setType] = useState<ContentType>('NPC');
+  const [key, setKey] = useState('');
+  const { showToast } = useToast();
+
+  const trimmed = key.trim();
+  const collides = existingKeys.some((d) => d.type === type && d.key === trimmed);
+
+  if (!open) {
+    return (
+      <div className="mb-2">
+        <Button variant="secondary" onClick={() => setOpen(true)}>
+          New definition
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="mb-3 space-y-2 rounded-md border border-stone-200 p-2 dark:border-stone-800"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!trimmed) {
+          showToast('Enter a stable key.', 'error');
+          return;
+        }
+        if (collides) {
+          showToast('A definition with this type and key already exists.', 'error');
+          return;
+        }
+        onCreate(type, trimmed);
+        setOpen(false);
+        setKey('');
+      }}
+    >
+      <label className="block text-sm">
+        <span className="mb-0.5 block font-medium text-stone-700 dark:text-stone-300">Type</span>
+        <select
+          className="w-full rounded-md border border-stone-300 bg-white p-1.5 text-sm dark:border-stone-700 dark:bg-stone-900"
+          value={type}
+          onChange={(e) => setType(e.target.value as ContentType)}
+        >
+          {CONTENT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </label>
+      <TextField
+        label="Stable key"
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+        placeholder="e.g. innkeeper-hollow"
+      />
+      {collides && <p className="text-xs text-red-600">This type and key already exist.</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={!trimmed || collides}>
+          Start editing
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            setOpen(false);
+            setKey('');
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function DefinitionEditor({
   releaseId,
   type,
   defKey,
   isDraft,
+  isNew,
+  onDeleted,
+  onCreated,
 }: {
   releaseId: string;
   type: ContentType;
   defKey: string;
   isDraft: boolean;
+  isNew: boolean;
+  onDeleted: () => void;
+  onCreated: (type: ContentType, key: string) => void;
 }) {
-  const def = useDefinition(releaseId, type, defKey);
-  const whereUsed = useWhereUsed(releaseId, type, defKey);
+  // For a brand-new definition there is nothing on the server yet, so the
+  // read-only queries stay disabled and the editor seeds from a template.
+  const def = useDefinition(releaseId, isNew ? null : type, isNew ? null : defKey);
+  const whereUsed = useWhereUsed(releaseId, isNew ? null : type, isNew ? null : defKey);
   const upsert = useUpsertDefinition(releaseId);
+  const remove = useRemoveDefinition(releaseId);
   const { showToast } = useToast();
   const [draftJson, setDraftJson] = useState<string | null>(null);
 
-  const text = draftJson ?? (def.data ? JSON.stringify(def.data.payload, null, 2) : '');
+  const template = useMemo(
+    () => (isNew ? JSON.stringify(starterPayload(type, defKey), null, 2) : null),
+    [isNew, type, defKey],
+  );
+
+  function savedText(): string {
+    if (isNew) return template ?? '';
+    return def.data ? JSON.stringify(def.data.payload, null, 2) : '';
+  }
+  const text = draftJson ?? savedText();
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="font-mono text-xs text-stone-500">
-          {type} · {defKey} {def.data ? `· r${def.data.revision}` : ''}
+          {type} · {defKey} {isNew ? '· new' : def.data ? `· r${def.data.revision}` : ''}
         </p>
       </div>
       <textarea
@@ -267,30 +391,53 @@ function DefinitionEditor({
         onChange={(e) => setDraftJson(e.target.value)}
       />
       {isDraft && (
-        <Button
-          disabled={upsert.isPending || draftJson === null}
-          onClick={() => {
-            let payload: Record<string, unknown>;
-            try {
-              payload = JSON.parse(draftJson ?? text) as Record<string, unknown>;
-            } catch {
-              showToast('Payload is not valid JSON.', 'error');
-              return;
-            }
-            upsert.mutate(
-              { type, key: defKey, payload },
-              {
-                onSuccess: () => {
-                  setDraftJson(null);
-                  showToast('Definition saved.', 'success');
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            disabled={upsert.isPending || (!isNew && draftJson === null)}
+            onClick={() => {
+              let payload: Record<string, unknown>;
+              try {
+                payload = JSON.parse(draftJson ?? text) as Record<string, unknown>;
+              } catch {
+                showToast('Payload is not valid JSON.', 'error');
+                return;
+              }
+              upsert.mutate(
+                { type, key: defKey, payload },
+                {
+                  onSuccess: () => {
+                    setDraftJson(null);
+                    showToast(isNew ? 'Definition created.' : 'Definition saved.', 'success');
+                    if (isNew) onCreated(type, defKey);
+                  },
+                  onError: (e) => showToast(e.message, 'error'),
                 },
-                onError: (e) => showToast(e.message, 'error'),
-              },
-            );
-          }}
-        >
-          Save definition
-        </Button>
+              );
+            }}
+          >
+            {isNew ? 'Create definition' : 'Save definition'}
+          </Button>
+          {!isNew && (
+            <Button
+              variant="danger"
+              disabled={remove.isPending}
+              onClick={() => {
+                remove.mutate(
+                  { type, key: defKey },
+                  {
+                    onSuccess: () => {
+                      showToast('Definition removed from this draft.', 'success');
+                      onDeleted();
+                    },
+                    onError: (e) => showToast(e.message, 'error'),
+                  },
+                );
+              }}
+            >
+              Remove
+            </Button>
+          )}
+        </div>
       )}
       {whereUsed.data && whereUsed.data.usedBy.length > 0 && (
         <div className="rounded-md bg-stone-50 p-2 text-xs dark:bg-stone-800/50">

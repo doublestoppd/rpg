@@ -109,3 +109,63 @@ test('an admin promotes, reauthenticates, inspects a player, and credits gold', 
   await adminContext.close();
   await playerContext.close();
 });
+
+test('an admin authors a brand-new scene variant in the Content Studio', async ({ browser }) => {
+  test.setTimeout(90_000);
+  const unique = `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
+
+  const adminContext = await browser.newContext();
+  const admin = await adminContext.newPage();
+  const adminReg = await register(admin, 'Author', unique);
+
+  await promote(adminReg.email);
+  await adminContext.clearCookies();
+  await login(admin, adminReg.email);
+
+  const adminNav = admin.getByRole('navigation', { name: 'Main navigation' });
+  await adminNav.getByRole('link', { name: 'Admin' }).click();
+  await expect(admin.getByRole('heading', { name: 'Administration' })).toBeVisible();
+
+  // Unlock the workspace (Content Studio renders behind the reauth gate).
+  await expect(admin.getByText('Re-authentication required')).toBeVisible();
+  await admin.getByLabel('Password').fill(PASSWORD);
+  await admin.getByRole('button', { name: 'Confirm' }).click();
+
+  // Create a fresh draft from the live catalog (authoring itself needs no reauth).
+  await expect(admin.getByRole('heading', { name: 'Content Studio' })).toBeVisible();
+  await admin.getByRole('button', { name: 'New draft from live' }).click();
+  await expect(admin.getByText(/created from live content/)).toBeVisible();
+
+  // Start a brand-new SCENE_VARIANT definition that targets a seeded location.
+  await admin.getByRole('button', { name: 'New definition' }).click();
+  const key = `e2e-variant-${unique}`;
+  await admin.getByLabel('Type').selectOption('SCENE_VARIANT');
+  await admin.getByLabel('Stable key').fill(key);
+  await admin.getByRole('button', { name: 'Start editing' }).click();
+
+  // Fill the payload with a valid scene variant and create it.
+  const payload = {
+    key,
+    locationSlug: 'crownfall-city',
+    priority: 15,
+    segment: null,
+    weather: null,
+    eventType: null,
+    narration: 'An authored E2E scene line for the capital.',
+  };
+  await admin
+    .getByRole('textbox')
+    .last()
+    .fill(JSON.stringify(payload, null, 2));
+  await admin.getByRole('button', { name: 'Create definition' }).click();
+  await expect(admin.getByText('Definition created.')).toBeVisible();
+
+  // It is now in the catalog and the draft validates cleanly.
+  await admin.getByLabel('Search catalog').fill(key);
+  await expect(admin.getByRole('button', { name: new RegExp(key) })).toBeVisible();
+
+  await admin.getByRole('button', { name: 'validate' }).click();
+  await expect(admin.getByText(/this release can be published/)).toBeVisible();
+
+  await adminContext.close();
+});
