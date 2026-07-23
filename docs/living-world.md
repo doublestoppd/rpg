@@ -170,9 +170,21 @@ stays active for `durationCycles`. There is no scheduler state.
   account or character identifiers, names, or balances.
 - **The scene** (`GET /api/v1/locations/current/scene`) is one coherent read
   model — location, time segment, cycle, atmosphere, active events, present
-  NPCs, present players, features, and a bounded activity summary — composed
-  under a single `now`. Its documented query budget is roughly a dozen
-  index-backed reads.
+  NPCs, present players, features, a bounded activity summary, and an authored
+  flavor line (see below) — composed under a single `now`. Its documented query
+  budget is roughly a dozen index-backed reads.
+- **Dynamic scene variants** give a place a different authored line by the hour
+  and the weather. A `SceneVariantDefinition` has a location, a priority, and up
+  to three optional conditions — `segment`, `weather`, and an `eventType` that
+  matches when a world event of that type is active. A null condition matches
+  anything; a variant applies only when _every_ non-null condition matches the
+  current scene, and the highest-priority match wins (ties break by key). The
+  chosen `narration` (or null) rides on the scene response. Selection is a pure
+  function of the published rows and the same conditions the rest of the scene
+  already resolved — deterministic, worker-independent, and presentation-only
+  (a variant never changes a gameplay outcome). Variants are seeded directly as
+  PUBLISHED like the other living-world projections; a `SCENE_VARIANT` content
+  type and Content Studio editor follow in a later increment.
 - **Player presence** is a read-activity heartbeat: viewing the scene touches
   the caller's `Character.lastSeenAt`, and the scene lists the _other_ players
   whose `lastSeenAt` at the same location is within the last five minutes

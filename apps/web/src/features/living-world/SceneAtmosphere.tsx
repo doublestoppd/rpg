@@ -38,10 +38,12 @@ export function SceneAtmosphere({
   segment,
   atmosphere,
   events,
+  narration,
 }: {
   segment: WorldTimeSegment;
   atmosphere: AtmosphereResponse;
   events: WorldEventInfo[];
+  narration?: string | null;
 }) {
   const chips = [
     WEATHER_LABELS[atmosphere.weather],
@@ -65,6 +67,12 @@ export function SceneAtmosphere({
           {WEATHER_LABELS[atmosphere.weather]}
         </span>
       </div>
+
+      {narration && (
+        <p className="mt-2 text-sm italic leading-6 text-stone-600 dark:text-stone-300">
+          {narration}
+        </p>
+      )}
 
       <ul className="mt-3 flex flex-wrap gap-2" aria-label="Atmosphere">
         {chips.map((chip) => (

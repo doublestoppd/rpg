@@ -125,6 +125,7 @@ export function LocationPage() {
           segment={scene.data.segment}
           atmosphere={scene.data.atmosphere}
           events={scene.data.events}
+          narration={scene.data.narration}
         />
       )}
 

@@ -11277,6 +11277,10 @@
                         ]
                       }
                     },
+                    "narration": {
+                      "nullable": true,
+                      "type": "string"
+                    },
                     "serverTime": {
                       "type": "string"
                     }
@@ -11291,6 +11295,7 @@
                     "players",
                     "features",
                     "activity",
+                    "narration",
                     "serverTime"
                   ],
                   "additionalProperties": false

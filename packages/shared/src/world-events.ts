@@ -116,6 +116,11 @@ export const sceneResponseSchema = z.object({
   players: z.array(presentPlayerSchema),
   features: z.array(locationFeatureSchema),
   activity: z.array(activityEntrySchema),
+  /**
+   * Authored scene-flavor line chosen from the current conditions (segment,
+   * weather, active events), or null when no variant matches. Presentation only.
+   */
+  narration: z.string().nullable(),
   serverTime: z.string(),
 });
 export type SceneResponse = z.infer<typeof sceneResponseSchema>;

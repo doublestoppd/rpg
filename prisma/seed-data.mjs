@@ -1741,3 +1741,83 @@ export const WORLD_EVENTS = [
     sceneDescriptionKey: 'scene.storm',
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Phase 26 — dynamic scene variants. Authored flavor lines chosen server-side
+// from the current conditions (segment / weather / active event). A null field
+// matches anything; higher priority wins. Presentation only.
+// ---------------------------------------------------------------------------
+
+export const SCENE_VARIANTS = [
+  // Event-driven lines win (highest priority).
+  {
+    key: 'crownfall-city-market-day',
+    locationSlug: 'crownfall-city',
+    priority: 30,
+    segment: null,
+    weather: null,
+    eventType: 'MARKET_DAY',
+    narration:
+      'It is market day: every road into the old capital is thick with carts, hawkers, and the smell of frying oil.',
+  },
+  {
+    key: 'crownfall-harbor-caravan',
+    locationSlug: 'crownfall-harbor',
+    priority: 30,
+    segment: null,
+    weather: null,
+    eventType: 'CARAVAN_ARRIVAL',
+    narration:
+      'A road-worn caravan has drawn up along the wharf; porters argue over manifests as crates come ashore.',
+  },
+  // Weather-driven lines.
+  {
+    key: 'crownfall-harbor-fog',
+    locationSlug: 'crownfall-harbor',
+    priority: 20,
+    segment: null,
+    weather: 'FOG',
+    eventType: null,
+    narration: 'Fog swallows the piers; unseen rigging creaks somewhere out on the grey water.',
+  },
+  {
+    key: 'crownfall-city-rain',
+    locationSlug: 'crownfall-city',
+    priority: 20,
+    segment: null,
+    weather: 'RAIN',
+    eventType: null,
+    narration: 'Rain sheets off the slate roofs and the gutters run full through the old capital.',
+  },
+  {
+    key: 'greenmeadow-storm',
+    locationSlug: 'greenmeadow-village',
+    priority: 20,
+    segment: null,
+    weather: 'STORM',
+    eventType: null,
+    narration:
+      'The storm bends the meadow grass flat; shutters bang and the villagers have gone to ground.',
+  },
+  // Time-of-day lines (lowest priority — the quiet default flavor).
+  {
+    key: 'crownfall-city-night',
+    locationSlug: 'crownfall-city',
+    priority: 10,
+    segment: 'NIGHT',
+    weather: null,
+    eventType: null,
+    narration:
+      'Lantern light pools on the cobbles; the Fallen Keep is a black shape against the stars.',
+  },
+  {
+    key: 'crownfall-city-dawn',
+    locationSlug: 'crownfall-city',
+    priority: 10,
+    segment: 'DAWN',
+    weather: null,
+    eventType: null,
+    narration:
+      'The first light greys the pale walls; bakers’ smoke rises straight in the still air.',
+  },
+];

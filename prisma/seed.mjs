@@ -23,6 +23,7 @@ import {
   NPC_PLACEMENTS,
   NPC_SHOPS,
   WORLD_EVENTS,
+  SCENE_VARIANTS,
   REGIONAL_PRICE_MODIFIERS,
   TRAVEL_ROUTES,
 } from './seed-data.mjs';
@@ -469,6 +470,15 @@ async function main() {
       where: { key: event.key },
       create: { ...event, status: 'PUBLISHED' },
       update: { ...event, status: 'PUBLISHED' },
+    });
+  }
+
+  // Phase 26: dynamic scene variants (living world).
+  for (const variant of SCENE_VARIANTS) {
+    await prisma.sceneVariantDefinition.upsert({
+      where: { key: variant.key },
+      create: { ...variant, status: 'PUBLISHED' },
+      update: { ...variant, status: 'PUBLISHED' },
     });
   }
 

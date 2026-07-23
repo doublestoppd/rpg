@@ -270,4 +270,12 @@ describe('living-world queries stay on their indexes', () => {
       [someUuid],
     );
   });
+
+  it('scene variants by location + status (dynamic scene selection)', async () => {
+    await expectIndex(
+      `SELECT * FROM "SceneVariantDefinition" WHERE "locationSlug" = $1 AND "status" = 'PUBLISHED'`,
+      'SceneVariantDefinition_locationSlug_status_idx',
+      ['crownfall-city'],
+    );
+  });
 });

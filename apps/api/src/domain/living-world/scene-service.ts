@@ -6,6 +6,7 @@ import type { WorldClockService } from '../world-sim/world-clock.js';
 import type { ActivityService } from './activity-service.js';
 import type { NpcService } from './npc-service.js';
 import type { PresenceService } from './presence-service.js';
+import type { SceneVariantService } from './scene-variant-service.js';
 import type { WorldEventService } from './world-event-service.js';
 
 /**
@@ -30,6 +31,7 @@ export function createSceneService(deps: {
   npcService: NpcService;
   activityService: ActivityService;
   presenceService: PresenceService;
+  sceneVariantService: SceneVariantService;
 }): SceneService {
   const {
     locationService,
@@ -39,6 +41,7 @@ export function createSceneService(deps: {
     npcService,
     activityService,
     presenceService,
+    sceneVariantService,
   } = deps;
 
   return {
@@ -57,6 +60,14 @@ export function createSceneService(deps: {
         presenceService.touchAndList(userId, location.id, now),
       ]);
 
+      // Flavor line is chosen from the same coherent conditions as the rest of
+      // the scene (segment, weather, and the events already resolved above).
+      const narration = await sceneVariantService.selectNarration(location.slug, {
+        segment: time.segment,
+        weather: atmosphere.weather,
+        eventTypes: events.map((event) => event.eventType),
+      });
+
       return {
         location,
         segment: time.segment,
@@ -67,6 +78,7 @@ export function createSceneService(deps: {
         players,
         features: featuresResponse.features,
         activity,
+        narration,
         serverTime: now.toISOString(),
       };
     },

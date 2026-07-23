@@ -61,6 +61,8 @@ describe('GET /locations/current/scene', () => {
     expect(scene.atmosphere.region).toBe('crownfall');
     expect(Array.isArray(scene.events)).toBe(true);
     expect(Array.isArray(scene.activity)).toBe(true);
+    // The scene carries an authored flavor line or null (never undefined).
+    expect(scene.narration === null || typeof scene.narration === 'string').toBe(true);
     // Mira keeps the market stall every segment, so she is in the scene.
     expect(scene.npcs.map((n: { key: string }) => n.key)).toContain('mira-coinwright');
     // The scene's time agrees with the standalone world clock.

@@ -191,11 +191,14 @@ availability; authored versioned dialogue trees with a typed condition/effect
 registry and a replay-safe, concurrency-safe, transactional interaction
 lifecycle; per-character NPC narrative state; versioned world events with lazy
 finalization; the privacy-safe local activity feed; the coherent current-scene
-read model; and (increment 5) the living-scene and accessible NPC-dialogue UI —
+read model; (increment 5) the living-scene and accessible NPC-dialogue UI —
 the atmosphere/time banner, present-NPC panel, dialogue modal, and activity
-feed on the location hub, with a Playwright walk-through. Still to come: dynamic
-scene variants; Content Studio living-world editors; and a fuller representative
-seed (more named NPCs and authored dialogues).
+feed on the location hub, with a Playwright walk-through — plus player presence
+in the scene; and (increment 6) dynamic scene variants: authored flavor lines
+chosen server-side from the current segment, weather, and active events, shown
+on the scene banner. Still to come: Content Studio living-world editors
+(including a `SCENE_VARIANT` content type) and a fuller representative seed
+(more named NPCs and authored dialogues).
 
 ## Phase 24 — Repeatable Activities and Economy Loop Expansion (2026-07-19)
 
