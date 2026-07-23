@@ -17,10 +17,11 @@ async function registerAndCreate(page: Page, tag: string, unique: string) {
 }
 
 async function startTravelToMarket(page: Page, nav: ReturnType<Page['getByRole']>) {
-  await nav.getByRole('link', { name: 'Travel' }).click();
-  await expect(page.getByText('Crownfall Market District', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Set out' }).first().click();
-  await expect(page.getByRole('progressbar')).toBeVisible();
+  await nav.getByRole('link', { name: 'Location' }).click();
+  const roads = page.getByRole('region', { name: 'Roads from here' });
+  await expect(roads.getByText('Crownfall Market District', { exact: true })).toBeVisible();
+  await roads.getByRole('button', { name: 'Set out' }).first().click();
+  await expect(page.getByRole('progressbar').first()).toBeVisible();
 }
 
 test('a seller lists goods and another player buys them locally', async ({ browser }) => {
