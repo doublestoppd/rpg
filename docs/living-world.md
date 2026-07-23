@@ -84,6 +84,14 @@ and shops. Availability is computed server-side.
   with its availability for the caller (`PRESENT`, `OFF_SCHEDULE`, `ELSEWHERE`)
   and its schedule segments. A `RETIRED` NPC is never offered for a new
   interaction (404) but its row and any historical records remain.
+- **Seeded cast** — the world ships with a representative population: 20+ named
+  NPCs and 23 placements spread across every region, with schedule variety
+  (dawn-only scholars, night-watch guards, an all-hours mine cook) and a
+  relocating traveler. Most carry an authored dialogue (17 trees in all); a few
+  are deliberately silent ambient figures. `seed-living-world.test.ts` asserts
+  these invariants as pure-data checks — representative counts, resolving
+  placements and dialogue keys, and sound dialogue graphs — so a future seed
+  edit that strands a reference fails fast, without a database.
 
 ### Service-availability validation
 
