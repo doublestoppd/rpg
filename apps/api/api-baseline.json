@@ -14078,7 +14078,8 @@
                               "NPC_PLACEMENT",
                               "DIALOGUE",
                               "NARRATIVE_FLAG",
-                              "WORLD_EVENT"
+                              "WORLD_EVENT",
+                              "SCENE_VARIANT"
                             ]
                           },
                           "key": {
@@ -14176,7 +14177,8 @@
                                   "NPC_PLACEMENT",
                                   "DIALOGUE",
                                   "NARRATIVE_FLAG",
-                                  "WORLD_EVENT"
+                                  "WORLD_EVENT",
+                                  "SCENE_VARIANT"
                                 ]
                               },
                               "key": {
@@ -14221,7 +14223,8 @@
                               "NPC_PLACEMENT",
                               "DIALOGUE",
                               "NARRATIVE_FLAG",
-                              "WORLD_EVENT"
+                              "WORLD_EVENT",
+                              "SCENE_VARIANT"
                             ]
                           },
                           "fromKey": {
@@ -14248,7 +14251,8 @@
                               "NPC_PLACEMENT",
                               "DIALOGUE",
                               "NARRATIVE_FLAG",
-                              "WORLD_EVENT"
+                              "WORLD_EVENT",
+                              "SCENE_VARIANT"
                             ]
                           },
                           "toKey": {
@@ -14325,7 +14329,8 @@
                               "NPC_PLACEMENT",
                               "DIALOGUE",
                               "NARRATIVE_FLAG",
-                              "WORLD_EVENT"
+                              "WORLD_EVENT",
+                              "SCENE_VARIANT"
                             ]
                           },
                           "key": {
@@ -14389,7 +14394,8 @@
                 "NPC_PLACEMENT",
                 "DIALOGUE",
                 "NARRATIVE_FLAG",
-                "WORLD_EVENT"
+                "WORLD_EVENT",
+                "SCENE_VARIANT"
               ]
             },
             "in": "path",
@@ -14436,7 +14442,8 @@
                         "NPC_PLACEMENT",
                         "DIALOGUE",
                         "NARRATIVE_FLAG",
-                        "WORLD_EVENT"
+                        "WORLD_EVENT",
+                        "SCENE_VARIANT"
                       ]
                     },
                     "key": {
@@ -14518,7 +14525,8 @@
                 "NPC_PLACEMENT",
                 "DIALOGUE",
                 "NARRATIVE_FLAG",
-                "WORLD_EVENT"
+                "WORLD_EVENT",
+                "SCENE_VARIANT"
               ]
             },
             "in": "path",
@@ -14565,7 +14573,8 @@
                         "NPC_PLACEMENT",
                         "DIALOGUE",
                         "NARRATIVE_FLAG",
-                        "WORLD_EVENT"
+                        "WORLD_EVENT",
+                        "SCENE_VARIANT"
                       ]
                     },
                     "key": {
@@ -14630,7 +14639,8 @@
                 "NPC_PLACEMENT",
                 "DIALOGUE",
                 "NARRATIVE_FLAG",
-                "WORLD_EVENT"
+                "WORLD_EVENT",
+                "SCENE_VARIANT"
               ]
             },
             "in": "path",
@@ -14706,7 +14716,8 @@
                 "NPC_PLACEMENT",
                 "DIALOGUE",
                 "NARRATIVE_FLAG",
-                "WORLD_EVENT"
+                "WORLD_EVENT",
+                "SCENE_VARIANT"
               ]
             },
             "in": "path",
@@ -14753,7 +14764,8 @@
                         "NPC_PLACEMENT",
                         "DIALOGUE",
                         "NARRATIVE_FLAG",
-                        "WORLD_EVENT"
+                        "WORLD_EVENT",
+                        "SCENE_VARIANT"
                       ]
                     },
                     "key": {
@@ -14787,7 +14799,8 @@
                               "NPC_PLACEMENT",
                               "DIALOGUE",
                               "NARRATIVE_FLAG",
-                              "WORLD_EVENT"
+                              "WORLD_EVENT",
+                              "SCENE_VARIANT"
                             ]
                           },
                           "key": {
@@ -14847,7 +14860,8 @@
                 "NPC_PLACEMENT",
                 "DIALOGUE",
                 "NARRATIVE_FLAG",
-                "WORLD_EVENT"
+                "WORLD_EVENT",
+                "SCENE_VARIANT"
               ]
             },
             "in": "path",
@@ -14894,7 +14908,8 @@
                         "NPC_PLACEMENT",
                         "DIALOGUE",
                         "NARRATIVE_FLAG",
-                        "WORLD_EVENT"
+                        "WORLD_EVENT",
+                        "SCENE_VARIANT"
                       ]
                     },
                     "key": {
@@ -14932,7 +14947,8 @@
                               "NPC_PLACEMENT",
                               "DIALOGUE",
                               "NARRATIVE_FLAG",
-                              "WORLD_EVENT"
+                              "WORLD_EVENT",
+                              "SCENE_VARIANT"
                             ]
                           },
                           "key": {

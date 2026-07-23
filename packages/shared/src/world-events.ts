@@ -2,7 +2,11 @@ import { z } from 'zod';
 
 import { locationFeatureSchema, locationSchema } from './location.js';
 import { npcInfoSchema } from './npcs-world.js';
-import { atmosphereResponseSchema, worldTimeSegmentSchema } from './world-sim.js';
+import {
+  atmosphereResponseSchema,
+  weatherTypeSchema,
+  worldTimeSegmentSchema,
+} from './world-sim.js';
 
 /**
  * World events, the local activity feed, and the coherent current-scene read
@@ -61,6 +65,21 @@ export const worldEventDefinitionPayloadSchema = z.object({
   sceneDescriptionKey: z.string().min(1).nullable(),
 });
 export type WorldEventDefinitionPayload = z.infer<typeof worldEventDefinitionPayloadSchema>;
+
+/**
+ * Versioned scene-variant definition payload (content type SCENE_VARIANT).
+ * Optional conditions; a null field matches anything. Presentation only.
+ */
+export const sceneVariantDefinitionPayloadSchema = z.object({
+  key: z.string().min(1),
+  locationSlug: z.string().min(1),
+  priority: z.number().int(),
+  segment: worldTimeSegmentSchema.nullable(),
+  weather: weatherTypeSchema.nullable(),
+  eventType: worldEventTypeSchema.nullable(),
+  narration: z.string().min(1),
+});
+export type SceneVariantDefinitionPayload = z.infer<typeof sceneVariantDefinitionPayloadSchema>;
 
 // --- local activity ---------------------------------------------------------
 

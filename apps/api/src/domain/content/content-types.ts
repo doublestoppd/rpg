@@ -5,6 +5,7 @@ import {
   equipmentSlotSchema,
   itemCategorySchema,
   narrativeFlagPayloadSchema,
+  sceneVariantDefinitionPayloadSchema,
   worldEventDefinitionPayloadSchema,
 } from '@rpg/shared';
 import { z } from 'zod';
@@ -798,6 +799,27 @@ export const CONTENT_TYPE_SPECS: ContentTypeSpec[] = [
     // A location-scoped event references that location; region-only events do not.
     dependencies: (p) =>
       typeof p['locationSlug'] === 'string' ? [{ type: 'LOCATION', key: p['locationSlug'] }] : [],
+  },
+  {
+    type: 'SCENE_VARIANT',
+    payloadSchema: sceneVariantDefinitionPayloadSchema,
+    async exportAll(prisma) {
+      const rows = await prisma.sceneVariantDefinition.findMany({ orderBy: { key: 'asc' } });
+      return rows.map((r) => ({
+        key: r.key,
+        payload: {
+          key: r.key,
+          locationSlug: r.locationSlug,
+          priority: r.priority,
+          segment: r.segment,
+          weather: r.weather,
+          eventType: r.eventType,
+          narration: r.narration,
+        },
+      }));
+    },
+    // Every scene variant is scoped to exactly one location.
+    dependencies: (p) => [{ type: 'LOCATION', key: String(p['locationSlug']) }],
   },
 ];
 

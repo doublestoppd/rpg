@@ -1816,6 +1816,7 @@ enum ContentType {
   DIALOGUE
   NARRATIVE_FLAG
   WORLD_EVENT
+  SCENE_VARIANT
 }
 
 /// One content definition within a release: a stable key, a revision number,

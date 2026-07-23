@@ -470,6 +470,24 @@ const APPLIERS: Record<ContentType, Applier> = {
       });
     }
   },
+  SCENE_VARIANT: async (tx, payloads) => {
+    for (const p of payloads) {
+      const data = {
+        locationSlug: str(p['locationSlug']),
+        priority: int(p['priority']),
+        segment: p['segment'] == null ? null : str(p['segment']),
+        weather: p['weather'] == null ? null : str(p['weather']),
+        eventType: p['eventType'] == null ? null : str(p['eventType']),
+        narration: str(p['narration']),
+        status: 'PUBLISHED',
+      };
+      await tx.sceneVariantDefinition.upsert({
+        where: { key: str(p['key']) },
+        create: { key: str(p['key']), ...data },
+        update: data,
+      });
+    }
+  },
 };
 
 /**

@@ -64,6 +64,28 @@ function item(slug: string, over: Record<string, unknown> = {}): ContentDefiniti
   };
 }
 
+function sceneVariant(
+  key: string,
+  locationSlug: string,
+  over: Record<string, unknown> = {},
+): ContentDefinitionEntry {
+  return {
+    type: 'SCENE_VARIANT',
+    key,
+    revision: 1,
+    payload: {
+      key,
+      locationSlug,
+      priority: 10,
+      segment: null,
+      weather: null,
+      eventType: null,
+      narration: 'The square is quiet.',
+      ...over,
+    },
+  };
+}
+
 function bundle(...definitions: ContentDefinitionEntry[]): ContentBundle {
   return {
     formatVersion: 1,
@@ -169,6 +191,16 @@ describe('validateBundle', () => {
 
   it('rejects a route to an unpublished location', () => {
     const b = bundle(route('crownfall-city', 'nowhere'));
+    expect(codes(b)).toContain('UNRESOLVED_REFERENCE');
+  });
+
+  it('accepts a scene variant that targets a published location', () => {
+    const b = bundle(sceneVariant('crownfall-city-day', 'crownfall-city'));
+    expect(codes(b)).toEqual([]);
+  });
+
+  it('rejects a scene variant that targets an unpublished location', () => {
+    const b = bundle(sceneVariant('nowhere-day', 'nowhere'));
     expect(codes(b)).toContain('UNRESOLVED_REFERENCE');
   });
 
