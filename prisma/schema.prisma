@@ -221,6 +221,11 @@ model Location {
   /// Safe locations allow marketplace browsing (Phase 9) and host no combat.
   isSafe      Boolean
 
+  /// Map coordinates on the abstract world canvas (unitless; larger x is east,
+  /// larger y is south). Drives the world-map layout and future map art.
+  mapX Int @default(0)
+  mapY Int @default(0)
+
   features    LocationFeature[]
   routesFrom  TravelRoute[]     @relation("RouteFrom")
   routesTo    TravelRoute[]     @relation("RouteTo")

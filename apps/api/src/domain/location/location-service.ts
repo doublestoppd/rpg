@@ -155,7 +155,14 @@ export function createLocationService(
         ? (locations.find((l) => l.id === fresh.currentLocationId)?.slug ?? null)
         : null;
       return {
-        locations: locations.map(toLocationInfo),
+        locations: locations.map((l) => ({
+          slug: l.slug,
+          name: l.name,
+          region: l.region,
+          isSafe: l.isSafe,
+          x: l.mapX,
+          y: l.mapY,
+        })),
         edges: routes.map((route) => ({
           fromSlug: route.fromLocation.slug,
           toSlug: route.toLocation.slug,

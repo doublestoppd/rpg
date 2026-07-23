@@ -1,16 +1,13 @@
 import type { WorldMapResponse } from '@rpg/shared';
+import { useCallback, useEffect, useRef } from 'react';
 import { Navigate } from 'react-router-dom';
 
+import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ErrorState } from '../components/ui/ErrorState';
 import { LoadingState } from '../components/ui/LoadingState';
 import { useCharacter } from '../features/character/useCharacter';
 import { useWorldMap } from '../features/location/useLocation';
-
-const COL_W = 240;
-const ROW_H = 110;
-const PAD = 60;
-const NODE_R = 10;
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -23,136 +20,225 @@ function formatSeconds(total: number): string {
   return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`;
 }
 
-interface Placed {
-  slug: string;
-  name: string;
-  region: string;
-  isSafe: boolean;
-  x: number;
-  y: number;
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 3;
+const NODE_R = 9;
+
+interface View {
+  scale: number;
+  offsetX: number;
+  offsetY: number;
 }
 
 /**
- * Lays locations out in one column per region (in first-seen order), stacked by
- * first-seen order within the region. It needs no stored coordinates — the
- * topology alone gives a stable, readable schematic.
+ * A pan/zoom world map rendered to a <canvas>. Locations are drawn at their
+ * authored coordinates (so a road between two places is a straight line that
+ * never implies a third place sits between them), and the caller's current
+ * location is ringed. The canvas is the groundwork for real map art later — a
+ * background image would simply be drawn under the same transform. An
+ * equivalent accessible adjacency list lives below for keyboard/screen-reader
+ * users.
  */
-function layout(map: WorldMapResponse): { placed: Placed[]; width: number; height: number } {
-  const regions: string[] = [];
-  const rowByRegion = new Map<string, number>();
-  const placed: Placed[] = [];
+function WorldMapCanvas({ map }: { map: WorldMapResponse }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const view = useRef<View>({ scale: 1, offsetX: 0, offsetY: 0 });
+  const drag = useRef<{ x: number; y: number } | null>(null);
+  const fitted = useRef(false);
 
-  for (const loc of map.locations) {
-    if (!regions.includes(loc.region)) regions.push(loc.region);
-    const col = regions.indexOf(loc.region);
-    const row = rowByRegion.get(loc.region) ?? 0;
-    rowByRegion.set(loc.region, row + 1);
-    placed.push({
-      slug: loc.slug,
-      name: loc.name,
-      region: loc.region,
-      isSafe: loc.isSafe,
-      x: PAD + col * COL_W,
-      y: PAD + row * ROW_H,
-    });
-  }
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  const maxRow = Math.max(1, ...[...rowByRegion.values()]);
-  return {
-    placed,
-    width: PAD * 2 + Math.max(0, regions.length - 1) * COL_W + 40,
-    height: PAD * 2 + (maxRow - 1) * ROW_H,
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth;
+    const cssH = canvas.clientHeight;
+    if (canvas.width !== cssW * dpr || canvas.height !== cssH * dpr) {
+      canvas.width = cssW * dpr;
+      canvas.height = cssH * dpr;
+    }
+
+    const dark =
+      document.documentElement.classList.contains('dark') ||
+      document.documentElement.getAttribute('data-theme') === 'dark' ||
+      window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const edgeColor = dark ? '#44403c' : '#d6d3d1';
+    const labelColor = dark ? '#e7e5e4' : '#292524';
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssW, cssH);
+
+    const { scale, offsetX, offsetY } = view.current;
+    const tx = (x: number) => x * scale + offsetX;
+    const ty = (y: number) => y * scale + offsetY;
+    const byslug = new Map(map.locations.map((n) => [n.slug, n]));
+
+    // Edges (dedupe undirected).
+    const seen = new Set<string>();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = edgeColor;
+    for (const edge of map.edges) {
+      const key = [edge.fromSlug, edge.toSlug].sort().join('|');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const a = byslug.get(edge.fromSlug);
+      const b = byslug.get(edge.toSlug);
+      if (!a || !b) continue;
+      ctx.beginPath();
+      ctx.moveTo(tx(a.x), ty(a.y));
+      ctx.lineTo(tx(b.x), ty(b.y));
+      ctx.stroke();
+    }
+
+    // Nodes.
+    ctx.font = '600 13px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (const node of map.locations) {
+      const cx = tx(node.x);
+      const cy = ty(node.y);
+      const here = node.slug === map.currentLocationSlug;
+      if (here) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, NODE_R + 5, 0, Math.PI * 2);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(cx, cy, NODE_R, 0, Math.PI * 2);
+      ctx.fillStyle = node.isSafe ? '#16a34a' : '#dc2626';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = dark ? '#1c1917' : '#ffffff';
+      ctx.stroke();
+
+      ctx.fillStyle = labelColor;
+      ctx.fillText(node.name, cx, cy - NODE_R - 8);
+      if (here) {
+        ctx.fillStyle = '#d97706';
+        ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+        ctx.fillText('You are here', cx, cy + NODE_R + 16);
+        ctx.font = '600 13px ui-sans-serif, system-ui, sans-serif';
+      }
+    }
+  }, [map]);
+
+  const fitToView = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || map.locations.length === 0) return;
+    const xs = map.locations.map((n) => n.x);
+    const ys = map.locations.map((n) => n.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const pad = 70;
+    const w = canvas.clientWidth - pad * 2;
+    const h = canvas.clientHeight - pad * 2;
+    const scale = Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, Math.min(w / (maxX - minX || 1), h / (maxY - minY || 1))),
+    );
+    view.current = {
+      scale,
+      offsetX: pad + (w - (maxX - minX) * scale) / 2 - minX * scale,
+      offsetY: pad + (h - (maxY - minY) * scale) / 2 - minY * scale,
+    };
+    draw();
+  }, [map, draw]);
+
+  useEffect(() => {
+    if (!fitted.current) {
+      fitToView();
+      fitted.current = true;
+    } else {
+      draw();
+    }
+    const onResize = () => draw();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [fitToView, draw]);
+
+  const zoomAt = (factor: number, px: number, py: number) => {
+    const v = view.current;
+    const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * factor));
+    const ratio = next / v.scale;
+    // Keep the point under the cursor stationary.
+    view.current = {
+      scale: next,
+      offsetX: px - (px - v.offsetX) * ratio,
+      offsetY: py - (py - v.offsetY) * ratio,
+    };
+    draw();
   };
-}
-
-function WorldMapDiagram({ map }: { map: WorldMapResponse }) {
-  const { placed, width, height } = layout(map);
-  const pos = new Map(placed.map((p) => [p.slug, p]));
-
-  // Dedupe the directed edges into undirected road segments.
-  const seen = new Set<string>();
-  const segments: { a: Placed; b: Placed }[] = [];
-  for (const edge of map.edges) {
-    const key = [edge.fromSlug, edge.toSlug].sort().join('|');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const a = pos.get(edge.fromSlug);
-    const b = pos.get(edge.toSlug);
-    if (a && b) segments.push({ a, b });
-  }
 
   return (
-    <div className="overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        width={width}
-        height={height}
+    <div className="relative">
+      <canvas
+        ref={canvasRef}
         role="img"
-        aria-label="World map showing locations and the roads between them"
-        className="max-w-full"
-      >
-        {segments.map(({ a, b }) => (
-          <line
-            key={`${a.slug}-${b.slug}`}
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-            className="stroke-stone-300 dark:stroke-stone-700"
-            strokeWidth={2}
-          />
-        ))}
-        {placed.map((node) => {
-          const here = node.slug === map.currentLocationSlug;
-          return (
-            <g key={node.slug}>
-              {here && (
-                <circle
-                  cx={node.x}
-                  cy={node.y}
-                  r={NODE_R + 6}
-                  className="fill-none stroke-amber-500"
-                  strokeWidth={3}
-                />
-              )}
-              <circle
-                cx={node.x}
-                cy={node.y}
-                r={NODE_R}
-                className={
-                  node.isSafe
-                    ? 'fill-green-600 stroke-white dark:stroke-stone-900'
-                    : 'fill-red-600 stroke-white dark:stroke-stone-900'
-                }
-                strokeWidth={2}
-              />
-              <text
-                x={node.x}
-                y={node.y - NODE_R - 8}
-                textAnchor="middle"
-                className="fill-stone-800 text-[13px] font-medium dark:fill-stone-100"
-              >
-                {node.name}
-              </text>
-              {here && (
-                <text
-                  x={node.x}
-                  y={node.y + NODE_R + 18}
-                  textAnchor="middle"
-                  className="fill-amber-700 text-[11px] font-semibold dark:fill-amber-400"
-                >
-                  You are here
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+        aria-label="World map showing locations and the roads between them; drag to pan, scroll to zoom"
+        className="h-[26rem] w-full touch-none rounded-md bg-stone-50 dark:bg-stone-950"
+        onPointerDown={(e) => {
+          (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+          drag.current = { x: e.clientX, y: e.clientY };
+        }}
+        onPointerMove={(e) => {
+          if (!drag.current) return;
+          view.current.offsetX += e.clientX - drag.current.x;
+          view.current.offsetY += e.clientY - drag.current.y;
+          drag.current = { x: e.clientX, y: e.clientY };
+          draw();
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+        }}
+        onPointerLeave={() => {
+          drag.current = null;
+        }}
+        onWheel={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          zoomAt(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
+        }}
+      />
+      <div className="absolute right-2 top-2 flex flex-col gap-1">
+        <Button
+          variant="secondary"
+          className="px-2 py-1"
+          aria-label="Zoom in"
+          onClick={() => {
+            const c = canvasRef.current;
+            if (c) zoomAt(1.2, c.clientWidth / 2, c.clientHeight / 2);
+          }}
+        >
+          +
+        </Button>
+        <Button
+          variant="secondary"
+          className="px-2 py-1"
+          aria-label="Zoom out"
+          onClick={() => {
+            const c = canvasRef.current;
+            if (c) zoomAt(1 / 1.2, c.clientWidth / 2, c.clientHeight / 2);
+          }}
+        >
+          −
+        </Button>
+        <Button
+          variant="secondary"
+          className="px-2 py-1 text-xs"
+          aria-label="Reset view"
+          onClick={fitToView}
+        >
+          ⟲
+        </Button>
+      </div>
     </div>
   );
 }
 
-/** Region-grouped adjacency list: the accessible, text equivalent of the diagram. */
+/** Region-grouped adjacency list: the accessible, text equivalent of the map. */
 function AdjacencyList({ map }: { map: WorldMapResponse }) {
   const neighbors = new Map<string, { name: string; seconds: number }[]>();
   const nameBySlug = new Map(map.locations.map((l) => [l.slug, l.name]));
@@ -188,7 +274,7 @@ function AdjacencyList({ map }: { map: WorldMapResponse }) {
                       </span>
                     )}
                   </div>
-                  <ul className="mt-1 ml-4 text-xs text-stone-500 dark:text-stone-400">
+                  <ul className="ml-4 mt-1 text-xs text-stone-500 dark:text-stone-400">
                     {(neighbors.get(loc.slug) ?? []).map((n) => (
                       <li key={n.name}>
                         → {n.name} ({formatSeconds(n.seconds)})
@@ -221,13 +307,13 @@ export function MapPage() {
         </h1>
         <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
           Every known place and the roads between them. Green marks a safe haven; red marks
-          dangerous ground. You can only set out for a directly connected place from where you
-          stand.
+          dangerous ground. Drag to pan and scroll to zoom. You can only set out for a directly
+          connected place from where you stand.
         </p>
       </div>
 
-      <Card>
-        <WorldMapDiagram map={map.data} />
+      <Card className="p-2">
+        <WorldMapCanvas map={map.data} />
       </Card>
 
       <AdjacencyList map={map.data} />

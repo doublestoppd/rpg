@@ -66,13 +66,26 @@ export const worldMapEdgeSchema = z.object({
 });
 export type WorldMapEdge = z.infer<typeof worldMapEdgeSchema>;
 
+/** A location as a positioned node on the world-map canvas. */
+export const worldMapNodeSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  region: z.string(),
+  isSafe: z.boolean(),
+  /** Canvas coordinates (unitless; larger x is east, larger y is south). */
+  x: z.number().int(),
+  y: z.number().int(),
+});
+export type WorldMapNode = z.infer<typeof worldMapNodeSchema>;
+
 /**
- * The whole navigable world topology: every location and every road between
- * them, plus the caller's current location (null while traveling). Read-only
- * public geography — it carries no per-player state beyond that pointer.
+ * The whole navigable world topology: every location (positioned) and every
+ * road between them, plus the caller's current location (null while traveling).
+ * Read-only public geography — it carries no per-player state beyond that
+ * pointer.
  */
 export const worldMapResponseSchema = z.object({
-  locations: z.array(locationSchema),
+  locations: z.array(worldMapNodeSchema),
   edges: z.array(worldMapEdgeSchema),
   currentLocationSlug: z.string().nullable(),
 });

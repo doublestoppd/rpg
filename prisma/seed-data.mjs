@@ -86,6 +86,8 @@ export const LOCATIONS = [
     region: 'crownfall',
     artworkKey: 'crownfall-city',
     isSafe: true,
+    mapX: 500,
+    mapY: 800,
     description:
       'The old capital, ringed by pale stone walls and crowned by the Fallen Keep. Travelers rest at the Crownfall Inn, and the museum guards the relics of the region.',
   },
@@ -95,6 +97,8 @@ export const LOCATIONS = [
     region: 'crownfall',
     artworkKey: 'crownfall-market-district',
     isSafe: true,
+    mapX: 350,
+    mapY: 900,
     description:
       'A maze of awnings, stalls, and clanging workshops. The Crownfall Forge burns day and night beside the general goods counters and the great marketplace boards.',
   },
@@ -104,6 +108,8 @@ export const LOCATIONS = [
     region: 'crownfall',
     artworkKey: 'crownfall-harbor',
     isSafe: true,
+    mapX: 650,
+    mapY: 900,
     description:
       'Salt wind, creaking piers, and cargo from distant coasts. Harbor folk trade in specialty imports when the ships come in.',
   },
@@ -113,6 +119,8 @@ export const LOCATIONS = [
     region: 'northmarch',
     artworkKey: 'north-road',
     isSafe: false,
+    mapX: 500,
+    mapY: 600,
     description:
       'The rutted trade road out of Crownfall. Merchants move in convoys here — bandits watch the hedgerows for stragglers.',
   },
@@ -122,6 +130,8 @@ export const LOCATIONS = [
     region: 'northmarch',
     artworkKey: 'greenmeadow-village',
     isSafe: true,
+    mapX: 350,
+    mapY: 420,
     description:
       'Thatched roofs, herb gardens, and pastures at the crossroads. Food and herbs are plentiful; forged goods must be carted in at a premium.',
   },
@@ -131,6 +141,8 @@ export const LOCATIONS = [
     region: 'deepvale',
     artworkKey: 'ironroot-mine',
     isSafe: false,
+    mapX: 500,
+    mapY: 220,
     description:
       'Timber-braced shafts sunk beneath the Ironroot hills. Copper seams, iron veins, and stranger pockets — and things that skitter in the dark.',
   },
@@ -140,6 +152,8 @@ export const LOCATIONS = [
     region: 'deepvale',
     artworkKey: 'silvermere-lake',
     isSafe: true,
+    mapX: 200,
+    mapY: 260,
     description:
       'A cold, mirror-still lake famed for its silver-scaled fish. Lakefolk sell the morning catch cheap.',
   },
@@ -149,6 +163,8 @@ export const LOCATIONS = [
     region: 'northmarch',
     artworkKey: 'blackwood-forest',
     isSafe: false,
+    mapX: 650,
+    mapY: 420,
     description:
       'Old-growth dark and dense enough to swallow lantern light. Slimes pool in the hollows and wolves keep the paths.',
   },
