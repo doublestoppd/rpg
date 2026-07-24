@@ -539,3 +539,48 @@ describe('defeat', () => {
     expect(fees[0]!.amount).toBe(-3n);
   });
 });
+
+describe('party — summoned allies', () => {
+  it('a summon item conjures a persistent player-side ally', async () => {
+    const { auth, characterId } = await setupFighter();
+    const totem = await prisma.itemDefinition.findUniqueOrThrow({
+      where: { slug: 'spirit-wolf-totem' },
+    });
+    await prisma.inventoryStack.create({
+      data: { characterId, itemDefinitionId: totem.id, quantity: 2 },
+    });
+
+    const view = await startSlimes(auth);
+    expect(view.usableItems.some((i) => i.slug === 'spirit-wolf-totem')).toBe(true);
+
+    const res = await command(auth, view.id, {
+      action: 'ITEM',
+      itemSlug: 'spirit-wolf-totem',
+      idempotencyKey: 'summon-1',
+      expectedVersion: view.version,
+    });
+    expect(res.statusCode).toBe(200);
+    const after = res.json<{
+      allies: Array<{ name: string; kind: string; hp: number }>;
+      log: string[];
+    }>();
+    expect(after.allies).toHaveLength(1);
+    expect(after.allies[0]!.kind).toBe('ALLY');
+    expect(after.allies[0]!.name).toBe('Spirit Wolf');
+    expect(after.log.some((l) => l.includes('joins the fray'))).toBe(true);
+
+    // The totem was consumed from the stack.
+    const stack = await prisma.inventoryStack.findFirstOrThrow({
+      where: { characterId, itemDefinitionId: totem.id },
+    });
+    expect(stack.quantity).toBe(1);
+
+    // The ally persisted: a fresh read still shows it (and a stored AI table).
+    const fresh = (await getCombat(auth, view.id)).json<{ allies: Array<{ name: string }> }>();
+    expect(fresh.allies.map((a) => a.name)).toContain('Spirit Wolf');
+    const allyRow = await prisma.combatantState.findFirstOrThrow({
+      where: { combatId: view.id, kind: 'ALLY' },
+    });
+    expect(allyRow.aiActions).not.toBeNull();
+  });
+});

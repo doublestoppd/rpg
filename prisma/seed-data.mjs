@@ -365,6 +365,28 @@ export const ITEM_DEFINITIONS = [
     baseValue: 6n,
     description: 'Hard bread, dried fish, and a strip of salted meat. Restores 15 HP.',
   },
+  {
+    slug: 'spirit-wolf-totem',
+    name: 'Spirit Wolf Totem',
+    category: 'CONSUMABLE',
+    stackable: true,
+    maxStackQuantity: 10,
+    usableInCombat: true,
+    baseValue: 90n,
+    description:
+      'A carved bone charm. Shattered in battle, it summons a swift Spirit Wolf to fight at your side.',
+  },
+  {
+    slug: 'stone-sentinel-idol',
+    name: 'Stone Sentinel Idol',
+    category: 'CONSUMABLE',
+    stackable: true,
+    maxStackQuantity: 10,
+    usableInCombat: true,
+    baseValue: 140n,
+    description:
+      'A palm-sized granite figure. Broken open, it raises a hardy Stone Sentinel to draw enemy blows.',
+  },
 
   // --- Equipment (6) ---
   {
@@ -629,6 +651,20 @@ export const NPC_SHOPS = [
           weight: 8,
           minQuantity: 2,
           maxQuantity: 4,
+          perCharacterLimit: 2,
+        },
+        {
+          itemSlug: 'spirit-wolf-totem',
+          weight: 6,
+          minQuantity: 1,
+          maxQuantity: 2,
+          perCharacterLimit: 2,
+        },
+        {
+          itemSlug: 'stone-sentinel-idol',
+          weight: 4,
+          minQuantity: 1,
+          maxQuantity: 2,
           perCharacterLimit: 2,
         },
       ],

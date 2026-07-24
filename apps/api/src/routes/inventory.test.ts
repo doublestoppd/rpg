@@ -102,15 +102,16 @@ function unequip(auth: { cookie: string; csrf: string }, slot: string) {
 }
 
 describe('item catalog', () => {
-  it('seeds the 25-item coherent catalog with required category counts', async () => {
+  it('seeds the coherent catalog with required category counts', async () => {
     const items = await prisma.itemDefinition.findMany();
-    expect(items).toHaveLength(25);
+    expect(items).toHaveLength(27);
     const byCategory = new Map<string, number>();
     for (const item of items) {
       byCategory.set(item.category, (byCategory.get(item.category) ?? 0) + 1);
     }
     expect(byCategory.get('RESOURCE')).toBe(5);
-    expect(byCategory.get('CONSUMABLE')).toBe(4);
+    // Four restoratives plus the two combat summon totems (party combat).
+    expect(byCategory.get('CONSUMABLE')).toBe(6);
     expect(byCategory.get('EQUIPMENT')).toBe(6);
     expect(byCategory.get('CRAFTING_COMPONENT')).toBe(3);
     expect(byCategory.get('COLLECTIBLE')).toBe(3);

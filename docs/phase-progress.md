@@ -3,6 +3,54 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Improvement Phase 3 — Party Combat: Summonable AI Allies (2026-07-24)
+
+**Status: complete.** Turns solo menu-combat into team tactics. The combat
+engine has always modeled multiple combatant slots and front/back rows, but with
+a lone hero those systems were inert. Now you can summon **allies** — player-side
+combatants that fight automatically — so rows, area attacks, and the enemy target
+pool finally matter.
+
+### Engine (deterministic, unchanged for solo fights)
+
+- A third combatant kind, `ALLY`: a player-side fighter that acts under the same
+  AI as enemies but strikes the enemy line. The single human-commanded hero stays
+  `PLAYER`.
+- Enemy AI now targets a random member of the **living player side** (hero +
+  allies) rather than always the hero; ally AI targets the living enemies. Target
+  selection **draws no PRNG when there is a single candidate**, so every existing
+  solo combat — and its seeded, replayable RNG stream — is byte-for-byte
+  unchanged (all prior combat tests pass untouched).
+- `runUntilPlayerCommand` auto-resolves ally turns and pauses only for the hero.
+  Defeat is still the hero falling (allies are expendable); victory still needs
+  every enemy down.
+- A `SUMMON` command appends a caller-built ally to the fray.
+
+### Summoning, persistence, and content
+
+- Summoning is driven by consumable items: using one in battle conjures the ally
+  its slug maps to (`config/allies.ts` — fixed-stat templates authored as data,
+  like enemies) instead of healing. Two ship: the swift **Spirit Wolf** (Spirit
+  Wolf Totem) and the tanky, foe-slowing **Stone Sentinel** (Stone Sentinel Idol),
+  sold at Crownfall General Goods.
+- A summoned ally is materialized as a `CombatantState` row mid-battle:
+  `CombatantKind` gains `ALLY` and the table gains an `aiActions` JSON column so an
+  ally (which has no `EnemyDefinition`) carries its own AI. Persistence is now an
+  upsert, so a combatant that appears mid-fight is inserted in full and re-read on
+  every later turn. Migration `20260724130000_party_combat_allies`.
+- `CombatView` gains an `allies` array (and the combatant `kind` enum gains
+  `ALLY`); the web combat screen renders an allies section with live HP/gauge, and
+  summon totems appear in the existing in-combat item menu. OpenAPI baseline
+  regenerated (additive).
+
+### Tests
+
+Engine party suite (summon adds an acting ally; enemies can strike an ally and
+spare the hero; defeat is the hero falling even with a living ally; a fallen ally
+never ends the fight) plus a combat integration test (a totem conjures a
+persistent Spirit Wolf, consumes the item, and stores the ally's AI). All
+pre-existing combat tests pass unmodified.
+
 ## Improvement Phase 2 — Itemization: Equipment Rarity & Rolled Affixes (2026-07-24)
 
 **Status: complete.** Makes combat rewards matter and gives the economy real

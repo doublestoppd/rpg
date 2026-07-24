@@ -904,6 +904,7 @@ model Combat {
 enum CombatantKind {
   PLAYER
   ENEMY
+  ALLY
 }
 
 enum CombatRow {
@@ -946,6 +947,11 @@ model CombatantState {
 
   /// Element → damage-taken multiplier bps (players are all-neutral).
   affinities Json
+
+  /// AI action table for autonomous combatants. Enemies hydrate this from their
+  /// EnemyDefinition; summoned ALLY combatants persist it here (Phase: party
+  /// combat) since they have no definition row.
+  aiActions Json?
 
   statusEffects CombatStatusEffect[]
 

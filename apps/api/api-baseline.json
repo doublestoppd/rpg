@@ -7644,7 +7644,7 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": ["PLAYER", "ENEMY"]
+                          "enum": ["PLAYER", "ENEMY", "ALLY"]
                         },
                         "name": {
                           "type": "string"
@@ -7742,7 +7742,106 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": ["PLAYER", "ENEMY"]
+                            "enum": ["PLAYER", "ENEMY", "ALLY"]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "row": {
+                            "type": "string",
+                            "enum": ["FRONT", "BACK"]
+                          },
+                          "hp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "maxHp": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "mp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "maxMp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "gauge": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "statuses": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "POISON",
+                                    "BLIND",
+                                    "SILENCE",
+                                    "SLOW",
+                                    "HASTE",
+                                    "GUARD",
+                                    "STUN",
+                                    "ARMOR_BREAK"
+                                  ]
+                                },
+                                "magnitude": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "remainingTurns": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": ["type", "magnitude", "remainingTurns"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "defeated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "row",
+                          "hp",
+                          "maxHp",
+                          "mp",
+                          "maxMp",
+                          "gauge",
+                          "statuses",
+                          "defeated"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "allies": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PLAYER", "ENEMY", "ALLY"]
                           },
                           "name": {
                             "type": "string"
@@ -7997,6 +8096,7 @@
                     "encounter",
                     "player",
                     "enemies",
+                    "allies",
                     "awaitingCommand",
                     "abilities",
                     "usableItems",
@@ -8079,7 +8179,7 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": ["PLAYER", "ENEMY"]
+                          "enum": ["PLAYER", "ENEMY", "ALLY"]
                         },
                         "name": {
                           "type": "string"
@@ -8177,7 +8277,106 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": ["PLAYER", "ENEMY"]
+                            "enum": ["PLAYER", "ENEMY", "ALLY"]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "row": {
+                            "type": "string",
+                            "enum": ["FRONT", "BACK"]
+                          },
+                          "hp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "maxHp": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "mp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "maxMp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "gauge": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "statuses": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "POISON",
+                                    "BLIND",
+                                    "SILENCE",
+                                    "SLOW",
+                                    "HASTE",
+                                    "GUARD",
+                                    "STUN",
+                                    "ARMOR_BREAK"
+                                  ]
+                                },
+                                "magnitude": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "remainingTurns": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": ["type", "magnitude", "remainingTurns"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "defeated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "row",
+                          "hp",
+                          "maxHp",
+                          "mp",
+                          "maxMp",
+                          "gauge",
+                          "statuses",
+                          "defeated"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "allies": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PLAYER", "ENEMY", "ALLY"]
                           },
                           "name": {
                             "type": "string"
@@ -8432,6 +8631,7 @@
                     "encounter",
                     "player",
                     "enemies",
+                    "allies",
                     "awaitingCommand",
                     "abilities",
                     "usableItems",
@@ -8553,7 +8753,7 @@
                         },
                         "kind": {
                           "type": "string",
-                          "enum": ["PLAYER", "ENEMY"]
+                          "enum": ["PLAYER", "ENEMY", "ALLY"]
                         },
                         "name": {
                           "type": "string"
@@ -8651,7 +8851,106 @@
                           },
                           "kind": {
                             "type": "string",
-                            "enum": ["PLAYER", "ENEMY"]
+                            "enum": ["PLAYER", "ENEMY", "ALLY"]
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "row": {
+                            "type": "string",
+                            "enum": ["FRONT", "BACK"]
+                          },
+                          "hp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "maxHp": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "mp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "maxMp": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "gauge": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 100
+                          },
+                          "statuses": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "POISON",
+                                    "BLIND",
+                                    "SILENCE",
+                                    "SLOW",
+                                    "HASTE",
+                                    "GUARD",
+                                    "STUN",
+                                    "ARMOR_BREAK"
+                                  ]
+                                },
+                                "magnitude": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "remainingTurns": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": ["type", "magnitude", "remainingTurns"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "defeated": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "row",
+                          "hp",
+                          "maxHp",
+                          "mp",
+                          "maxMp",
+                          "gauge",
+                          "statuses",
+                          "defeated"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "allies": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["PLAYER", "ENEMY", "ALLY"]
                           },
                           "name": {
                             "type": "string"
@@ -8906,6 +9205,7 @@
                     "encounter",
                     "player",
                     "enemies",
+                    "allies",
                     "awaitingCommand",
                     "abilities",
                     "usableItems",

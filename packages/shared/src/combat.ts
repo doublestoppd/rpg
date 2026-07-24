@@ -58,7 +58,7 @@ export type CombatStatusEffectInfo = z.infer<typeof combatStatusEffectSchema>;
 
 export const combatantViewSchema = z.object({
   id: z.uuid(),
-  kind: z.enum(['PLAYER', 'ENEMY']),
+  kind: z.enum(['PLAYER', 'ENEMY', 'ALLY']),
   name: z.string(),
   row: z.enum(['FRONT', 'BACK']),
   hp: z.number().int().min(0),
@@ -120,6 +120,8 @@ export const combatViewSchema = z.object({
   }),
   player: combatantViewSchema,
   enemies: z.array(combatantViewSchema),
+  /** Summoned player-side allies that fight automatically (may be empty). */
+  allies: z.array(combatantViewSchema),
   /** True while ACTIVE: the player is always paused at a command phase. */
   awaitingCommand: z.boolean(),
   abilities: z.array(combatAbilityInfoSchema),

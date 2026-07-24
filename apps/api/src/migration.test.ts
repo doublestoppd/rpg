@@ -68,7 +68,7 @@ describe('migrations and seed on a clean database', () => {
   it('has stable, expected seed counts after a double seed', async () => {
     expect(await countRow('SELECT COUNT(*)::int AS n FROM "Location"')).toBe(8);
     expect(await countRow('SELECT COUNT(*)::int AS n FROM "ChatChannel"')).toBe(9);
-    expect(await countRow('SELECT COUNT(*)::int AS n FROM "ItemDefinition"')).toBe(25);
+    expect(await countRow('SELECT COUNT(*)::int AS n FROM "ItemDefinition"')).toBe(27);
     expect(await countRow('SELECT COUNT(*)::int AS n FROM "CharacterClassDefinition"')).toBe(3);
     // No live player state is created by seeds.
     expect(await countRow('SELECT COUNT(*)::int AS n FROM "Character"')).toBe(0);

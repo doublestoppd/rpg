@@ -36,7 +36,11 @@ export interface EnemyAiAction {
 export interface EngineCombatant {
   id: string;
   slot: number;
-  kind: 'PLAYER' | 'ENEMY';
+  /**
+   * PLAYER is the single hero the human commands; ALLY is a PLAYER-side
+   * combatant that acts under AI toward the enemies; ENEMY is hostile.
+   */
+  kind: 'PLAYER' | 'ENEMY' | 'ALLY';
   name: string;
   row: 'FRONT' | 'BACK';
   ranged: boolean;
@@ -72,6 +76,7 @@ export type PlayerCommand =
   | { action: 'ATTACK'; targetId: string }
   | { action: 'ABILITY' | 'MAGIC'; ability: AbilityDefinition; targetId?: string }
   | { action: 'ITEM'; itemName: string; hpRestore: number; mpRestore: number }
+  | { action: 'SUMMON'; ally: EngineCombatant; summonName: string }
   | { action: 'DEFEND' }
   | { action: 'FLEE' };
 
@@ -137,6 +142,25 @@ export function player(state: EngineState): EngineCombatant {
 
 export function livingEnemies(state: EngineState): EngineCombatant[] {
   return state.combatants.filter((c) => c.kind === 'ENEMY' && c.hp > 0);
+}
+
+/** Living hero + allies — the side enemies attack. */
+export function livingPlayerSide(state: EngineState): EngineCombatant[] {
+  return state.combatants.filter((c) => (c.kind === 'PLAYER' || c.kind === 'ALLY') && c.hp > 0);
+}
+
+export function livingAllies(state: EngineState): EngineCombatant[] {
+  return state.combatants.filter((c) => c.kind === 'ALLY' && c.hp > 0);
+}
+
+/**
+ * Picks one target from a living pool. A single candidate never draws from the
+ * PRNG, so solo fights advance the RNG stream exactly as before allies existed.
+ */
+function pickTarget(rng: CombatRng, pool: EngineCombatant[]): EngineCombatant | undefined {
+  if (pool.length === 0) return undefined;
+  if (pool.length === 1) return pool[0];
+  return pool[rng.nextInt(0, pool.length - 1)];
 }
 
 /**
@@ -292,10 +316,21 @@ export function checkOutcome(state: EngineState): void {
   }
 }
 
-function enemyAct(state: EngineState, rng: CombatRng, enemy: EngineCombatant): void {
-  const target = player(state);
+/**
+ * One AI-driven turn for an enemy or ally. `foes` is the pool the actor may
+ * strike (the player side for enemies, the enemies for allies). Target choice
+ * draws no PRNG when there is a single foe, so solo fights are unchanged.
+ */
+function aiAct(
+  state: EngineState,
+  rng: CombatRng,
+  actor: EngineCombatant,
+  foes: EngineCombatant[],
+): void {
+  const target = pickTarget(rng, foes);
+  if (!target) return; // nothing to hit; combat would already be decided
   const fallback: EnemyAiAction = { kind: 'ATTACK', name: 'Strike', weight: 1 };
-  const actions: EnemyAiAction[] = enemy.aiActions ?? [fallback];
+  const actions: EnemyAiAction[] = actor.aiActions ?? [fallback];
   const total = actions.reduce((sum, a) => sum + a.weight, 0);
   let roll = rng.nextInt(1, total);
   let chosen: EnemyAiAction = actions[0]!;
@@ -306,9 +341,9 @@ function enemyAct(state: EngineState, rng: CombatRng, enemy: EngineCombatant): v
       break;
     }
   }
-  // A silenced enemy cannot cast; it falls back to a basic attack.
-  if (chosen.kind === 'SPELL' && getStatus(enemy, 'SILENCE')) {
-    state.log.push(`${enemy.name} is silenced and lashes out instead.`);
+  // A silenced combatant cannot cast; it falls back to a basic attack.
+  if (chosen.kind === 'SPELL' && getStatus(actor, 'SILENCE')) {
+    state.log.push(`${actor.name} is silenced and lashes out instead.`);
     chosen = fallback;
   }
 
@@ -319,24 +354,26 @@ function enemyAct(state: EngineState, rng: CombatRng, enemy: EngineCombatant): v
       remainingTurns: chosen.turns!,
     });
     state.log.push(
-      `${enemy.name} uses ${chosen.name} — you are afflicted by ${statusLabel(chosen.status!)}!`,
+      `${actor.name} uses ${chosen.name} — ${target.name} is afflicted by ` +
+        `${statusLabel(chosen.status!)}!`,
     );
     return;
   }
 
   const magical = chosen.kind === 'SPELL';
-  const result = rollDamage(rng, enemy, target, {
+  const result = rollDamage(rng, actor, target, {
     powerBps: chosen.powerBps ?? 10_000,
     element: chosen.element,
-    rangedAttack: enemy.ranged,
+    rangedAttack: actor.ranged,
     magical,
   });
   if (!result.hit) {
-    state.log.push(`${enemy.name} uses ${chosen.name} — it misses!`);
+    state.log.push(`${actor.name} uses ${chosen.name} on ${target.name} — it misses!`);
     return;
   }
   state.log.push(
-    `${enemy.name} uses ${chosen.name} for ${result.damage} damage.${affinityNote(result)}`,
+    `${actor.name} uses ${chosen.name} on ${target.name} for ${result.damage} damage.` +
+      affinityNote(result),
   );
   if (chosen.applies && result.damage > 0 && rng.chance(chosen.applies.chanceBps)) {
     applyStatus(target, {
@@ -344,9 +381,9 @@ function enemyAct(state: EngineState, rng: CombatRng, enemy: EngineCombatant): v
       magnitude: chosen.applies.magnitude,
       remainingTurns: chosen.applies.turns,
     });
-    state.log.push(`You are afflicted by ${statusLabel(chosen.applies.status)}!`);
+    state.log.push(`${target.name} is afflicted by ${statusLabel(chosen.applies.status)}!`);
   }
-  if (target.hp === 0) state.log.push('You crumple to the ground!');
+  if (target.hp === 0) state.log.push(`${target.name} is struck down!`);
 }
 
 /**
@@ -370,7 +407,9 @@ export function runUntilPlayerCommand(state: EngineState, rng: CombatRng): void 
     // Guard lasts until its holder's next turn begins.
     if (getStatus(next, 'GUARD')) removeStatus(next, 'GUARD');
     if (next.kind === 'PLAYER') return; // pause for command at full gauge
-    enemyAct(state, rng, next);
+    // Enemies strike the player side; allies act automatically against enemies.
+    if (next.kind === 'ALLY') aiAct(state, rng, next, livingEnemies(state));
+    else aiAct(state, rng, next, livingPlayerSide(state));
     next.gauge = 0;
     processPostAction(state, next);
     checkOutcome(state);
@@ -510,6 +549,15 @@ export function resolvePlayerCommand(
       state.log.push(
         `${self.name} uses ${command.itemName}` +
           (parts.length > 0 ? ` and recovers ${parts.join(' and ')}.` : ' — nothing happens.'),
+      );
+      break;
+    }
+    case 'SUMMON': {
+      // The ally is fully formed by the caller (id/slot/stats/AI); it joins the
+      // fray on the player's side and acts automatically on its own turns.
+      state.combatants.push(command.ally);
+      state.log.push(
+        `${self.name} uses ${command.summonName} — ${command.ally.name} joins the fray!`,
       );
       break;
     }

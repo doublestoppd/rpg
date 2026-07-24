@@ -261,6 +261,38 @@ export function CombatPage() {
         </div>
       </Card>
 
+      {/* Allies (summoned; fight automatically) */}
+      {combat.allies.length > 0 && (
+        <section aria-label="Allies" className="grid gap-2 sm:grid-cols-2">
+          {combat.allies.map((ally) => (
+            <div
+              key={ally.id}
+              className={`rounded-lg border p-3 ${
+                ally.defeated
+                  ? 'border-stone-200 opacity-40 dark:border-stone-800'
+                  : 'border-emerald-300 dark:border-emerald-800'
+              }`}
+            >
+              <div className="flex items-baseline justify-between">
+                <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+                  {ally.name}
+                </p>
+                <span className="text-[10px] uppercase text-stone-500">ally</span>
+              </div>
+              {ally.defeated ? (
+                <p className="mt-1 text-xs font-medium text-stone-500">Fallen</p>
+              ) : (
+                <div className="mt-1 space-y-1">
+                  <Bar value={ally.hp} max={ally.maxHp} tone="hp" />
+                  <Bar value={ally.gauge} max={100} tone="gauge" />
+                  <StatusChips combatant={ally} />
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
       {error && (
         <p role="alert" className="text-sm text-red-700 dark:text-red-400">
           {error}

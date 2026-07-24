@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type {
   Combat,
   CombatantState,
@@ -16,6 +18,7 @@ import {
 import { z } from 'zod';
 
 import { equipmentBonusSource, parseAffixes, rollEquipmentDrop } from '../../config/affixes.js';
+import { allyTemplateForItem, buildAllyCombatant } from '../../config/allies.js';
 import { abilitiesForClass, combatConfig, findAbility } from '../../config/combat.js';
 import { gameConfig } from '../../config/game.js';
 import { createCombatRng, newCombatSeed } from '../../lib/combat-rng.js';
@@ -166,6 +169,9 @@ export function createCombatService(
         magnitude: s.magnitude,
         remainingTurns: s.remainingTurns,
       })),
+      // Summoned allies persist their AI here; enemies attach theirs from the
+      // EnemyDefinition after mapping (below).
+      ...(row.aiActions ? { aiActions: aiConfigSchema.shape.actions.parse(row.aiActions) } : {}),
     };
   }
 
@@ -202,9 +208,33 @@ export function createCombatService(
 
   async function persistEngineState(tx: Tx, combatId: string, state: EngineState): Promise<void> {
     for (const c of state.combatants) {
-      await tx.combatantState.update({
+      // Existing combatants only need their volatile fields written; a combatant
+      // that appeared mid-battle (a summoned ally) is inserted in full.
+      await tx.combatantState.upsert({
         where: { id: c.id },
-        data: { currentHp: c.hp, currentMp: c.mp, gauge: c.gauge },
+        update: { currentHp: c.hp, currentMp: c.mp, gauge: c.gauge },
+        create: {
+          id: c.id,
+          combatId,
+          kind: c.kind,
+          slot: c.slot,
+          name: c.name,
+          row: c.row,
+          ranged: c.ranged,
+          currentHp: c.hp,
+          currentMp: c.mp,
+          gauge: c.gauge,
+          maxHp: c.maxHp,
+          maxMp: c.maxMp,
+          strength: c.strength,
+          agility: c.agility,
+          magic: c.magic,
+          defense: c.defense,
+          magicDefense: c.magicDefense,
+          luck: c.luck,
+          affinities: c.affinities,
+          ...(c.aiActions ? { aiActions: c.aiActions as unknown as Prisma.InputJsonValue } : {}),
+        },
       });
     }
     // Statuses are few; replace wholesale for simplicity and correctness.
@@ -237,6 +267,7 @@ export function createCombatService(
     })) as CombatantRow[];
     const playerRow = rows.find((r) => r.kind === 'PLAYER')!;
     const enemies = rows.filter((r) => r.kind === 'ENEMY');
+    const allies = rows.filter((r) => r.kind === 'ALLY');
 
     const toView = (row: CombatantRow) => ({
       id: row.id,
@@ -332,6 +363,7 @@ export function createCombatService(
       },
       player: toView(playerRow),
       enemies: enemies.map(toView),
+      allies: allies.map(toView),
       awaitingCommand: combat.status === 'ACTIVE',
       abilities,
       usableItems,
@@ -928,12 +960,23 @@ export function createCombatService(
               quantity: 1,
               reason: 'COMBAT_ITEM_USE',
             });
-            engineCommand = {
-              action: 'ITEM',
-              itemName: definition.name,
-              hpRestore: definition.hpRestore,
-              mpRestore: definition.mpRestore,
-            };
+            const allyTemplate = allyTemplateForItem(definition.slug);
+            if (allyTemplate) {
+              // A summoning item conjures a player-side ally instead of healing.
+              const slot = Math.max(...state.combatants.map((c) => c.slot)) + 1;
+              engineCommand = {
+                action: 'SUMMON',
+                summonName: definition.name,
+                ally: buildAllyCombatant(allyTemplate, randomUUID(), slot),
+              };
+            } else {
+              engineCommand = {
+                action: 'ITEM',
+                itemName: definition.name,
+                hpRestore: definition.hpRestore,
+                mpRestore: definition.mpRestore,
+              };
+            }
             break;
           }
           case 'DEFEND':

@@ -126,8 +126,8 @@ async function main() {
     });
   }
 
-  if (ITEM_DEFINITIONS.length !== 25)
-    throw new Error('seed: the item catalog has exactly 25 items');
+  if (ITEM_DEFINITIONS.length !== 27)
+    throw new Error('seed: the item catalog has exactly 27 items');
   for (const item of ITEM_DEFINITIONS) {
     const { slug, ...data } = item;
     await prisma.itemDefinition.upsert({

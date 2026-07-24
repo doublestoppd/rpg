@@ -5,6 +5,7 @@ import { type CombatRng, createCombatRng } from '../../lib/combat-rng.js';
 import {
   advanceToNextReady,
   applyStatus,
+  checkOutcome,
   critChanceBps,
   effectiveRate,
   type EngineCombatant,
@@ -12,6 +13,8 @@ import {
   type EngineState,
   GAUGE_MAX,
   getStatus,
+  livingAllies,
+  livingPlayerSide,
   resolvePlayerCommand,
   rollDamage,
   runUntilPlayerCommand,
@@ -480,6 +483,71 @@ describe('abilities', () => {
       expect(roster).toHaveLength(6);
       expect(roster.filter((a) => a.unlockLevel > 1).length).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe('party — AI allies', () => {
+  it('SUMMON adds a player-side ally that then acts on its own turn', () => {
+    const self = fighter({ kind: 'PLAYER', gauge: GAUGE_MAX, agility: 1, slot: 0 });
+    const enemy = fighter({ agility: 1, slot: 2, hp: 50, defense: 0 });
+    const state = makeState([self, enemy]);
+    const ally = fighter({
+      kind: 'ALLY',
+      slot: 1,
+      agility: 100, // acts before the sluggish enemy
+      strength: 10,
+      gauge: 0,
+      aiActions: [{ kind: 'ATTACK', name: 'Bite', weight: 1 }],
+    });
+
+    resolvePlayerCommand(state, rigRng(), { action: 'SUMMON', ally, summonName: 'Spirit Totem' });
+    expect(state.combatants).toContain(ally);
+    expect(livingAllies(state)).toContain(ally);
+    expect(state.log.some((l) => l.includes('joins the fray'))).toBe(true);
+
+    // The player's turn was consumed; running on advances to the ally, who
+    // strikes the enemy before the player is ready again.
+    runUntilPlayerCommand(state, rigRng({ chances: [true, false] }));
+    expect(enemy.hp).toBeLessThan(50);
+    expect(state.log.some((l) => l.includes('Bite') && l.includes(enemy.name))).toBe(true);
+  });
+
+  it('enemies can strike an ally, sparing the hero that turn', () => {
+    const self = fighter({ kind: 'PLAYER', slot: 0, gauge: GAUGE_MAX, hp: 50, agility: 1 });
+    const ally = fighter({ kind: 'ALLY', slot: 1, gauge: 0, hp: 30, agility: 1 });
+    const enemy = fighter({
+      slot: 2,
+      gauge: GAUGE_MAX,
+      agility: 50, // fastest: acts once before the player's command phase
+      strength: 10,
+      aiActions: [{ kind: 'ATTACK', name: 'Claw', weight: 1 }],
+    });
+    const state = makeState([self, ally, enemy]);
+    expect(livingPlayerSide(state)).toEqual([self, ally]);
+
+    // ints:[1] → target index 1 (the ally); chances:[accuracy hit, no crit].
+    runUntilPlayerCommand(state, rigRng({ ints: [1], chances: [true, false] }));
+    expect(ally.hp).toBeLessThan(30);
+    expect(self.hp).toBe(50); // the hero was not the chosen target
+  });
+
+  it('defeat is the hero falling — living allies do not save the run', () => {
+    const self = fighter({ kind: 'PLAYER', hp: 0, slot: 0 });
+    const ally = fighter({ kind: 'ALLY', hp: 30, slot: 1 });
+    const enemy = fighter({ hp: 50, slot: 2 });
+    const state = makeState([self, ally, enemy]);
+    checkOutcome(state);
+    expect(state.outcome).toBe('DEFEAT');
+  });
+
+  it('a fallen ally does not end the fight; victory still needs every enemy down', () => {
+    const self = fighter({ kind: 'PLAYER', hp: 50, slot: 0 });
+    const ally = fighter({ kind: 'ALLY', hp: 0, slot: 1 });
+    const enemy = fighter({ hp: 50, slot: 2 });
+    const state = makeState([self, ally, enemy]);
+    checkOutcome(state);
+    expect(state.outcome).toBe('ACTIVE'); // hero and an enemy still stand
+    expect(livingAllies(state)).toEqual([]);
   });
 });
 
