@@ -24,6 +24,7 @@ import type { LiveHub } from '../domain/notification/live-hub.js';
 import type { NotificationService } from '../domain/notification/notification-service.js';
 import type { NpcShopService } from '../domain/npc-shop/npc-shop-service.js';
 import type { QuestService } from '../domain/quest/quest-service.js';
+import type { ReforgeService } from '../domain/reforge/reforge-service.js';
 import type { TravelService } from '../domain/travel/travel-service.js';
 import type { AtmosphereService } from '../domain/world-sim/atmosphere-service.js';
 import type { WorldClockService } from '../domain/world-sim/world-clock.js';
@@ -54,6 +55,7 @@ export interface ServiceRegistry {
   marketplaceService?: MarketplaceService;
   gatheringService?: GatheringService;
   craftingService?: CraftingService;
+  reforgeService?: ReforgeService;
   combatService?: CombatService;
   museumService?: MuseumService;
   chatService?: ChatService;

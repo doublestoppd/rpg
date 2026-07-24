@@ -18,6 +18,7 @@ import { museumModule } from './museum.js';
 import { notificationsModule } from './notifications.js';
 import { npcShopsModule } from './npc-shops.js';
 import { questsModule } from './quests.js';
+import { reforgeModule } from './reforge.js';
 import { travelModule } from './travel.js';
 import type { GameModule } from './types.js';
 import { worldModule } from './world.js';
@@ -44,6 +45,7 @@ export const GAME_MODULES: readonly GameModule[] = [
   marketplaceModule,
   gatheringModule,
   craftingModule,
+  reforgeModule,
   combatModule,
   museumModule,
   activitiesModule,

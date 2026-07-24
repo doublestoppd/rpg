@@ -3,6 +3,40 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Improvement Phase 4 — The Reforge Anvil (2026-07-24)
+
+**Status: complete.** A Gold sink and an endgame chase for the loot system: at a
+settlement anvil you can pay to **reroll an equipment instance's affixes** at its
+current rarity, hunting for a better set of modifiers. This gives excess Gold a
+meaningful drain and makes every non-common drop a starting point rather than a
+fixed result.
+
+- **Deterministic, server-authoritative, idempotent.** The reroll uses the
+  Phase 2 affix engine driven by secure server randomness. The Gold charge goes
+  through the currency ledger with an idempotency key, and the reroll is gated on
+  whether that debit actually applied — so a replayed request never charges or
+  rerolls twice (verified: exactly one fee ledger entry, identical affixes and
+  balance on replay). The whole operation is one transaction under the account
+  lock.
+- **Priced to sink Gold.** Cost is a steep per-rarity base plus a per-item-level
+  surcharge (`config/reforge.ts`); rerolling a high-level Legendary is expensive.
+  Common items have no affixes and cannot be reforged.
+- **Gated and safe.** Reforging requires owning the item, it not being equipped
+  or listed/in-transit, and being at a safe settlement (not mid-travel). A
+  `GET /reforge/quote` reports the cost, balance, and eligibility without
+  mutating; `POST /reforge` performs it. New `reforge` module (after `crafting`),
+  new `REFORGE_FEE` ledger type (freeform column — no migration). OpenAPI baseline
+  regenerated (additive).
+- **In the client.** The inventory item panel gains a "Reforge · Ng" action for
+  eligible gear that rerolls and reports the new affixes.
+
+### Tests
+
+Pricing unit tests (rarity gating, base + per-level cost, monotonicity) and
+route integration (quote pricing and affordability; a reforge charges Gold and
+rerolls at the same rarity; idempotent replay charges/rerolls nothing; rejects
+unaffordable and common-gear reforges).
+
 ## Improvement Phase 3 — Party Combat: Summonable AI Allies (2026-07-24)
 
 **Status: complete.** Turns solo menu-combat into team tactics. The combat

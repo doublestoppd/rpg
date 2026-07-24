@@ -47,6 +47,7 @@ describe('application composition', () => {
       'marketplace',
       'gathering',
       'crafting',
+      'reforge',
       'combat',
       'museum',
       'activities',

@@ -23,7 +23,14 @@ import { useSalvage } from '../features/activities/useActivities';
 import { useCharacter } from '../features/character/useCharacter';
 import { useEquip, useInventory } from '../features/inventory/useInventory';
 import { useCreateListing, useMyShop } from '../features/marketplace/useMarketplace';
+import { useReforge, useReforgeQuote } from '../features/reforge/useReforge';
 import { ApiRequestError } from '../lib/api';
+
+const canReforge = (i: InventoryInstanceInfo) =>
+  i.item.category === 'EQUIPMENT' &&
+  i.rarity !== 'COMMON' &&
+  !i.equippedSlot &&
+  i.lockState === 'NONE';
 
 const CATEGORY_LABELS: Record<ItemCategory, string> = {
   RESOURCE: 'Resources',
@@ -128,6 +135,24 @@ export function InventoryPage() {
   const [selected, setSelected] = useState<Selected | null>(null);
   const [listPrice, setListPrice] = useState('');
   const [listQuantity, setListQuantity] = useState(1);
+  const reforgeMutation = useReforge();
+  const reforgeQuote = useReforgeQuote(
+    selected?.kind === 'instance' && canReforge(selected.instance) ? selected.instance.id : null,
+  );
+
+  const onReforge = (instance: InventoryInstanceInfo) => {
+    reforgeMutation.mutate(instance.id, {
+      onSuccess: (result) => {
+        const rolled = result.affixes.map((a) => `${a.label} (+${a.magnitude})`).join(', ');
+        showToast(`Reforged ${instance.item.name}: ${rolled || 'no affixes'}.`, 'success');
+      },
+      onError: (err) =>
+        showToast(
+          err instanceof ApiRequestError ? err.message : 'Could not reforge that item.',
+          'error',
+        ),
+    });
+  };
 
   const onList = () => {
     if (!selected || !/^\d+$/.test(listPrice)) {
@@ -355,6 +380,18 @@ export function InventoryPage() {
               !selected.instance.equippedSlot &&
               selected.instance.lockState === 'NONE' && (
                 <>
+                  {canReforge(selected.instance) && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => onReforge(selected.instance)}
+                      disabled={
+                        reforgeMutation.isPending || reforgeQuote.data?.canReforge === false
+                      }
+                    >
+                      Reforge
+                      {reforgeQuote.data ? ` · ${reforgeQuote.data.cost}g` : ''}
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     onClick={() => onSalvage(selected.instance)}

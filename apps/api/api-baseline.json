@@ -7477,6 +7477,265 @@
         }
       }
     },
+    "/api/v1/reforge/quote": {
+      "get": {
+        "summary": "Cost and eligibility to reforge an equipment instance",
+        "tags": ["reforge"],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "in": "query",
+            "name": "itemInstanceId",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "itemInstanceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    },
+                    "rarity": {
+                      "type": "string",
+                      "enum": ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"]
+                    },
+                    "affixes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stat": {
+                            "type": "string",
+                            "enum": [
+                              "strength",
+                              "agility",
+                              "magic",
+                              "defense",
+                              "magicDefense",
+                              "luck",
+                              "maxHp",
+                              "maxMp"
+                            ]
+                          },
+                          "magnitude": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["stat", "magnitude", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "cost": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "balance": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "canReforge": {
+                      "type": "boolean"
+                    },
+                    "reason": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "itemInstanceId",
+                    "itemName",
+                    "rarity",
+                    "affixes",
+                    "cost",
+                    "balance",
+                    "canReforge",
+                    "reason"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reforge": {
+      "post": {
+        "summary": "Reroll an equipment instance’s affixes for Gold (idempotent)",
+        "tags": ["reforge"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemInstanceId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "idempotencyKey": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 64
+                  }
+                },
+                "required": ["itemInstanceId", "idempotencyKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "itemInstanceId": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "rarity": {
+                      "type": "string",
+                      "enum": ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"]
+                    },
+                    "affixes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stat": {
+                            "type": "string",
+                            "enum": [
+                              "strength",
+                              "agility",
+                              "magic",
+                              "defense",
+                              "magicDefense",
+                              "luck",
+                              "maxHp",
+                              "maxMp"
+                            ]
+                          },
+                          "magnitude": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["stat", "magnitude", "label"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "effectiveBonuses": {
+                      "type": "object",
+                      "properties": {
+                        "strength": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "agility": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "magic": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "defense": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "magicDefense": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "luck": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxHp": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "maxMp": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "strength",
+                        "agility",
+                        "magic",
+                        "defense",
+                        "magicDefense",
+                        "luck",
+                        "maxHp",
+                        "maxMp"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "cost": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    },
+                    "balance": {
+                      "type": "string",
+                      "pattern": "^\\d+$"
+                    }
+                  },
+                  "required": [
+                    "itemInstanceId",
+                    "rarity",
+                    "affixes",
+                    "effectiveBonuses",
+                    "cost",
+                    "balance"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/combat/encounters": {
       "get": {
         "summary": "Encounters at the current location + any active combat",
