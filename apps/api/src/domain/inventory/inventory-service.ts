@@ -5,8 +5,9 @@ import type {
   Prisma,
   PrismaClient,
 } from '@prisma/client';
-import type { InventoryResponse, ItemDefinitionInfo } from '@rpg/shared';
+import type { InventoryResponse, ItemDefinitionInfo, ItemRarity, RolledAffix } from '@rpg/shared';
 
+import { effectiveItemBonuses, parseAffixes } from '../../config/affixes.js';
 import { gameConfig } from '../../config/game.js';
 import { DomainError } from '../../lib/http-errors.js';
 
@@ -88,7 +89,14 @@ export interface InventoryService {
   /** Creates a unique instance owned by the character (one slot). */
   grantInstance(
     tx: Prisma.TransactionClient,
-    input: { characterId: string; itemDefinitionId: string; reason: string },
+    input: {
+      characterId: string;
+      itemDefinitionId: string;
+      reason: string;
+      /** Rolled quality (Improvement Phase 2); defaults to a plain COMMON item. */
+      rarity?: ItemRarity;
+      affixes?: RolledAffix[];
+    },
   ): Promise<ItemInstance>;
   getInventoryResponse(characterId: string): Promise<InventoryResponse>;
   getItemBySlug(slug: string): Promise<ItemDefinitionInfo>;
@@ -229,6 +237,8 @@ export function createInventoryService(prisma: PrismaClient): InventoryService {
         data: {
           itemDefinitionId: input.itemDefinitionId,
           ownerCharacterId: input.characterId,
+          rarity: input.rarity ?? 'COMMON',
+          affixes: input.affixes ?? [],
         },
       });
       await tx.itemTransfer.create({
@@ -271,12 +281,18 @@ export function createInventoryService(prisma: PrismaClient): InventoryService {
           item: toItemDefinitionInfo(stack.itemDefinition),
           quantity: stack.quantity,
         })),
-        instances: instances.map((instance) => ({
-          id: instance.id,
-          item: toItemDefinitionInfo(instance.itemDefinition),
-          lockState: instance.lockState,
-          equippedSlot: instance.equipment?.slot ?? null,
-        })),
+        instances: instances.map((instance) => {
+          const affixes = parseAffixes(instance.affixes);
+          return {
+            id: instance.id,
+            item: toItemDefinitionInfo(instance.itemDefinition),
+            lockState: instance.lockState,
+            equippedSlot: instance.equipment?.slot ?? null,
+            rarity: instance.rarity,
+            affixes,
+            effectiveBonuses: effectiveItemBonuses(instance.itemDefinition, affixes),
+          };
+        }),
       };
     },
 

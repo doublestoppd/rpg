@@ -2725,9 +2725,109 @@
                               "ACCESSORY_1",
                               "ACCESSORY_2"
                             ]
+                          },
+                          "rarity": {
+                            "type": "string",
+                            "enum": ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"]
+                          },
+                          "affixes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "stat": {
+                                  "type": "string",
+                                  "enum": [
+                                    "strength",
+                                    "agility",
+                                    "magic",
+                                    "defense",
+                                    "magicDefense",
+                                    "luck",
+                                    "maxHp",
+                                    "maxMp"
+                                  ]
+                                },
+                                "magnitude": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": ["stat", "magnitude", "label"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "effectiveBonuses": {
+                            "type": "object",
+                            "properties": {
+                              "strength": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "agility": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "magic": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "defense": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "magicDefense": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "luck": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "maxHp": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "maxMp": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "strength",
+                              "agility",
+                              "magic",
+                              "defense",
+                              "magicDefense",
+                              "luck",
+                              "maxHp",
+                              "maxMp"
+                            ],
+                            "additionalProperties": false
                           }
                         },
-                        "required": ["id", "item", "lockState", "equippedSlot"],
+                        "required": [
+                          "id",
+                          "item",
+                          "lockState",
+                          "equippedSlot",
+                          "rarity",
+                          "affixes",
+                          "effectiveBonuses"
+                        ],
                         "additionalProperties": false
                       }
                     }

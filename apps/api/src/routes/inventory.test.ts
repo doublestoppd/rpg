@@ -392,3 +392,80 @@ describe('starter kit', () => {
     expect(transfers).toHaveLength(2);
   });
 });
+
+describe('rarity and rolled affixes (Improvement Phase 2)', () => {
+  function stats(auth: { cookie: string }) {
+    return app.inject({
+      method: 'GET',
+      url: '/api/v1/characters/me/stats',
+      cookies: { [SESSION_COOKIE]: auth.cookie },
+    });
+  }
+
+  it('plain granted instances default to COMMON with no affixes', async () => {
+    const { auth } = await setupCharacter();
+    const tunic = (await getInventory(auth)).json().instances[0];
+    expect(tunic.rarity).toBe('COMMON');
+    expect(tunic.affixes).toEqual([]);
+    // Effective bonuses of a plain item equal its definition bonuses.
+    expect(tunic.effectiveBonuses).toEqual(tunic.item.bonuses);
+  });
+
+  it('surfaces rarity, affixes, and effective (definition + affix) bonuses', async () => {
+    const { auth, characterId } = await setupCharacter();
+    const def = await prisma.itemDefinition.findUniqueOrThrow({
+      where: { slug: 'apprentice-focus' }, // MAIN_HAND, +4 Magic, level 1
+    });
+    await prisma.$transaction((tx) =>
+      inventoryOf().grantInstance(tx, {
+        characterId,
+        itemDefinitionId: def.id,
+        reason: TRANSFER_REASONS.TEST_GRANT,
+        rarity: 'RARE',
+        affixes: [
+          { stat: 'luck', magnitude: 2, label: 'of Fortune' },
+          { stat: 'maxHp', magnitude: 10, label: 'of Vitality' },
+        ],
+      }),
+    );
+
+    const focus = (await getInventory(auth))
+      .json()
+      .instances.find((i: { item: { slug: string } }) => i.item.slug === 'apprentice-focus');
+    expect(focus.rarity).toBe('RARE');
+    expect(focus.affixes).toHaveLength(2);
+    expect(focus.effectiveBonuses.magic).toBe(4); // definition base
+    expect(focus.effectiveBonuses.luck).toBe(2); // affix
+    expect(focus.effectiveBonuses.maxHp).toBe(10); // affix
+  });
+
+  it('equipping an affixed item raises the wearer’s derived stats', async () => {
+    const { auth, characterId } = await setupCharacter();
+    const before = (await stats(auth)).json();
+
+    const def = await prisma.itemDefinition.findUniqueOrThrow({
+      where: { slug: 'apprentice-focus' },
+    });
+    const instance = await prisma.$transaction((tx) =>
+      inventoryOf().grantInstance(tx, {
+        characterId,
+        itemDefinitionId: def.id,
+        reason: TRANSFER_REASONS.TEST_GRANT,
+        rarity: 'RARE',
+        affixes: [
+          { stat: 'luck', magnitude: 2, label: 'of Fortune' },
+          { stat: 'maxHp', magnitude: 10, label: 'of Vitality' },
+        ],
+      }),
+    );
+
+    const equipped = await equip(auth, { itemInstanceId: instance.id });
+    expect(equipped.statusCode).toBe(200);
+
+    const after = (await stats(auth)).json();
+    // Definition (+4 Magic) and affixes (+2 Luck, +10 Max HP) all apply.
+    expect(after.attributes.magic - before.attributes.magic).toBe(4);
+    expect(after.attributes.luck - before.attributes.luck).toBe(2);
+    expect(after.resources.maxHp - before.resources.maxHp).toBe(10);
+  });
+});

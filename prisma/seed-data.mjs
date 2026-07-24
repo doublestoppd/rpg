@@ -1090,7 +1090,12 @@ export const ENEMY_DEFINITIONS = [
       xp: 150,
       goldMin: 80,
       goldMax: 120,
-      drops: [{ itemSlug: 'glimmer-crystal', chanceBps: 10000, minQuantity: 2, maxQuantity: 2 }],
+      drops: [
+        { itemSlug: 'glimmer-crystal', chanceBps: 10000, minQuantity: 2, maxQuantity: 2 },
+        // The Warden always yields a piece of forge-gear; its rarity and rolled
+        // affixes are decided server-side per kill (Improvement Phase 2).
+        { itemSlug: 'bronze-longblade', chanceBps: 10000, minQuantity: 1, maxQuantity: 1 },
+      ],
     },
   },
 ];

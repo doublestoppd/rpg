@@ -6,14 +6,16 @@ import type {
   Prisma,
   PrismaClient,
 } from '@prisma/client';
-import type {
-  CombatCommandRequest,
-  CombatRewards,
-  CombatView,
-  EncountersResponse,
+import {
+  type CombatCommandRequest,
+  type CombatRewards,
+  type CombatView,
+  type EncountersResponse,
+  RARITY_LABELS,
 } from '@rpg/shared';
 import { z } from 'zod';
 
+import { equipmentBonusSource, parseAffixes, rollEquipmentDrop } from '../../config/affixes.js';
 import { abilitiesForClass, combatConfig, findAbility } from '../../config/combat.js';
 import { gameConfig } from '../../config/game.js';
 import { createCombatRng, newCombatSeed } from '../../lib/combat-rng.js';
@@ -430,7 +432,34 @@ export function createCombatService(
     const leftBehind: Array<{ name: string; quantity: number }> = [];
     for (const drop of rolledDrops) {
       const definition = await tx.itemDefinition.findUnique({ where: { slug: drop.itemSlug } });
-      if (!definition || !definition.stackable) continue;
+      if (!definition) continue;
+      // Non-stackable drops (equipment) each become their own rolled instance
+      // with a rarity and affixes; anything past a full pack is left behind.
+      if (!definition.stackable) {
+        let placed = 0;
+        for (let i = 0; i < drop.quantity; i++) {
+          const usage = await inventoryService.countUsedSlots(tx, combat.characterId);
+          if (usage.used >= gameConfig.inventoryCapacity) break;
+          const rolled = rollEquipmentDrop(rng, definition);
+          await inventoryService.grantInstance(tx, {
+            characterId: combat.characterId,
+            itemDefinitionId: definition.id,
+            reason: COMBAT_TRANSFER_REASON,
+            rarity: rolled.rarity,
+            affixes: rolled.affixes,
+          });
+          const label =
+            rolled.rarity === 'COMMON'
+              ? definition.name
+              : `${RARITY_LABELS[rolled.rarity]} ${definition.name}`;
+          granted.push({ name: label, quantity: 1 });
+          placed += 1;
+        }
+        if (placed < drop.quantity) {
+          leftBehind.push({ name: definition.name, quantity: drop.quantity - placed });
+        }
+        continue;
+      }
       const existing = await tx.inventoryStack.findUnique({
         where: {
           characterId_itemDefinitionId: {
@@ -661,7 +690,9 @@ export function createCombatService(
       const derived = computeDerivedStats(
         character.class,
         character.level,
-        equipment.map((a) => a.itemInstance.itemDefinition),
+        equipment.map((a) =>
+          equipmentBonusSource(a.itemInstance.itemDefinition, parseAffixes(a.itemInstance.affixes)),
+        ),
       );
 
       try {

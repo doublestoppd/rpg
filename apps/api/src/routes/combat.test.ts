@@ -244,6 +244,53 @@ describe('encounters', () => {
     expect(response.statusCode).toBe(409);
     expect(response.json().error.code).toBe('NOT_HERE');
   });
+
+  it('drops equipment as a rolled instance with a rarity (Improvement Phase 2)', async () => {
+    const { auth, characterId } = await setupFighter({ locationSlug: 'ironroot-mine' });
+    // Unlock the boss: level 5 plus a recorded Ironhide Boar victory.
+    await prisma.character.update({ where: { id: characterId }, data: { level: 5, xp: 1000 } });
+    const boar = await prisma.encounterDefinition.findUniqueOrThrow({
+      where: { slug: 'ironhide-boar' },
+    });
+    await prisma.combat.create({
+      data: {
+        characterId,
+        encounterId: boar.id,
+        status: 'VICTORY',
+        rngSeed: 'test',
+        log: [],
+        idempotencyKey: 'boar-win-for-drop',
+        completedAt: new Date(),
+      },
+    });
+
+    const view = (
+      await start(auth, {
+        encounterSlug: 'warden-of-the-hollow-forge',
+        idempotencyKey: 'drop-boss',
+      })
+    ).json<CombatViewLite>();
+    expect(view.status).toBe('ACTIVE');
+    await weakenEnemies(view.id);
+    const won = await attackUntilVictory(auth, view, view.enemies[0]!.id, 'drop-swing');
+    expect(won.status).toBe('VICTORY');
+
+    // The guaranteed forge-gear drop is materialized as an owned instance whose
+    // quality was rolled server-side.
+    const blade = await prisma.itemInstance.findFirst({
+      where: {
+        ownerCharacterId: characterId,
+        destroyedAt: null,
+        itemDefinition: { slug: 'bronze-longblade' },
+      },
+    });
+    expect(blade).not.toBeNull();
+    expect(['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY']).toContain(blade!.rarity);
+    // COMMON rolls carry no affixes; any higher tier carries at least one.
+    const affixCount = Array.isArray(blade!.affixes) ? blade!.affixes.length : 0;
+    if (blade!.rarity === 'COMMON') expect(affixCount).toBe(0);
+    else expect(affixCount).toBeGreaterThan(0);
+  });
 });
 
 describe('starting and persistence', () => {

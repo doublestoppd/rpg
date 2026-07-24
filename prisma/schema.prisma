@@ -1356,6 +1356,16 @@ enum ItemInstanceLock {
   IN_TRANSIT
 }
 
+/// Rolled equipment quality tier (Improvement Phase 2). COMMON carries no
+/// affixes; higher tiers carry more rolled modifiers.
+enum ItemRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
 /// A uniquely tracked item (equipment or otherwise stateful).
 model ItemInstance {
   id String @id @default(uuid())
@@ -1370,6 +1380,12 @@ model ItemInstance {
   /// cannot be equipped, consumed, discarded, or transferred.
   lockState   ItemInstanceLock @default(NONE)
   destroyedAt DateTime?
+
+  /// Rolled quality (Improvement Phase 2). Plain/crafted/shop instances stay
+  /// COMMON with an empty affix list; combat drops roll higher tiers. Affixes
+  /// are a validated JSON array of { stat, magnitude, label }.
+  rarity  ItemRarity @default(COMMON)
+  affixes Json       @default("[]")
 
   createdAt DateTime @default(now())
 

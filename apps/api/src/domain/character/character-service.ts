@@ -1,6 +1,7 @@
 import type { Character, CharacterClassDefinition, Prisma, PrismaClient } from '@prisma/client';
 import type { CharacterClassInfo, CharacterResponse, CharacterStatsResponse } from '@rpg/shared';
 
+import { equipmentBonusSource, parseAffixes } from '../../config/affixes.js';
 import { gameConfig } from '../../config/game.js';
 import { conflict, DomainError } from '../../lib/http-errors.js';
 import type { CurrencyService } from '../currency/currency-service.js';
@@ -52,13 +53,18 @@ export function createCharacterService(
   inventoryService?: InventoryService,
   currencyService?: CurrencyService,
 ): CharacterService {
-  /** Definitions of currently equipped items (bonuses feed derived stats). */
+  /**
+   * Bonus sources for currently equipped items: each item's base definition
+   * bonuses plus its rolled affixes (Improvement Phase 2). Feeds derived stats.
+   */
   async function equippedDefs(tx: Tx, characterId: string) {
     const assignments = await tx.equipmentAssignment.findMany({
       where: { characterId },
       include: { itemInstance: { include: { itemDefinition: true } } },
     });
-    return assignments.map((a) => a.itemInstance.itemDefinition);
+    return assignments.map((a) =>
+      equipmentBonusSource(a.itemInstance.itemDefinition, parseAffixes(a.itemInstance.affixes)),
+    );
   }
 
   async function loadCharacter(userId: string, tx: Tx = prisma) {

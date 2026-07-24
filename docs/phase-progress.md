@@ -3,6 +3,55 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Improvement Phase 2 — Itemization: Equipment Rarity & Rolled Affixes (2026-07-24)
+
+**Status: complete.** Makes combat rewards matter and gives the economy real
+variety: dropped equipment now rolls a quality tier and a set of stat modifiers,
+so no two drops are identical. Before this phase equipment could not drop from
+combat at all — the victory settlement silently skipped every non-stackable
+item — so kills only ever yielded stackable commodities.
+
+### Data model
+
+`ItemInstance` gains `rarity` (`COMMON`…`LEGENDARY`) and an `affixes` JSON array
+of `{ stat, magnitude, label }` (migration `20260724120000_item_rarity_affixes`).
+Plain/crafted/shop/legacy instances stay COMMON with no affixes (column defaults),
+so the change is fully backward-compatible; only combat drops roll higher tiers.
+
+### Deterministic affix engine (`config/affixes.ts`)
+
+Server-authoritative and driven by an injected integer source, so combat drops
+replay identically from a persisted (seed, counter) pair and unit tests are
+deterministic. Rarity is a weighted draw (Common 60 / Uncommon 25 / Rare 10 /
+Epic 4 / Legendary 1); each tier rolls that many **distinct-stat** affixes
+(0/1/2/3/4) via a partial Fisher–Yates over the eight bonus stats. Magnitudes are
+per-stat base ranges plus integer level scaling (HP/MP pools roll larger). A
+persisted-affix parser validates the JSON blob and degrades unknown data to `[]`.
+
+### Wiring
+
+- **Effective bonuses.** `equipmentBonusSource(def, affixes)` sums a definition's
+  base bonuses with its rolled affixes; both stat-gather sites (character-service
+  `equippedDefs` and combat's player-combatant build) use it, so affixes feed
+  every derived stat — including Luck, which now also drives Phase 1 crit chance.
+- **Drops.** Victory settlement rolls rarity + affixes for each non-stackable
+  drop and creates the instance (capacity permitting; overflow is left behind as
+  before). The Warden of the Hollow Forge boss now always drops forge-gear, so
+  the loop is reachable in-game.
+- **Surfacing.** The inventory response carries `rarity`, `affixes`, and
+  authoritative `effectiveBonuses`; the web inventory colors items by rarity and
+  lists each affix and the item's total bonuses. The drop log names non-common
+  spoils by tier (“Rare Bronze Longblade”).
+
+### Tests
+
+Affix-engine unit suite (rarity boundaries, distinct-stat counts, magnitude/level
+scaling, determinism, non-equipment yields nothing, persisted-blob parsing);
+inventory integration (plain items default COMMON; rarity/affixes/effective
+bonuses surface; equipping an affixed item raises derived stats); and a
+boss-victory combat test asserting a rolled equipment instance is granted.
+OpenAPI baseline regenerated (additive: the three new instance fields).
+
 ## Improvement Phase 1 — Combat Depth: Critical Hits (2026-07-24)
 
 **Status: complete.** The first entry in a post-26 improvement track that makes

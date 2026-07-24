@@ -1,8 +1,11 @@
-import type {
-  InventoryInstanceInfo,
-  InventoryStackInfo,
-  ItemCategory,
-  ItemDefinitionInfo,
+import {
+  type InventoryInstanceInfo,
+  type InventoryStackInfo,
+  type ItemBonuses,
+  type ItemCategory,
+  type ItemDefinitionInfo,
+  type ItemRarity,
+  RARITY_LABELS,
 } from '@rpg/shared';
 import { useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
@@ -34,6 +37,26 @@ const CATEGORY_LABELS: Record<ItemCategory, string> = {
 
 const LOCK_LABELS = { NONE: null, LISTED: 'Listed', IN_TRANSIT: 'In transit' } as const;
 
+/** Rarity → text color (COMMON stays the default stone tone). */
+const RARITY_TEXT: Record<ItemRarity, string> = {
+  COMMON: 'text-stone-900 dark:text-stone-100',
+  UNCOMMON: 'text-green-700 dark:text-green-400',
+  RARE: 'text-blue-700 dark:text-blue-400',
+  EPIC: 'text-purple-700 dark:text-purple-400',
+  LEGENDARY: 'text-amber-700 dark:text-amber-400',
+};
+
+const STAT_LABELS: Record<keyof ItemBonuses, string> = {
+  strength: 'Strength',
+  agility: 'Agility',
+  magic: 'Magic',
+  defense: 'Defense',
+  magicDefense: 'Magic Def.',
+  luck: 'Luck',
+  maxHp: 'Max HP',
+  maxMp: 'Max MP',
+};
+
 type Selected =
   | { kind: 'stack'; stack: InventoryStackInfo }
   | { kind: 'instance'; instance: InventoryInstanceInfo };
@@ -51,6 +74,44 @@ function BonusList({ item }: { item: ItemDefinitionInfo }) {
       {item.hpRestore > 0 && <li>Restores {item.hpRestore} HP</li>}
       {item.mpRestore > 0 && <li>Restores {item.mpRestore} MP</li>}
     </ul>
+  );
+}
+
+/** Rarity, rolled affixes, and the total (definition + affix) bonuses. */
+function InstanceQualities({ instance }: { instance: InventoryInstanceInfo }) {
+  const totals = (Object.keys(instance.effectiveBonuses) as (keyof ItemBonuses)[]).filter(
+    (k) => instance.effectiveBonuses[k] !== 0,
+  );
+  return (
+    <div className="mt-3 space-y-2 border-t border-stone-200 pt-3 dark:border-stone-800">
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${RARITY_TEXT[instance.rarity]}`}
+      >
+        {RARITY_LABELS[instance.rarity]}
+      </p>
+      {instance.affixes.length > 0 && (
+        <ul className="space-y-0.5 text-xs text-stone-600 dark:text-stone-400">
+          {instance.affixes.map((affix, i) => (
+            <li key={`${affix.stat}-${i}`}>
+              <span className="italic">{affix.label}</span> — {STAT_LABELS[affix.stat]} +
+              {affix.magnitude}
+            </li>
+          ))}
+        </ul>
+      )}
+      {totals.length > 0 && (
+        <ul className="flex flex-wrap gap-1.5">
+          {totals.map((k) => (
+            <li
+              key={k}
+              className="rounded bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-800 dark:text-stone-300"
+            >
+              {STAT_LABELS[k]} +{instance.effectiveBonuses[k]}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -237,11 +298,16 @@ export function InventoryPage() {
                       decorative
                       className="size-8 shrink-0 rounded"
                     />
-                    <span className="font-medium text-stone-900 dark:text-stone-100">
+                    <span className={`font-medium ${RARITY_TEXT[instance.rarity]}`}>
                       {instance.item.name}
                     </span>
                   </span>
                   <span className="flex items-center gap-2 text-xs">
+                    {instance.rarity !== 'COMMON' && (
+                      <span className={`font-semibold ${RARITY_TEXT[instance.rarity]}`}>
+                        {RARITY_LABELS[instance.rarity]}
+                      </span>
+                    )}
                     <span className="text-stone-500">
                       {CATEGORY_LABELS[instance.item.category]}
                     </span>
@@ -314,9 +380,11 @@ export function InventoryPage() {
                 ? selected.stack.item.description
                 : selected.instance.item.description}
             </p>
-            <BonusList
-              item={selected.kind === 'stack' ? selected.stack.item : selected.instance.item}
-            />
+            {selected.kind === 'stack' ? (
+              <BonusList item={selected.stack.item} />
+            ) : (
+              <InstanceQualities instance={selected.instance} />
+            )}
             {selected.kind === 'stack' && (
               <p className="mt-2 text-xs text-stone-500">
                 Quantity {selected.stack.quantity} / {selected.stack.item.maxStackQuantity} — one

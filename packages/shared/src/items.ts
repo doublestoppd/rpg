@@ -57,6 +57,44 @@ export type ItemDefinitionInfo = z.infer<typeof itemDefinitionSchema>;
 export const itemInstanceLockSchema = z.enum(['NONE', 'LISTED', 'IN_TRANSIT']);
 export type ItemInstanceLockState = z.infer<typeof itemInstanceLockSchema>;
 
+/** Equipment quality tiers, ascending. COMMON items carry no rolled affixes. */
+export const itemRaritySchema = z.enum(['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY']);
+export type ItemRarity = z.infer<typeof itemRaritySchema>;
+
+/** Human-readable rarity names (shared by the drop log and the UI). */
+export const RARITY_LABELS: Record<ItemRarity, string> = {
+  COMMON: 'Common',
+  UNCOMMON: 'Uncommon',
+  RARE: 'Rare',
+  EPIC: 'Epic',
+  LEGENDARY: 'Legendary',
+};
+
+/** The eight equipment bonus stats an affix can roll on. */
+export const affixStatSchema = z.enum([
+  'strength',
+  'agility',
+  'magic',
+  'defense',
+  'magicDefense',
+  'luck',
+  'maxHp',
+  'maxMp',
+]);
+export type AffixStat = z.infer<typeof affixStatSchema>;
+
+/**
+ * One rolled modifier on an equipment instance: a flavor label plus the stat
+ * and (always positive) magnitude it contributes. Stored on the ItemInstance
+ * and summed into the wearer's effective bonuses server-side.
+ */
+export const rolledAffixSchema = z.object({
+  stat: affixStatSchema,
+  magnitude: z.number().int().min(1),
+  label: z.string().min(1),
+});
+export type RolledAffix = z.infer<typeof rolledAffixSchema>;
+
 export const inventoryStackSchema = z.object({
   item: itemDefinitionSchema,
   quantity: z.number().int().min(1),
@@ -69,6 +107,15 @@ export const inventoryInstanceSchema = z.object({
   lockState: itemInstanceLockSchema,
   /** Set when the instance is currently equipped (consumes no slot). */
   equippedSlot: equipmentSlotSchema.nullable(),
+  /** Rolled quality tier; COMMON for legacy/plain items. */
+  rarity: itemRaritySchema,
+  /** Rolled modifiers (empty for COMMON items). */
+  affixes: z.array(rolledAffixSchema),
+  /**
+   * The wearer-facing total bonuses for this instance: the definition's base
+   * bonuses plus every rolled affix. Authoritative — the server sums it.
+   */
+  effectiveBonuses: itemBonusesSchema,
 });
 export type InventoryInstanceInfo = z.infer<typeof inventoryInstanceSchema>;
 
