@@ -119,6 +119,12 @@ export function effectiveDefense(c: EngineCombatant): number {
   return Math.floor((c.defense * (10_000 - broken.magnitude)) / 10_000);
 }
 
+/** Critical-hit chance in bps: base + luck·perPoint, clamped to [0, max]. */
+export function critChanceBps(c: EngineCombatant): number {
+  const raw = combatConfig.critBaseBps + Math.max(0, c.luck) * combatConfig.critLuckPointBps;
+  return Math.max(0, Math.min(combatConfig.critChanceMaxBps, raw));
+}
+
 export function alive(state: EngineState): EngineCombatant[] {
   return state.combatants.filter((c) => c.hp > 0);
 }
@@ -171,6 +177,7 @@ export interface DamageResult {
   damage: number;
   immune: boolean;
   affinityBps: number;
+  crit: boolean;
 }
 
 /** One damage roll, fully fixed-point. Applies the result to the target. */
@@ -183,7 +190,9 @@ export function rollDamage(
   if (!opts.magical) {
     const blind = getStatus(attacker, 'BLIND');
     const accuracy = Math.max(0, combatConfig.baseAccuracyBps - (blind?.magnitude ?? 0));
-    if (!rng.chance(accuracy)) return { hit: false, damage: 0, immune: false, affinityBps: 10_000 };
+    if (!rng.chance(accuracy)) {
+      return { hit: false, damage: 0, immune: false, affinityBps: 10_000, crit: false };
+    }
   }
 
   let raw: number;
@@ -203,12 +212,18 @@ export function rollDamage(
 
   const affinityBps = opts.element ? (target.affinities[opts.element] ?? 10_000) : 10_000;
   if (affinityBps === 0) {
-    return { hit: true, damage: 0, immune: true, affinityBps };
+    return { hit: true, damage: 0, immune: true, affinityBps, crit: false };
   }
   raw = Math.floor((raw * affinityBps) / 10_000);
 
   const variance = rng.nextInt(combatConfig.varianceMinBps, combatConfig.varianceMaxBps);
   let damage = Math.floor((raw * variance) / 10_000);
+
+  // Critical hit: rolled once per landed, non-immune hit and applied before
+  // Guard / back-row mitigation. chance(0) never draws, so a zero-Luck-and-base
+  // combatant leaves the PRNG stream untouched.
+  const crit = rng.chance(critChanceBps(attacker));
+  if (crit) damage = Math.floor((damage * combatConfig.critMultiplierBps) / 10_000);
 
   const guard = getStatus(target, 'GUARD');
   if (guard) damage = Math.floor((damage * guard.magnitude) / 10_000);
@@ -217,14 +232,15 @@ export function rollDamage(
   }
   damage = Math.max(1, damage);
   target.hp = Math.max(0, target.hp - damage);
-  return { hit: true, damage, immune: false, affinityBps };
+  return { hit: true, damage, immune: false, affinityBps, crit };
 }
 
 function affinityNote(result: DamageResult): string {
+  const crit = result.crit && !result.immune ? ' A critical hit!' : '';
   if (result.immune) return ' It has no effect!';
-  if (result.affinityBps > 10_000) return ' It strikes true — a sore spot!';
-  if (result.affinityBps < 10_000) return ' It is partly shrugged off.';
-  return '';
+  if (result.affinityBps > 10_000) return `${crit} It strikes true — a sore spot!`;
+  if (result.affinityBps < 10_000) return `${crit} It is partly shrugged off.`;
+  return crit;
 }
 
 /**

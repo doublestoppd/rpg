@@ -3,6 +3,51 @@
 Running log of completed build phases. Each entry records what the phase
 delivered and the commands it introduced.
 
+## Improvement Phase 1 — Combat Depth: Critical Hits (2026-07-24)
+
+**Status: complete.** The first entry in a post-26 improvement track that makes
+the game more fun without breaking the fixed-point, server-authoritative,
+deterministic contract every earlier phase established.
+
+### Baseline green-up
+
+The branch tip typechecked red: the living-world seed-integrity test
+(`seed-living-world.test.ts`) imports the plain-JS `prisma/seed-data.mjs`, which
+had no declaration file (TS7016 cascading into implicit-`any`/`{}` errors).
+Added a hand-authored `prisma/seed-data.d.mts` typing the exports that test reads
+(and permissive shapes for the seed-script-only exports), and lint-ignored that
+declaration alongside the already-ignored seed `.mjs` files. Typecheck, lint,
+format, and structure are green again.
+
+### Critical hits
+
+The `luck` stat was near-vestigial — it only broke initiative ties, so the
+talents and builds that grant Luck bought almost nothing. Critical hits give it
+a real, universal combat payoff:
+
+- **Deterministic, fixed-point, in the engine.** A landed, non-immune hit rolls
+  a crit through the same seeded combat PRNG as every other outcome. Crit chance
+  is `clamp(critBaseBps + luck·critLuckPointBps, 0, critChanceMaxBps)`; a crit
+  multiplies post-variance damage by `critMultiplierBps` **before** Guard and
+  back-row mitigation, so a guarded crit is still reduced. Config lives in
+  `combatConfig` (base 3%, +0.5%/Luck, cap 50%, ×1.7) and is Zod-validated at
+  module load like every other combat constant.
+- **Applies to physical and magical damage alike**, so Arcanists' Luck talents
+  matter too. Misses and elemental immunities never crit and never draw the crit
+  roll (`chance(0)` never advances the PRNG counter).
+- **Surfaced, not hidden.** `DamageResult` carries `crit`, the battle log appends
+  “A critical hit!”, and the web battle log renders crit lines in bold amber.
+
+Crit is an internal engine/log concern only — no API schema, endpoint, or
+migration changed, so the OpenAPI baseline is untouched.
+
+### Tests
+
+Engine crit suite (chance formula + clamp, the damage multiplier and its
+ordering before Guard/back-row, luck-derived roll and suppression, no-crit on
+miss/immune) plus the existing damage-formula tests updated to script the crit
+roll explicitly. Outcome-based combat route tests are unaffected.
+
 ## Phase 26 — Living World, NPCs, and Ambient Simulation (2026-07-20)
 
 **Status: in progress — increment 1 of a multi-increment phase.** This phase is

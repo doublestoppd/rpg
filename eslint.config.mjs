@@ -15,6 +15,9 @@ export default tseslint.config(
       '**/*.mjs',
       '**/*.cjs',
       '**/*.js',
+      // Type declarations for the plain-JS Prisma seed module: a companion to
+      // the lint-ignored seed .mjs files, not part of any tsconfig project.
+      'prisma/**/*.d.mts',
       'test-results/**',
       'playwright-report/**',
     ],

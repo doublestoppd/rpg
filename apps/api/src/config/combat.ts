@@ -38,6 +38,16 @@ const combatConfigSchema = z.object({
   fleeRetryBonusBps: z.number().int(),
   fleeMinBps: z.number().int().min(0),
   fleeMaxBps: z.number().int().max(10_000),
+  /**
+   * Critical hits (Phase C1). A landed, non-immune hit rolls a crit whose
+   * chance is base + luck·perPoint, clamped to [0, max]; a crit multiplies the
+   * post-variance damage by the multiplier (before Guard/back-row reductions),
+   * giving the otherwise near-vestigial Luck stat a real combat payoff.
+   */
+  critBaseBps: z.number().int().min(0).max(10_000),
+  critLuckPointBps: z.number().int().min(0),
+  critChanceMaxBps: z.number().int().min(0).max(10_000),
+  critMultiplierBps: z.number().int().min(10_000),
   /** Defeat: HP/MP restored (rounded up) and the capped recovery fee. */
   defeatRestoreBps: z.number().int().min(1).max(10_000),
   defeatFeeBase: z.bigint().min(0n),
@@ -64,6 +74,10 @@ export const combatConfig: CombatConfig = combatConfigSchema.parse({
   fleeRetryBonusBps: 1000,
   fleeMinBps: 2000,
   fleeMaxBps: 9500,
+  critBaseBps: 300,
+  critLuckPointBps: 50,
+  critChanceMaxBps: 5000,
+  critMultiplierBps: 17_000,
   defeatRestoreBps: 4000,
   defeatFeeBase: 10n,
   defeatFeePerLevel: 2n,

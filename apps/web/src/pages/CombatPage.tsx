@@ -377,9 +377,17 @@ export function CombatPage() {
       {/* Log */}
       <Card title="Battle log">
         <ul className="max-h-56 space-y-0.5 overflow-y-auto text-xs leading-5 text-stone-700 dark:text-stone-300">
-          {[...combat.log].reverse().map((line, index) => (
-            <li key={`${combat.log.length - index}-${line}`}>{line}</li>
-          ))}
+          {[...combat.log].reverse().map((line, index) => {
+            const isCrit = line.includes('A critical hit!');
+            return (
+              <li
+                key={`${combat.log.length - index}-${line}`}
+                className={isCrit ? 'font-semibold text-amber-700 dark:text-amber-400' : undefined}
+              >
+                {line}
+              </li>
+            );
+          })}
         </ul>
       </Card>
     </div>

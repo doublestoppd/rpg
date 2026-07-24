@@ -5,6 +5,7 @@ import { type CombatRng, createCombatRng } from '../../lib/combat-rng.js';
 import {
   advanceToNextReady,
   applyStatus,
+  critChanceBps,
   effectiveRate,
   type EngineCombatant,
   EngineRuleError,
@@ -118,19 +119,25 @@ describe('physical damage', () => {
   it('applies the fixed-point formula with secure variance', () => {
     const attacker = fighter({ strength: 10 });
     const target = fighter({ defense: 8, hp: 50 });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, target, {
-      powerBps: 10_000,
-      rangedAttack: false,
-      magical: false,
-    });
-    expect(result).toMatchObject({ hit: true, damage: 8 });
+    // chances: [accuracy hit, no crit] — see the crit suite for crit behaviour.
+    const result = rollDamage(
+      rigRng({ ints: [10_000], chances: [true, false] }),
+      attacker,
+      target,
+      {
+        powerBps: 10_000,
+        rangedAttack: false,
+        magical: false,
+      },
+    );
+    expect(result).toMatchObject({ hit: true, damage: 8, crit: false });
     expect(target.hp).toBe(42);
   });
 
   it('variance floors at 90%', () => {
     const attacker = fighter({ strength: 10 });
     const target = fighter({ defense: 8, hp: 50 });
-    const result = rollDamage(rigRng({ ints: [9000] }), attacker, target, {
+    const result = rollDamage(rigRng({ ints: [9000], chances: [true, false] }), attacker, target, {
       powerBps: 10_000,
       rangedAttack: false,
       magical: false,
@@ -157,11 +164,16 @@ describe('physical damage', () => {
     const attacker = fighter({ strength: 10 });
     const target = fighter({ defense: 8, hp: 50 });
     applyStatus(target, { type: 'ARMOR_BREAK', magnitude: 3000, remainingTurns: 3 });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, target, {
-      powerBps: 10_000,
-      rangedAttack: false,
-      magical: false,
-    });
+    const result = rollDamage(
+      rigRng({ ints: [10_000], chances: [true, false] }),
+      attacker,
+      target,
+      {
+        powerBps: 10_000,
+        rangedAttack: false,
+        magical: false,
+      },
+    );
     // def 8 × 0.7 = 5 → mitigation 2 → raw 10
     expect(result.damage).toBe(10);
   });
@@ -170,12 +182,71 @@ describe('physical damage', () => {
     const attacker = fighter({ strength: 10 });
     const target = fighter({ defense: 8, hp: 50 });
     applyStatus(target, { type: 'GUARD', magnitude: 5000, remainingTurns: 1 });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, target, {
+    const result = rollDamage(
+      rigRng({ ints: [10_000], chances: [true, false] }),
+      attacker,
+      target,
+      {
+        powerBps: 10_000,
+        rangedAttack: false,
+        magical: false,
+      },
+    );
+    expect(result.damage).toBe(4); // floor(8 × 0.5)
+  });
+});
+
+describe('critical hits', () => {
+  it('crit chance is base + luck·perPoint, clamped to the configured max', () => {
+    expect(critChanceBps(fighter({ luck: 0 }))).toBe(combatConfig.critBaseBps);
+    expect(critChanceBps(fighter({ luck: 5 }))).toBe(
+      combatConfig.critBaseBps + 5 * combatConfig.critLuckPointBps,
+    );
+    // A very lucky combatant is clamped, not unbounded.
+    expect(critChanceBps(fighter({ luck: 100_000 }))).toBe(combatConfig.critChanceMaxBps);
+  });
+
+  it('a crit multiplies post-variance damage before Guard and back-row', () => {
+    const attacker = fighter({ strength: 10 });
+    const target = fighter({ defense: 8, hp: 50 });
+    // raw 8 × variance 1.0 → 8, then crit ×1.7 → floor(13.6) = 13.
+    const result = rollDamage(rigRng({ ints: [10_000], chances: [true, true] }), attacker, target, {
       powerBps: 10_000,
       rangedAttack: false,
       magical: false,
     });
-    expect(result.damage).toBe(4); // floor(8 × 0.5)
+    expect(result.crit).toBe(true);
+    expect(result.damage).toBe(Math.floor((8 * combatConfig.critMultiplierBps) / 10_000));
+    expect(target.hp).toBe(50 - result.damage);
+  });
+
+  it('a crit is rolled at the luck-derived chance and can be suppressed', () => {
+    const attacker = fighter({ strength: 10, luck: 9 });
+    const target = fighter({ defense: 8, hp: 50 });
+    const rng = rigRng({ chances: [true, false], ints: [10_000] });
+    const result = rollDamage(rng, attacker, target, {
+      powerBps: 10_000,
+      rangedAttack: false,
+      magical: false,
+    });
+    expect(result.crit).toBe(false);
+    expect(result.damage).toBe(8); // un-multiplied
+    // The crit roll used the attacker's luck-derived chance.
+    expect(rng.chanceCalls.at(-1)).toBe(critChanceBps(attacker));
+  });
+
+  it('a missed or immune hit never crits (no crit note)', () => {
+    const attacker = fighter({ strength: 10, luck: 9 });
+    const target = fighter({ magicDefense: 8, hp: 50, affinities: { FLAME: 0 } });
+    // Immune: element multiplier 0 → returns before the crit roll.
+    const immune = rollDamage(rigRng({ chances: [true] }), attacker, target, {
+      powerBps: 15_000,
+      element: 'FLAME',
+      rangedAttack: false,
+      magical: true,
+    });
+    expect(immune.immune).toBe(true);
+    expect(immune.crit).toBe(false);
   });
 });
 
@@ -183,29 +254,40 @@ describe('rows', () => {
   it('reduces melee damage against the back row', () => {
     const attacker = fighter({ strength: 10 });
     const backRow = fighter({ defense: 8, row: 'BACK', hp: 50 });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, backRow, {
-      powerBps: 10_000,
-      rangedAttack: false,
-      magical: false,
-    });
+    const result = rollDamage(
+      rigRng({ ints: [10_000], chances: [true, false] }),
+      attacker,
+      backRow,
+      {
+        powerBps: 10_000,
+        rangedAttack: false,
+        magical: false,
+      },
+    );
     expect(result.damage).toBe(4); // floor(8 × 0.6)
   });
 
   it('ranged attacks ignore the back-row penalty', () => {
     const attacker = fighter({ strength: 10 });
     const backRow = fighter({ defense: 8, row: 'BACK', hp: 50 });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, backRow, {
-      powerBps: 10_000,
-      rangedAttack: true,
-      magical: false,
-    });
+    const result = rollDamage(
+      rigRng({ ints: [10_000], chances: [true, false] }),
+      attacker,
+      backRow,
+      {
+        powerBps: 10_000,
+        rangedAttack: true,
+        magical: false,
+      },
+    );
     expect(result.damage).toBe(8);
   });
 
   it('magic ignores rows entirely', () => {
     const attacker = fighter({ magic: 10 });
     const backRow = fighter({ magicDefense: 8, row: 'BACK', hp: 50 });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, backRow, {
+    // Magic never rolls accuracy, so [false] is only the crit roll.
+    const result = rollDamage(rigRng({ ints: [10_000], chances: [false] }), attacker, backRow, {
       powerBps: 10_000,
       rangedAttack: false,
       magical: true,
@@ -219,7 +301,8 @@ describe('elements', () => {
   const cast = (affinities: EngineCombatant['affinities']) => {
     const attacker = fighter({ magic: 10 });
     const target = fighter({ magicDefense: 8, hp: 100, affinities });
-    const result = rollDamage(rigRng({ ints: [10_000] }), attacker, target, {
+    // [false] is the crit roll; the immune case returns before it is drawn.
+    const result = rollDamage(rigRng({ ints: [10_000], chances: [false] }), attacker, target, {
       powerBps: 15_000,
       element: 'FLAME',
       rangedAttack: false,
@@ -291,8 +374,12 @@ describe('status timing', () => {
     resolvePlayerCommand(state, rigRng(), { action: 'DEFEND' });
     expect(getStatus(self, 'GUARD')).toBeDefined(); // active immediately
     // Enemy hits for half damage while the guard holds, then the player's
-    // next command phase begins and the guard is gone.
-    runUntilPlayerCommand(state, rigRng({ ints: [10_000, 10_000, 10_000] }));
+    // next command phase begins and the guard is gone. chances: [accuracy
+    // hit, no crit].
+    runUntilPlayerCommand(
+      state,
+      rigRng({ ints: [10_000, 10_000, 10_000], chances: [true, false] }),
+    );
     expect(self.hp).toBe(46); // raw 8 halved to 4
     expect(getStatus(self, 'GUARD')).toBeUndefined();
   });
@@ -343,11 +430,16 @@ describe('abilities', () => {
     const enemy = fighter({ defense: 8, hp: 50, agility: 1 });
     const state = makeState([self, enemy]);
     const ability = findAbility('wayfarer', 'twin-cut')!;
-    resolvePlayerCommand(state, rigRng({ ints: [10_000, 10_000] }), {
-      action: 'ABILITY',
-      ability,
-      targetId: enemy.id,
-    });
+    // Two physical hits, each: [accuracy hit, no crit].
+    resolvePlayerCommand(
+      state,
+      rigRng({ ints: [10_000, 10_000], chances: [true, false, true, false] }),
+      {
+        action: 'ABILITY',
+        ability,
+        targetId: enemy.id,
+      },
+    );
     // power 8000 → offense 10; mitigation 4; 6 per hit × 2 hits
     expect(enemy.hp).toBe(38);
     expect(self.mp).toBe(20 - ability.mpCost);
